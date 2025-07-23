@@ -89,6 +89,8 @@ model Employee {
   employmentStatus String  @default("Thử việc") // "Đang làm việc", "Thử việc", "Nghỉ việc"
   clinicId         String? // ID của chi nhánh làm việc
   department       String? // Phòng ban
+  division         String? // Bộ phận
+  title            String? // Chức danh
   position         String? // Chức vụ
 
   // ---- Metadata ----

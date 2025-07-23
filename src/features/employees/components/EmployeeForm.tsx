@@ -9,10 +9,18 @@ import {
   Divider,
   Button,
 } from "antd";
-import { ROLE_OPTIONS, EMPLOYMENT_STATUS_OPTIONS } from "../constants";
+import {
+  ROLE_OPTIONS,
+  EMPLOYMENT_STATUS_OPTIONS,
+  DEPARTMENTS,
+  DIVISIONS,
+  POSITIONS,
+  TITLES,
+} from "../constants";
 import { GENDER_OPTIONS, BRANCHES } from "@/constants";
 
 const { Title } = Typography;
+const { Option } = Select;
 
 export default function EmployeeForm({
   form,
@@ -195,12 +203,50 @@ export default function EmployeeForm({
         </Col>
         <Col span={12}>
           <Form.Item label="Phòng ban" name="department">
-            <Input />
+            <Select placeholder="Chọn phòng ban">
+              {DEPARTMENTS.map((d) => (
+                <Option key={d.name} value={d.name}>
+                  {d.name}
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+        </Col>
+        <Col span={12}>
+          <Form.Item label="Bộ phận" name="division">
+            <Select placeholder="Chọn bộ phận" allowClear>
+              {DIVISIONS.map((d) => (
+                <Option key={d.name} value={d.name}>
+                  {d.name}
+                </Option>
+              ))}
+            </Select>
           </Form.Item>
         </Col>
         <Col span={12}>
           <Form.Item label="Chức vụ" name="position">
-            <Input />
+            <Select placeholder="Chọn chức vụ">
+              {POSITIONS.map((pos) => (
+                <Option key={pos} value={pos}>
+                  {pos}
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+        </Col>
+        <Col span={12}>
+          <Form.Item
+            label="Chức danh"
+            name="title"
+            rules={[{ required: true, message: "Chọn chức danh!" }]}
+          >
+            <Select placeholder="Chọn chức danh">
+              {TITLES.map((title) => (
+                <Option key={title} value={title}>
+                  {title}
+                </Option>
+              ))}
+            </Select>
           </Form.Item>
         </Col>
         <Col span={12}>

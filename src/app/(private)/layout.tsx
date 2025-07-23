@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRouter, usePathname } from "next/navigation";
 import { Spin } from "antd";
 import { useEffect } from "react";
+import AppLayout from "@/features/layouts/AppLayout";
 
 export default function PrivateLayout({
   children,
@@ -36,5 +37,5 @@ export default function PrivateLayout({
     );
   }
 
-  return <>{children}</>;
+  return <AppLayout>{children}</AppLayout>;
 }
