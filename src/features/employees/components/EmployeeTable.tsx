@@ -3,7 +3,7 @@
 import { Button, Space, Table, Tag } from "antd";
 import type { Employee } from "../type"; // Best-practice: import type từ type.ts
 import { BRANCHES } from "@/constants";
-import { EMPLOYMENT_STATUS_OPTIONS } from "../constants";
+import { EMPLOYMENT_STATUS_OPTIONS, TITLES } from "../constants";
 import { formatDateTimeVN } from "@/utils/date";
 import EmployeeStatusSwitcher from "./EmployeeStatusSwitcher";
 
@@ -26,17 +26,29 @@ export default function EmployeeTable({
       title: "Chi nhánh",
       dataIndex: "clinicId",
       key: "clinicId",
+      filters: BRANCHES.map((b) => ({ text: b.label, value: b.value })),
+      onFilter: (value, record) => record.clinicId === value,
       render: (v: string) => {
         const branch = BRANCHES.find((b) => b.value === v);
         return branch ? <Tag color={branch.color}>{branch.value}</Tag> : null;
       },
     },
-    { title: "Số ĐT", dataIndex: "phone", key: "phone" },
-    { title: "Vai trò", dataIndex: "role", key: "role" },
+    {
+      title: "Chức danh",
+      dataIndex: "title",
+      key: "title",
+      filters: TITLES.map((t) => ({ text: t, value: t })),
+      onFilter: (value, record) => record.title === value,
+    },
     {
       title: "Trạng thái",
       dataIndex: "employmentStatus",
       key: "employmentStatus",
+      filters: EMPLOYMENT_STATUS_OPTIONS.map((s) => ({
+        text: s.label,
+        value: s.value,
+      })),
+      onFilter: (value, record) => record.employmentStatus === value,
       render: (v: string) => {
         const status = EMPLOYMENT_STATUS_OPTIONS.find(
           (item) => item.value === v
