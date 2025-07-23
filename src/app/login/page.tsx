@@ -1,47 +1,80 @@
-'use client';
-
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Form, Input, Button, Typography, message } from 'antd';
-import { useAuth } from '../../contexts/AuthContext';
+"use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Form, Input, Button, Typography, Card, message } from "antd";
+import { useAuth } from "../../contexts/AuthContext";
+import Link from "next/link";
+import { toast } from "react-toastify";
 
 export default function LoginPage() {
-  const { user, login } = useAuth();
+  const { user, login, loading } = useAuth();
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const [formLoading, setFormLoading] = useState(false);
 
-  // Nếu đã login thì chuyển sang trang chủ
+  if (loading) return null;
   if (user) {
-    router.replace('/');
+    router.replace("/");
     return null;
   }
 
   const onFinish = async (values: any) => {
-    setLoading(true);
+    setFormLoading(true);
     const { error } = await login(values.email, values.password);
-    setLoading(false);
+    setFormLoading(false);
     if (error) {
-      message.error(error);
+      // bạn nên dùng message.error từ antd ở đây (đã ok)
+      toast.error(error);
     } else {
-      message.success('Đăng nhập thành công!');
-      router.replace('/');
+      toast.success("Đăng nhập thành công!");
+      router.replace("/");
     }
   };
 
   return (
-    <div style={{ maxWidth: 400, margin: '80px auto' }}>
-      <Typography.Title level={2}>Đăng nhập</Typography.Title>
-      <Form layout="vertical" onFinish={onFinish}>
-        <Form.Item label="Email" name="email" rules={[{ required: true, message: 'Nhập email!' }]}>
-          <Input />
-        </Form.Item>
-        <Form.Item label="Mật khẩu" name="password" rules={[{ required: true, message: 'Nhập mật khẩu!' }]}>
-          <Input.Password />
-        </Form.Item>
-        <Button type="primary" htmlType="submit" block loading={loading}>
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#f5f6fa",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <Card style={{ maxWidth: 400, width: "100%" }}>
+        <Typography.Title level={3} style={{ textAlign: "center" }}>
           Đăng nhập
-        </Button>
-      </Form>
+        </Typography.Title>
+        <Form layout="vertical" onFinish={onFinish}>
+          <Form.Item
+            label="Email"
+            name="email"
+            rules={[{ required: true, message: "Nhập email!" }]}
+          >
+            <Input />
+          </Form.Item>
+          <Form.Item
+            label="Mật khẩu"
+            name="password"
+            rules={[{ required: true, message: "Nhập mật khẩu!" }]}
+          >
+            <Input.Password />
+          </Form.Item>
+          <Button
+            type="primary"
+            htmlType="submit"
+            block
+            loading={formLoading}
+            style={{ marginTop: 8 }}
+          >
+            Đăng nhập
+          </Button>
+        </Form>
+        <div style={{ marginTop: 24, textAlign: "center" }}>
+          <Link href="/register">Chưa có tài khoản? Đăng ký</Link>
+          <br />
+          <Link href="/forgot-password">Quên mật khẩu?</Link>
+        </div>
+      </Card>
     </div>
   );
 }
