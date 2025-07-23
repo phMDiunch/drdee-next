@@ -25,16 +25,7 @@ export default function RootLayout({
         <AuthProvider>
           <AntdRegistry>{children}</AntdRegistry>
         </AuthProvider>
-        <ToastContainer
-          position="top-right"
-          autoClose={3000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnHover
-        />{" "}
-        {/* Thêm ToastContainer */}
+        <ToastContainer position="top-right" autoClose={3000} closeOnClick />
       </body>
     </html>
   );

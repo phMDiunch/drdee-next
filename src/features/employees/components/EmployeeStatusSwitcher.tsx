@@ -1,7 +1,9 @@
+// src/features/employees/components/EmployeeStatusSwitcher.tsx
+
 import { EMPLOYMENT_STATUS_OPTIONS } from "../constants";
 import { Button, Space, Popconfirm } from "antd";
 import { useState } from "react";
-import { Employee } from "../types";
+import type { Employee } from "../type";
 
 type Props = {
   employee: Employee;
@@ -12,13 +14,13 @@ export default function EmployeeStatusSwitcher({
   employee,
   onStatusChange,
 }: Props) {
-  const [loading, setLoading] = useState(false);
+  const [loadingStatus, setLoadingStatus] = useState<string | null>(null);
 
   // Tìm trạng thái có thể chuyển sang
   let possible = EMPLOYMENT_STATUS_OPTIONS.filter(
     (opt) => opt.value !== employee.employmentStatus
   );
-  // Nếu muốn customize logic chỉ 2 nút theo trạng thái hiện tại:
+  // Customize chỉ 2 nút chuyển nhanh
   if (employee.employmentStatus === "Đang làm việc") {
     possible = EMPLOYMENT_STATUS_OPTIONS.filter((opt) =>
       ["Thử việc", "Nghỉ việc"].includes(opt.value)
@@ -30,9 +32,9 @@ export default function EmployeeStatusSwitcher({
   }
 
   const handleChange = async (newStatus: string) => {
-    setLoading(true);
+    setLoadingStatus(newStatus);
     await onStatusChange(employee.id, newStatus);
-    setLoading(false);
+    setLoadingStatus(null);
   };
 
   return (
@@ -46,8 +48,12 @@ export default function EmployeeStatusSwitcher({
           <Button
             size="small"
             type="dashed"
-            loading={loading}
-            style={{ color: opt.color, borderColor: opt.color }}
+            loading={loadingStatus === opt.value}
+            style={
+              opt.color
+                ? { color: opt.color, borderColor: opt.color }
+                : undefined
+            }
           >
             {opt.label}
           </Button>

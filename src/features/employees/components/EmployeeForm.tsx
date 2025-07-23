@@ -1,3 +1,4 @@
+// src/features/employees/components/EmployeeForm.tsx
 import {
   Form,
   Input,
@@ -18,16 +19,24 @@ import {
   TITLES,
 } from "../constants";
 import { GENDER_OPTIONS, BRANCHES } from "@/constants";
+import type { Employee } from "../type";
 
 const { Title } = Typography;
 const { Option } = Select;
+
+type EmployeeFormProps = {
+  form: any;
+  initialValues?: Partial<Employee>;
+  onFinish: (values: Partial<Employee>) => void;
+  loading?: boolean;
+};
 
 export default function EmployeeForm({
   form,
   initialValues = {},
   onFinish,
   loading = false,
-}: any) {
+}: EmployeeFormProps) {
   return (
     <Form
       form={form}

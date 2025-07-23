@@ -1,26 +1,31 @@
+// src/features/employees/components/EmployeeTable.tsx
+
 import { Button, Space, Table, Tag } from "antd";
-import { Employee } from "../types";
+import type { Employee } from "../type"; // Best-practice: import type từ type.ts
 import { BRANCHES } from "@/constants";
 import { EMPLOYMENT_STATUS_OPTIONS } from "../constants";
 import { formatDateTimeVN } from "@/utils/date";
 import EmployeeStatusSwitcher from "./EmployeeStatusSwitcher";
+
+type Props = {
+  data: Employee[];
+  loading: boolean;
+  onEdit: (employee: Employee) => void;
+  onChangeStatus: (id: string, newStatus: string) => Promise<void>;
+};
 
 export default function EmployeeTable({
   data,
   loading,
   onEdit,
   onChangeStatus,
-}: {
-  data: Employee[];
-  loading: boolean;
-  onEdit: (employee: Employee) => void;
-  onChangeStatus: (id: string, newStatus: string) => Promise<void>;
-}) {
+}: Props) {
   const columns = [
     { title: "Tên nhân viên", dataIndex: "fullName", key: "fullName" },
     {
       title: "Chi nhánh",
       dataIndex: "clinicId",
+      key: "clinicId",
       render: (v: string) => {
         const branch = BRANCHES.find((b) => b.value === v);
         return branch ? <Tag color={branch.color}>{branch.value}</Tag> : null;
@@ -61,6 +66,7 @@ export default function EmployeeTable({
       ),
     },
   ];
+
   return (
     <Table
       columns={columns}
@@ -68,6 +74,8 @@ export default function EmployeeTable({
       rowKey="id"
       loading={loading}
       bordered
+      size="middle"
+      pagination={{ pageSize: 10, showSizeChanger: true }}
     />
   );
 }
