@@ -39,7 +39,7 @@ export default function CustomerListPage() {
       setCustomers(json.customers);
       setTotal(json.total);
     } catch (err) {
-      message.error("Không thể tải danh sách khách hàng");
+      toast.error("Không thể tải danh sách khách hàng");
     }
     setLoading(false);
   };

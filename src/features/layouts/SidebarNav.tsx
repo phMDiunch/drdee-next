@@ -8,6 +8,7 @@ import {
   UserOutlined,
   MedicineBoxOutlined,
   SettingOutlined,
+  CalendarOutlined,
 } from "@ant-design/icons";
 
 const menuItems = [
@@ -23,8 +24,13 @@ const menuItems = [
   },
   {
     key: "customers",
-    icon: <UserOutlined />,
+    icon: <CalendarOutlined />,
     label: <Link href="/customers">Khách hàng</Link>,
+  },
+  {
+    key: "appointments",
+    icon: <UserOutlined />,
+    label: <Link href="/appointments">Lịch hẹn</Link>,
   },
   {
     key: "settings",

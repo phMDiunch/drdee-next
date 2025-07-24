@@ -5,6 +5,7 @@ import "./globals.css"; // Global styles của bạn
 import AntdRegistry from "@/lib/AntdRegistry"; // Import AntdRegistry
 import { ToastContainer } from "react-toastify"; // Import ToastContainer
 import "react-toastify/dist/ReactToastify.css"; // Import CSS của Toastify
+
 import { AuthProvider } from "@/contexts/AuthContext";
 
 const inter = Inter({ subsets: ["latin"] });
