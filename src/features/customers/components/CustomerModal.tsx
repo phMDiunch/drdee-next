@@ -1,21 +1,20 @@
-// src/features/employees/components/EmployeeModal.tsx
-"use client";
+// src/features/customers/components/CustomerModal.tsx
 import { Modal, Typography } from "antd";
-import type { Employee } from "../type";
-import EmployeeForm from "./EmployeeForm";
+import type { Customer } from "../type";
+import CustomerForm from "./CustomerForm";
 
 const { Title } = Typography;
 
 type Props = {
   open: boolean;
   mode: "add" | "edit";
-  data?: Partial<Employee>;
+  data?: Partial<Customer>;
   onCancel: () => void;
-  onFinish: (values: any) => void;
+  onFinish: (values: Partial<Customer>) => void;
   loading?: boolean;
 };
 
-export default function EmployeeModal({
+export default function CustomerModal({
   open,
   mode,
   data,
@@ -27,7 +26,7 @@ export default function EmployeeModal({
     <Modal
       title={
         <Title level={4} style={{ margin: 0 }}>
-          {mode === "edit" ? "Sửa thông tin nhân viên" : "Thêm nhân viên mới"}
+          {mode === "edit" ? "Sửa thông tin khách hàng" : "Thêm khách hàng mới"}
         </Title>
       }
       open={open}
@@ -36,8 +35,8 @@ export default function EmployeeModal({
       width={900}
       destroyOnHidden
     >
-      <EmployeeForm
-        form={undefined} // hoặc truyền form instance nếu muốn
+      <CustomerForm
+        form={undefined}
         initialValues={data || {}}
         onFinish={onFinish}
         loading={loading}

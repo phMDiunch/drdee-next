@@ -1,34 +1,46 @@
 // src/features/dental-service/components/DentalServiceModal.tsx
-import { Modal } from "antd";
+"use client";
+import { Modal, Typography } from "antd";
 import DentalServiceForm from "./DentalServiceForm";
 import type { DentalService } from "../type";
 
+const { Title } = Typography;
+
 type Props = {
   open: boolean;
-  record?: Partial<DentalService> | null;
+  mode: "add" | "edit";
+  data?: Partial<DentalService> | null;
   onCancel: () => void;
   onFinish: (values: Partial<DentalService>) => void;
   loading?: boolean;
+  form: any;
 };
 
 export default function DentalServiceModal({
   open,
-  record,
+  mode,
+  data,
   onCancel,
   onFinish,
   loading,
+  form,
 }: Props) {
   return (
     <Modal
-      title={record ? "Sửa dịch vụ" : "Thêm dịch vụ"}
+      title={
+        <Title level={4} style={{ margin: 0 }}>
+          {mode === "edit" ? "Sửa dịch vụ" : "Thêm dịch vụ mới"}
+        </Title>
+      }
       open={open}
       onCancel={onCancel}
       footer={null}
       destroyOnHidden
-      width={700}
+      width={800}
     >
       <DentalServiceForm
-        initialValues={record || {}}
+        form={form}
+        initialValues={data || {}}
         onFinish={onFinish}
         loading={loading}
       />

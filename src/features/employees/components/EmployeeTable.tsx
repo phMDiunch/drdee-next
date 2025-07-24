@@ -1,5 +1,5 @@
 // src/features/employees/components/EmployeeTable.tsx
-
+"use client";
 import { Button, Space, Table, Tag } from "antd";
 import type { Employee } from "../type"; // Best-practice: import type từ type.ts
 import { BRANCHES } from "@/constants";
@@ -87,7 +87,7 @@ export default function EmployeeTable({
       loading={loading}
       bordered
       size="middle"
-      pagination={{ pageSize: 10, showSizeChanger: true }}
+      pagination={false}
     />
   );
 }

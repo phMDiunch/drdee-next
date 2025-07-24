@@ -6,8 +6,8 @@
  * Route: /dental-services
  */
 
-import DentalServiceList from "@/features/dental-service/components/DentalServiceList";
+import DentalServiceListPage from "@/features/dental-service/pages/DentalServiceListPage";
 
 export default function DentalServicesPage() {
-  return <DentalServiceList />;
+  return <DentalServiceListPage />;
 }

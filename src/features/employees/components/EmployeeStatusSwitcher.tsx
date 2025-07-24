@@ -1,5 +1,5 @@
 // src/features/employees/components/EmployeeStatusSwitcher.tsx
-
+"use client";
 import { EMPLOYMENT_STATUS_OPTIONS } from "../constants";
 import { Button, Space, Popconfirm } from "antd";
 import { useState } from "react";

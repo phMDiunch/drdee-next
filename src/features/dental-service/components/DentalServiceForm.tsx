@@ -1,5 +1,4 @@
 // src/features/dental-service/components/DentalServiceForm.tsx
-
 "use client";
 import {
   Form,
@@ -10,60 +9,32 @@ import {
   Col,
   Select,
   Button,
-  Spin,
+  Typography,
+  Divider,
 } from "antd";
-import type { DentalService } from "../type"; // Import type chuẩn
-import { useEmployeeProfile } from "@/features/auth/hooks/useAuth";
-
-// Đưa các constant lên file constants.ts nếu dùng nhiều nơi
-const UNITS = ["Răng", "Hàm", "Lần", "Ca", "Ống", "Chiếc"];
-const SERVICE_GROUPS = [
-  "Nha chu",
-  "Phục hình",
-  "Tổng quát",
-  "Chỉnh nha",
-  "Implant",
-  "Khác",
-];
-const DEPARTMENTS = ["Tổng quát", "Phục hình", "Chỉnh nha", "Implant", "Khác"];
+import type { DentalService } from "../type";
+import {
+  SERVICE_UNIT_OPTIONS,
+  SERVICE_GROUP_OPTIONS,
+  DEPARTMENT_OPTIONS,
+} from "../constants";
 
 const { TextArea } = Input;
+const { Title } = Typography;
 
-type Props = {
+type DentalServiceFormProps = {
+  form: any;
   initialValues?: Partial<DentalService>;
   onFinish: (values: Partial<DentalService>) => void;
   loading?: boolean;
 };
 
 export default function DentalServiceForm({
+  form,
   initialValues = {},
   onFinish,
   loading = false,
-}: Props) {
-  const [form] = Form.useForm();
-  const { employee, loading: loadingProfile } = useEmployeeProfile();
-
-  if (loadingProfile) return <Spin />;
-
-  // Nếu không có employee, không cho submit (phòng trường hợp user chưa có record)
-  if (!employee)
-    return (
-      <div style={{ color: "red" }}>
-        Bạn chưa được cấu hình profile nhân viên!
-      </div>
-    );
-
-  // Khi submit, tự thêm createdById/updatedById từ employee.id
-  const handleFinish = (values: any) => {
-    onFinish({
-      ...values,
-      price: Number(values.price),
-      isActive: values.isActive ?? true,
-      createdById: employee.id,
-      updatedById: employee.id,
-    });
-  };
-
+}: DentalServiceFormProps) {
   return (
     <Form
       form={form}
@@ -72,9 +43,12 @@ export default function DentalServiceForm({
         ...initialValues,
         isActive: initialValues?.isActive ?? true,
       }}
-      onFinish={handleFinish}
+      onFinish={onFinish}
       autoComplete="off"
     >
+      <Title level={5} style={{ marginTop: 0 }}>
+        Thông tin dịch vụ
+      </Title>
       <Row gutter={16}>
         <Col span={12}>
           <Form.Item
@@ -87,20 +61,12 @@ export default function DentalServiceForm({
         </Col>
         <Col span={12}>
           <Form.Item label="Nhóm dịch vụ" name="serviceGroup">
-            <Select
-              allowClear
-              options={SERVICE_GROUPS.map((x) => ({ value: x, label: x }))}
-            />
+            <Select allowClear options={SERVICE_GROUP_OPTIONS} />
           </Form.Item>
         </Col>
-      </Row>
-      <Row gutter={16}>
         <Col span={12}>
           <Form.Item label="Bộ môn" name="department">
-            <Select
-              allowClear
-              options={DEPARTMENTS.map((x) => ({ value: x, label: x }))}
-            />
+            <Select allowClear options={DEPARTMENT_OPTIONS} />
           </Form.Item>
         </Col>
         <Col span={12}>
@@ -109,11 +75,9 @@ export default function DentalServiceForm({
             name="unit"
             rules={[{ required: true, message: "Chọn đơn vị!" }]}
           >
-            <Select options={UNITS.map((x) => ({ value: x, label: x }))} />
+            <Select options={SERVICE_UNIT_OPTIONS} />
           </Form.Item>
         </Col>
-      </Row>
-      <Row gutter={16}>
         <Col span={12}>
           <Form.Item
             label="Đơn giá"
@@ -128,8 +92,6 @@ export default function DentalServiceForm({
             <Input />
           </Form.Item>
         </Col>
-      </Row>
-      <Row gutter={16}>
         <Col span={12}>
           <Form.Item label="Bảo hành phòng khám" name="clinicWarranty">
             <Input />
@@ -140,8 +102,6 @@ export default function DentalServiceForm({
             <Input />
           </Form.Item>
         </Col>
-      </Row>
-      <Row gutter={16}>
         <Col span={12}>
           <Form.Item label="Số phút điều trị TB" name="avgTreatmentMinutes">
             <InputNumber min={0} style={{ width: "100%" }} />
@@ -153,6 +113,7 @@ export default function DentalServiceForm({
           </Form.Item>
         </Col>
       </Row>
+      <Divider />
       <Form.Item label="Mô tả chi tiết" name="description">
         <TextArea rows={3} />
       </Form.Item>
@@ -161,19 +122,17 @@ export default function DentalServiceForm({
         name="isActive"
         valuePropName="checked"
       >
-        <Switch checkedChildren="Active" unCheckedChildren="Disable" />
+        <Switch checkedChildren="Hiện" unCheckedChildren="Ẩn" />
       </Form.Item>
-      <Form.Item>
-        <Button
-          type="primary"
-          htmlType="submit"
-          loading={loading}
-          style={{ marginTop: 12 }}
-          block
-        >
-          Lưu
-        </Button>
-      </Form.Item>
+      <Button
+        type="primary"
+        htmlType="submit"
+        loading={loading}
+        style={{ marginTop: 12 }}
+        block
+      >
+        Lưu
+      </Button>
     </Form>
   );
 }

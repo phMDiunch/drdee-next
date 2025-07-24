@@ -4,13 +4,15 @@ import { useEffect, useState } from "react";
 import { Button, message } from "antd";
 import EmployeeTable from "@/features/employees/components/EmployeeTable";
 import EmployeeModal from "@/features/employees/components/EmployeeModal";
-import { Employee } from "@/features/employees/types";
+import { Employee } from "@/features/employees/type";
 import dayjs from "dayjs";
 import { toast } from "react-toastify";
 import { toISOStringUTC, parseDateFromISOString } from "@/utils/date";
+import EmployeeTableFilter from "../components/EmployeeTableFilter";
 
 export default function EmployeeList() {
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState<{
     open: boolean;
@@ -26,7 +28,7 @@ export default function EmployeeList() {
       const data = await res.json();
       setEmployees(data);
     } catch (err) {
-      message.error("Không thể tải danh sách nhân viên");
+      toast.error("Không thể tải danh sách nhân viên");
     }
     setLoading(false);
   };
@@ -112,6 +114,33 @@ export default function EmployeeList() {
     }
   };
 
+  useEffect(() => {
+    setFilteredEmployees(employees);
+  }, [employees]);
+
+  const handleFilter = (filters) => {
+    let list = [...employees];
+    if (filters.search) {
+      const s = filters.search.toLowerCase();
+      list = list.filter(
+        (emp) =>
+          emp.fullName?.toLowerCase().includes(s) ||
+          emp.email?.toLowerCase().includes(s) ||
+          emp.phone?.includes(s) ||
+          emp.employeeCode?.toLowerCase().includes(s)
+      );
+    }
+    if (filters.clinicId)
+      list = list.filter((emp) => emp.clinicId === filters.clinicId);
+    if (filters.title) list = list.filter((emp) => emp.title === filters.title);
+    if (filters.employmentStatus)
+      list = list.filter(
+        (emp) => emp.employmentStatus === filters.employmentStatus
+      );
+
+    setFilteredEmployees(list);
+  };
+
   return (
     <div style={{ padding: 24 }}>
       <div style={{ display: "flex", alignItems: "center", marginBottom: 16 }}>
@@ -129,8 +158,9 @@ export default function EmployeeList() {
           Thêm nhân viên
         </Button>
       </div>
+      <EmployeeTableFilter onFilter={handleFilter} />
       <EmployeeTable
-        data={employees}
+        data={filteredEmployees}
         loading={loading}
         onEdit={handleEdit}
         onChangeStatus={handleChangeStatus}

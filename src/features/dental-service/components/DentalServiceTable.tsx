@@ -56,7 +56,7 @@ export default function DentalServiceTable({
       loading={loading}
       bordered
       size="middle"
-      pagination={{ pageSize: 10, showSizeChanger: true }}
+      pagination={false}
     />
   );
 }

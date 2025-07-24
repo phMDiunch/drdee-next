@@ -1,4 +1,5 @@
 // src/features/employees/components/EmployeeForm.tsx
+"use client";
 import {
   Form,
   Input,
@@ -124,7 +125,7 @@ export default function EmployeeForm({
             name="phone"
             rules={[
               { required: true, message: "Số điện thoại là bắt buộc" },
-              { pattern: /^0\d{9,10}$/, message: "Số điện thoại không hợp lệ" },
+              { pattern: /^0\d{9}$/, message: "Số điện thoại không hợp lệ" },
             ]}
           >
             <Input />
