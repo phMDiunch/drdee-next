@@ -1,12 +1,12 @@
-// src/features/dental-service/components/DentalServiceList.tsx
+// src/features/dental-service/pages/DentalServiceListPage.tsx
 "use client";
 import { useEffect, useState } from "react";
-import { Button, Spin, Modal as AntdModal, Form } from "antd";
+import { Button, Modal as AntdModal, Form } from "antd";
 import type { DentalService } from "../type";
 import DentalServiceTable from "../components/DentalServiceTable";
 import DentalServiceModal from "../components/DentalServiceModal";
-import { useEmployeeProfile } from "@/features/auth/hooks/useAuth";
 import { toast } from "react-toastify";
+import { useAppStore } from "@/stores/useAppStore"; // <--- Dùng store chung
 
 type ModalState = {
   open: boolean;
@@ -14,9 +14,12 @@ type ModalState = {
   data?: Partial<DentalService> | null;
 };
 
-export default function DentalServiceList() {
-  const [services, setServices] = useState<DentalService[]>([]);
-  const [filteredServices, setFilteredServices] = useState<DentalService[]>([]);
+export default function DentalServiceListPage() {
+  // Lấy state và action từ Zustand
+  const services = useAppStore((state) => state.dentalServices);
+  const fetchDentalServices = useAppStore((state) => state.fetchDentalServices);
+  const employeeProfile = useAppStore((state) => state.employeeProfile);
+
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState<ModalState>({
     open: false,
@@ -24,35 +27,21 @@ export default function DentalServiceList() {
     data: null,
   });
   const [saving, setSaving] = useState(false);
-
   const [form] = Form.useForm();
-  const { employee } = useEmployeeProfile();
 
-  // Lấy danh sách dịch vụ khi load page
-  const fetchServices = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/dental-services");
-      const data = await res.json();
-      setServices(data);
-    } catch (err) {
-      toast.error("Không thể tải danh sách dịch vụ!");
-    }
-    setLoading(false);
-  };
-
+  // Tải danh sách dịch vụ vào store khi component được mount
   useEffect(() => {
-    fetchServices();
-  }, []);
+    const loadServices = async () => {
+      setLoading(true);
+      await fetchDentalServices();
+      setLoading(false);
+    };
+    loadServices();
+  }, [fetchDentalServices]);
 
-  useEffect(() => {
-    setFilteredServices(services);
-  }, [services]);
-
-  // Thêm mới hoặc sửa dịch vụ
   const handleSave = async (values: Partial<DentalService>) => {
-    if (!employee) {
-      toast.error("Bạn chưa được cấu hình profile nhân viên!");
+    if (!employeeProfile) {
+      toast.error("Không tìm thấy thông tin nhân viên!");
       return;
     }
     setSaving(true);
@@ -61,37 +50,33 @@ export default function DentalServiceList() {
         ...values,
         price: Number(values.price),
         isActive: values.isActive ?? true,
-        createdById: employee.id,
-        updatedById: employee.id,
+        createdById: employeeProfile.id, // Sẽ được ghi đè ở backend nếu là edit
+        updatedById: employeeProfile.id,
       };
-      if (modal.mode === "add") {
-        const res = await fetch("/api/dental-services", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(processedValues),
-        });
-        if (res.ok) {
-          toast.success("Thêm dịch vụ thành công!");
-          setModal({ ...modal, open: false });
-          fetchServices();
-        } else {
-          const { error } = await res.json();
-          toast.error(error || "Lỗi không xác định");
-        }
-      } else if (modal.mode === "edit" && modal.data) {
-        const res = await fetch(`/api/dental-services/${modal.data.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(processedValues),
-        });
-        if (res.ok) {
-          toast.success("Cập nhật thành công!");
-          setModal({ ...modal, open: false });
-          fetchServices();
-        } else {
-          const { error } = await res.json();
-          toast.error(error || "Lỗi cập nhật");
-        }
+
+      const url =
+        modal.mode === "edit"
+          ? `/api/dental-services/${modal.data?.id}`
+          : "/api/dental-services";
+      const method = modal.mode === "edit" ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(processedValues),
+      });
+
+      if (res.ok) {
+        toast.success(
+          modal.mode === "edit"
+            ? "Cập nhật thành công!"
+            : "Thêm dịch vụ thành công!"
+        );
+        setModal({ ...modal, open: false });
+        await fetchDentalServices(true); // <--- Tải lại dữ liệu vào store
+      } else {
+        const { error } = await res.json();
+        toast.error(error || "Lỗi không xác định");
       }
     } catch (err) {
       toast.error("Có lỗi xảy ra");
@@ -99,17 +84,11 @@ export default function DentalServiceList() {
     setSaving(false);
   };
 
-  // Mở modal sửa
   const handleEdit = (service: DentalService) => {
-    setModal({
-      open: true,
-      mode: "edit",
-      data: service,
-    });
+    setModal({ open: true, mode: "edit", data: service });
     form.setFieldsValue(service);
   };
 
-  // Xử lý xóa dịch vụ
   const handleDelete = async (service: DentalService) => {
     AntdModal.confirm({
       title: "Xoá dịch vụ?",
@@ -121,7 +100,7 @@ export default function DentalServiceList() {
           });
           if (res.ok) {
             toast.success("Đã xoá dịch vụ!");
-            fetchServices();
+            await fetchDentalServices(true); // <--- Tải lại dữ liệu
           } else {
             const { error } = await res.json();
             toast.error(error || "Lỗi xoá dịch vụ!");
@@ -132,8 +111,6 @@ export default function DentalServiceList() {
       },
     });
   };
-
-  // (Có thể bổ sung handleFilter nếu có TableFilter)
 
   return (
     <div style={{ padding: 24 }}>
@@ -150,7 +127,7 @@ export default function DentalServiceList() {
         </Button>
       </div>
       <DentalServiceTable
-        data={filteredServices}
+        data={services} // <--- Dữ liệu lấy từ store
         loading={loading}
         onEdit={handleEdit}
         onDelete={handleDelete}

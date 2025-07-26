@@ -9,6 +9,7 @@ import React, {
   ReactNode,
 } from "react";
 import { supabase } from "../services/supabaseClient";
+import { useAppStore } from "@/stores/useAppStore"; // <--- Import store
 
 type AuthUser = {
   id: string;
@@ -17,7 +18,7 @@ type AuthUser = {
 
 type AuthContextType = {
   user: AuthUser | null;
-  loading: boolean;
+  loading: boolean; // Chỉ loading trạng thái của Supabase
   login: (email: string, password: string) => Promise<{ error?: string }>;
   logout: () => Promise<void>;
 };
@@ -28,21 +29,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Kiểm tra user đăng nhập
+  // Lấy actions từ Zustand store
+  const fetchEmployeeProfile = useAppStore(
+    (state) => state.fetchEmployeeProfile
+  );
+  const clearEmployeeProfile = useAppStore(
+    (state) => state.clearEmployeeProfile
+  );
+
   useEffect(() => {
-    const session = supabase.auth.getSession().then(({ data: { session } }) => {
+    const getSession = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (session?.user) {
         setUser({ id: session.user.id, email: session.user.email! });
+        await fetchEmployeeProfile(session.user.id); // <--- Lấy profile
+      } else {
+        clearEmployeeProfile(); // <--- Xóa profile nếu không có session
       }
       setLoading(false);
-    });
+    };
+
+    getSession();
 
     const { data: listener } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         if (session?.user) {
           setUser({ id: session.user.id, email: session.user.email! });
+          await fetchEmployeeProfile(session.user.id); // <--- Lấy profile
         } else {
           setUser(null);
+          clearEmployeeProfile(); // <--- Xóa profile khi logout
         }
         setLoading(false);
       }
@@ -51,9 +69,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       listener.subscription.unsubscribe();
     };
-  }, []);
+  }, [fetchEmployeeProfile, clearEmployeeProfile]);
 
-  // Hàm login
   const login = async (email: string, password: string) => {
     const { error, data } = await supabase.auth.signInWithPassword({
       email,
@@ -62,16 +79,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (error) {
       return { error: error.message };
     }
-    if (data.user) {
-      setUser({ id: data.user.id, email: data.user.email! });
-    }
+    // Việc fetch profile đã được xử lý bởi onAuthStateChange
     return {};
   };
 
-  // Hàm logout
   const logout = async () => {
     await supabase.auth.signOut();
-    setUser(null);
+    // onAuthStateChange sẽ tự động được gọi và xóa profile
   };
 
   return (
@@ -81,7 +95,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-// Custom hook
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {

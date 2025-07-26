@@ -1,18 +1,25 @@
-// src/features/employees/pages/EmployeeList.tsx
+// src/features/employees/pages/EmployeeListPage.tsx
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Button, message } from "antd";
 import EmployeeTable from "@/features/employees/components/EmployeeTable";
 import EmployeeModal from "@/features/employees/components/EmployeeModal";
-import { Employee } from "@/features/employees/type";
+import EmployeeTableFilter from "../components/EmployeeTableFilter";
+import type { Employee } from "@/features/employees/type";
 import dayjs from "dayjs";
 import { toast } from "react-toastify";
 import { toISOStringUTC, parseDateFromISOString } from "@/utils/date";
-import EmployeeTableFilter from "../components/EmployeeTableFilter";
+
+// Filter state type
+type Filters = {
+  search?: string;
+  clinicId?: string;
+  title?: string;
+  employmentStatus?: string;
+};
 
 export default function EmployeeList() {
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState<{
     open: boolean;
@@ -20,22 +27,49 @@ export default function EmployeeList() {
     data?: Employee;
   }>({ open: false, mode: "add" });
 
-  // Lấy list employee khi load page
-  const fetchEmployees = async () => {
+  // State cho filter và phân trang
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(100);
+  const [total, setTotal] = useState(0);
+  const [filters, setFilters] = useState<Filters>({});
+
+  // Lấy danh sách nhân viên từ API
+  const fetchEmployees = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/employees");
+      const params = new URLSearchParams({
+        page: String(page),
+        pageSize: String(pageSize),
+        search: filters.search || "",
+        clinicId: filters.clinicId || "",
+        title: filters.title || "",
+        // Nếu không có filter status, API sẽ tự dùng default
+        employmentStatus: filters.employmentStatus || "",
+      });
+
+      const res = await fetch(`/api/employees?${params.toString()}`);
       const data = await res.json();
-      setEmployees(data);
+      setEmployees(data.employees || []);
+      setTotal(data.total || 0);
     } catch (err) {
       toast.error("Không thể tải danh sách nhân viên");
     }
     setLoading(false);
-  };
+  }, [page, pageSize, filters]);
 
   useEffect(() => {
     fetchEmployees();
-  }, []);
+  }, [fetchEmployees]);
+
+  const handleFilter = (newFilters: Filters) => {
+    setPage(1); // Reset về trang 1 mỗi khi filter
+    setFilters(newFilters);
+  };
+
+  const handlePageChange = (p: number, ps: number) => {
+    setPage(p);
+    setPageSize(ps);
+  };
 
   // Thêm mới hoặc sửa nhân viên
   const handleFinish = async (values: any) => {
@@ -74,7 +108,6 @@ export default function EmployeeList() {
         }
       }
     } catch (err) {
-      message.error("Có lỗi xảy ra");
       toast.error("Có lỗi xảy ra");
     }
   };
@@ -114,33 +147,6 @@ export default function EmployeeList() {
     }
   };
 
-  useEffect(() => {
-    setFilteredEmployees(employees);
-  }, [employees]);
-
-  const handleFilter = (filters) => {
-    let list = [...employees];
-    if (filters.search) {
-      const s = filters.search.toLowerCase();
-      list = list.filter(
-        (emp) =>
-          emp.fullName?.toLowerCase().includes(s) ||
-          emp.email?.toLowerCase().includes(s) ||
-          emp.phone?.includes(s) ||
-          emp.employeeCode?.toLowerCase().includes(s)
-      );
-    }
-    if (filters.clinicId)
-      list = list.filter((emp) => emp.clinicId === filters.clinicId);
-    if (filters.title) list = list.filter((emp) => emp.title === filters.title);
-    if (filters.employmentStatus)
-      list = list.filter(
-        (emp) => emp.employmentStatus === filters.employmentStatus
-      );
-
-    setFilteredEmployees(list);
-  };
-
   return (
     <div style={{ padding: 24 }}>
       <div style={{ display: "flex", alignItems: "center", marginBottom: 16 }}>
@@ -151,7 +157,7 @@ export default function EmployeeList() {
             setModal({
               open: true,
               mode: "add",
-              data: { role: "employee", employmentStatus: "Thử việc" },
+              data: { role: "employee", employmentStatus: "Thử việc" } as any,
             })
           }
         >
@@ -160,10 +166,14 @@ export default function EmployeeList() {
       </div>
       <EmployeeTableFilter onFilter={handleFilter} />
       <EmployeeTable
-        data={filteredEmployees}
+        data={employees}
         loading={loading}
         onEdit={handleEdit}
         onChangeStatus={handleChangeStatus}
+        total={total}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={handlePageChange}
       />
       <EmployeeModal
         open={modal.open}

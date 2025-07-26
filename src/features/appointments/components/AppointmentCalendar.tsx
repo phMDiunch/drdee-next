@@ -9,7 +9,11 @@ import { formatDateTimeVN } from "@/utils/date";
 
 // Nên để events dạng {id, title, start, end, ...}
 type Props = {
-  events: any[];
+  fetchEvents: (
+    fetchInfo: { startStr: string; endStr: string },
+    successCallback: (events: any[]) => void,
+    failureCallback: (error: any) => void
+  ) => void;
   onCreate?: (slot: { start: string; end: string }) => void;
   onEdit?: (event: any) => void;
   onDelete?: (eventId: string) => void;
@@ -17,7 +21,7 @@ type Props = {
 };
 
 export default function AppointmentCalendar({
-  events,
+  fetchEvents,
   onCreate,
   onEdit,
   onDelete,
@@ -37,7 +41,7 @@ export default function AppointmentCalendar({
           right: "dayGridMonth,timeGridWeek,timeGridDay",
         }}
         locale="vi"
-        events={events}
+        events={fetchEvents}
         selectable
         editable
         eventResizableFromStart

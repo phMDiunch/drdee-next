@@ -8,104 +8,98 @@ import AppointmentCalendar from "@/features/appointments/components/AppointmentC
 import { Appointment } from "@/features/appointments/type";
 import dayjs from "dayjs";
 import { toast } from "react-toastify";
-import { useEmployeeProfile } from "@/features/auth/hooks/useAuth";
+import { useAppStore } from "@/stores/useAppStore";
 import { APPOINTMENT_STATUS_OPTIONS } from "@/features/appointments/constants";
 
-// ==== CHÚ Ý: đã loại bỏ các import không dùng, như message (antd) ====
+// Định nghĩa kiểu cho Lịch hẹn đã bao gồm dữ liệu gộp
+type AppointmentWithIncludes = Appointment & {
+  customer: { fullName: string };
+  primaryDentist: { fullName: string };
+  secondaryDentist?: { fullName: string } | null;
+};
 
-// ---- Component chính ----
 export default function AppointmentListPage() {
-  // State chính
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState<{
     open: boolean;
     mode: "add" | "edit";
-    data?: Appointment;
+    data?: Partial<Appointment>;
   }>({ open: false, mode: "add" });
 
-  // Dữ liệu phụ trợ
-  const [customers, setCustomers] = useState<any[]>([]);
-  const [employees, setEmployees] = useState<any[]>([]);
-
-  // Table paging/search
+  // State cho filter/phân trang (sẽ dùng trong tương lai)
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
-  const [total, setTotal] = useState(0);
+  const [pageSize, setPageSize] = useState(1000); // Tạm thời lấy nhiều
   const [search, setSearch] = useState("");
+  const [view, setView] = useState<"calendar" | "table">("calendar");
 
-  // Chế độ xem: Lịch / Danh sách
-  const [view, setView] = useState<"table" | "calendar">("calendar");
-
-  const { employee } = useEmployeeProfile();
-
-  // ==== Tối ưu: gom các hàm fetch vào useCallback để tránh re-create khi re-render ====
-  const fetchAppointments = useCallback(
-    async (pg = page, ps = pageSize, s = search) => {
-      setLoading(true);
-      try {
-        const params = new URLSearchParams({
-          page: pg + "",
-          pageSize: ps + "",
-        });
-        if (s) params.set("search", s.trim());
-        const res = await fetch(`/api/appointments?${params.toString()}`);
-        const json = await res.json();
-        setAppointments(json.appointments || json);
-        setTotal(json.total);
-      } catch {
-        toast.error("Không thể tải danh sách lịch hẹn");
-      }
-      setLoading(false);
-    },
-    [page, pageSize, search]
+  // Lấy state và action từ Zustand store cho các dropdown
+  const { employeeProfile } = useAppStore();
+  const activeEmployees = useAppStore((state) => state.activeEmployees);
+  const fetchActiveEmployees = useAppStore(
+    (state) => state.fetchActiveEmployees
   );
 
-  const fetchCustomers = useCallback(async () => {
-    try {
-      const res = await fetch("/api/customers?page=1&pageSize=1000");
-      const json = await res.json();
-      setCustomers(json.customers || []);
-    } catch {}
-  }, []);
+  const handleFetchEvents = useCallback(
+    (
+      fetchInfo: { startStr: string; endStr: string },
+      successCallback: (events: any[]) => void,
+      failureCallback: (error: any) => void
+    ) => {
+      setLoading(true);
+      const params = new URLSearchParams({
+        from: fetchInfo.startStr,
+        to: fetchInfo.endStr,
+        // clinicId, doctorId có thể thêm ở đây
+      });
 
-  const fetchEmployees = useCallback(async () => {
-    try {
-      const res = await fetch("/api/employees");
-      const json = await res.json();
-      setEmployees(json.employees || json);
-    } catch {}
-  }, []);
+      fetch(`/api/appointments?${params.toString()}`)
+        .then((res) => res.json())
+        .then((data) => {
+          // Mapping dữ liệu trả về thành định dạng event của FullCalendar
+          const mappedEvents = (data || []).map(
+            (a: AppointmentWithIncludes) => ({
+              id: a.id,
+              title: `${a.customer?.fullName || "Khách lạ"} - ${
+                a.primaryDentist?.fullName || "Chưa có BS"
+              }`,
+              start: a.appointmentDateTime,
+              end: a.appointmentDateTime,
+              backgroundColor:
+                APPOINTMENT_STATUS_OPTIONS.find((s) => s.value === a.status)
+                  ?.color || "#1890ff",
+              borderColor: "#fff",
+              extendedProps: { ...a },
+            })
+          );
+          successCallback(mappedEvents);
+        })
+        .catch((error) => {
+          toast.error("Không thể tải lịch hẹn");
+          failureCallback(error);
+        })
+        .finally(() => setLoading(false));
+    },
+    []
+  ); // Thêm các dependency nếu có filter động
 
-  // ---- Effect load dữ liệu ----
-  useEffect(() => {
-    fetchAppointments();
-  }, [fetchAppointments]);
+  const [calendarKey, setCalendarKey] = useState(1);
 
-  useEffect(() => {
-    fetchCustomers();
-    fetchEmployees();
-  }, [fetchCustomers, fetchEmployees]);
-
-  // ---- Hàm xử lý phân trang ----
   const handlePageChange = (p: number, ps: number) => {
     setPage(p);
     setPageSize(ps);
   };
 
-  // ---- Hàm xử lý submit (thêm/sửa) ----
   const handleFinish = async (values: any) => {
     try {
-      // Chuẩn hóa time
       if (values.appointmentDateTime?.$d)
         values.appointmentDateTime = dayjs(
           values.appointmentDateTime
         ).toISOString();
 
       if (modal.mode === "add") {
-        values.clinicId = employee?.clinicId;
-        values.createdById = employee?.id;
-        values.updatedById = employee?.id;
+        values.clinicId = employeeProfile?.clinicId;
+        values.createdById = employeeProfile?.id;
+        values.updatedById = employeeProfile?.id;
 
         const res = await fetch("/api/appointments", {
           method: "POST",
@@ -113,15 +107,16 @@ export default function AppointmentListPage() {
           body: JSON.stringify(values),
         });
         if (res.ok) {
-          toast.success(`Đã tạo lịch hẹn cho khách hàng thành công!`);
+          toast.success(`Đã tạo lịch hẹn thành công!`);
           setModal({ ...modal, open: false });
-          fetchAppointments(1, pageSize, search);
+          // fetchAppointments();
+          setCalendarKey((prev) => prev + 1);
         } else {
           const { error } = await res.json();
           toast.error(error || "Lỗi không xác định");
         }
       } else if (modal.mode === "edit" && modal.data) {
-        values.updatedById = employee?.id;
+        values.updatedById = employeeProfile?.id;
         const res = await fetch(`/api/appointments/${modal.data.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -130,7 +125,8 @@ export default function AppointmentListPage() {
         if (res.ok) {
           toast.success("Cập nhật lịch hẹn thành công!");
           setModal({ ...modal, open: false });
-          fetchAppointments(page, pageSize, search);
+          // fetchAppointments();
+          setCalendarKey((prev) => prev + 1);
         } else {
           const { error } = await res.json();
           toast.error(error || "Lỗi cập nhật");
@@ -141,7 +137,6 @@ export default function AppointmentListPage() {
     }
   };
 
-  // ---- Hàm mở modal edit ----
   const handleEdit = (appt: Appointment) => {
     setModal({
       open: true,
@@ -155,14 +150,14 @@ export default function AppointmentListPage() {
     });
   };
 
-  // ---- Mapping events cho calendar ----
+  // ---- Mapping events cho calendar (ĐÃ SỬA) ----
   const events = appointments?.map((a) => ({
     id: a.id,
-    title: `${
-      customers.find((c) => c.id === a.customerId)?.fullName || "Khách"
-    } - ${employees.find((e) => e.id === a.primaryDentistId)?.fullName || ""}`,
+    title: `${a.customer?.fullName || "Khách lạ"} - ${
+      a.primaryDentist?.fullName || "Chưa có BS"
+    }`,
     start: a.appointmentDateTime,
-    end: a.appointmentDateTime, // Nếu có duration, tính thêm ở đây
+    end: a.appointmentDateTime,
     backgroundColor:
       APPOINTMENT_STATUS_OPTIONS.find((s) => s.value === a.status)?.color ||
       "#1890ff",
@@ -207,6 +202,7 @@ export default function AppointmentListPage() {
           </Button>
         </Col>
       </Row>
+
       {view === "table" ? (
         <AppointmentTable
           data={appointments}
@@ -216,12 +212,12 @@ export default function AppointmentListPage() {
           pageSize={pageSize}
           onEdit={handleEdit}
           onPageChange={handlePageChange}
-          customers={customers}
-          employees={employees}
         />
       ) : (
         <Spin spinning={loading}>
           <AppointmentCalendar
+            key={calendarKey} // <-- Thêm key vào đây
+            fetchEvents={handleFetchEvents}
             events={events}
             onCreate={(slot) =>
               setModal({
@@ -255,8 +251,7 @@ export default function AppointmentListPage() {
         onCancel={() => setModal({ ...modal, open: false })}
         onFinish={handleFinish}
         loading={loading}
-        customers={customers}
-        employees={employees}
+        employees={activeEmployees}
       />
     </div>
   );

@@ -1,5 +1,6 @@
+// src/app/login/page.tsx
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Form, Input, Button, Typography, Card, message } from "antd";
 import { useAuth } from "../../contexts/AuthContext";
@@ -11,11 +12,14 @@ export default function LoginPage() {
   const router = useRouter();
   const [formLoading, setFormLoading] = useState(false);
 
+  useEffect(() => {
+    if (!loading && user) {
+      router.replace("/");
+    }
+  }, [loading, user, router]);
+
   if (loading) return null;
-  if (user) {
-    router.replace("/");
-    return null;
-  }
+  if (user) return null;
 
   const onFinish = async (values: any) => {
     setFormLoading(true);

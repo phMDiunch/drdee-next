@@ -1,7 +1,7 @@
 import { Form, Input, DatePicker, Select, Row, Col, Button } from "antd";
 import type { Customer } from "../type";
 import { BRANCHES, GENDER_OPTIONS } from "@/constants";
-import { useEmployeeProfile } from "@/features/auth/hooks/useAuth";
+import { useAppStore } from "@/stores/useAppStore";
 
 const { Option } = Select;
 
@@ -20,7 +20,7 @@ export default function CustomerForm({
   loading = false,
   mode = "add",
 }: Props) {
-  const { employee } = useEmployeeProfile();
+  const employee = useAppStore((state) => state.employeeProfile);
 
   return (
     <Form

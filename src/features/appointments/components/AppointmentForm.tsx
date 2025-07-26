@@ -1,10 +1,13 @@
 // src/features/appointments/components/AppointmentForm.tsx
-import { Form, Input, DatePicker, Select, Row, Col, Button } from "antd";
+import { Form, Input, DatePicker, Select, Row, Col, Button, Spin } from "antd";
 import type { Appointment } from "../type";
 import { BRANCHES } from "@/constants";
-import { useEmployeeProfile } from "@/features/auth/hooks/useAuth";
+import { useAppStore } from "@/stores/useAppStore";
 import dayjs from "dayjs";
 import { APPOINTMENT_STATUS_OPTIONS } from "../constants";
+import { stat } from "fs";
+import { useState, useCallback } from "react"; // Thêm hook
+import debounce from "lodash/debounce"; // Cần cài đặt lodash
 
 type Props = {
   form?: any;
@@ -25,7 +28,54 @@ export default function AppointmentForm({
   customers = [],
   employees = [],
 }: Props) {
-  const { employee } = useEmployeeProfile();
+  const employee = useAppStore((state) => state.employeeProfile);
+
+  // State để quản lý việc tìm kiếm khách hàng
+  const [searching, setSearching] = useState(false);
+  const [customerOptions, setCustomerOptions] = useState<any[]>([]);
+
+  // Lấy tên khách hàng ban đầu nếu là mode edit
+  useEffect(() => {
+    if (mode === "edit" && initialValues.customer) {
+      const customer = initialValues.customer as any;
+      setCustomerOptions([
+        {
+          label: `${customer.fullName} - ${customer.phone}`,
+          value: customer.id,
+        },
+      ]);
+    }
+  }, [initialValues, mode]);
+
+  const fetchCustomers = async (searchValue: string) => {
+    if (!searchValue) {
+      setCustomerOptions([]);
+      return;
+    }
+    setSearching(true);
+    try {
+      const params = new URLSearchParams({
+        search: searchValue,
+        pageSize: "50",
+      });
+      const res = await fetch(`/api/customers?${params.toString()}`);
+      const data = await res.json();
+      const options = (data.customers || []).map((c: any) => ({
+        label: `${c.fullName} - ${c.phone}`,
+        value: c.id,
+      }));
+      setCustomerOptions(options);
+    } catch (error) {
+      console.error("Failed to search customers:", error);
+    }
+    setSearching(false);
+  };
+
+  // Dùng debounce để tránh gọi API liên tục khi gõ
+  const debouncedFetchCustomers = useCallback(
+    debounce(fetchCustomers, 500),
+    []
+  );
 
   return (
     <Form
@@ -33,6 +83,7 @@ export default function AppointmentForm({
       layout="vertical"
       initialValues={{
         ...initialValues,
+        status: initialValues.status || "Chờ xác nhận",
         clinicId: initialValues.clinicId || employee?.clinicId,
         appointmentDateTime: initialValues.appointmentDateTime
           ? dayjs(initialValues.appointmentDateTime)
@@ -51,16 +102,13 @@ export default function AppointmentForm({
           >
             <Select
               showSearch
-              options={customers.map((c) => ({
-                label: c.fullName + " - " + c.phone,
-                value: c.id,
-              }))}
-              placeholder="Chọn khách hàng"
-              filterOption={(input, option) =>
-                (option?.label ?? "")
-                  .toLowerCase()
-                  .includes(input.toLowerCase())
-              }
+              placeholder="Gõ tên hoặc SĐT để tìm khách hàng..."
+              defaultActiveFirstOption={false}
+              showArrow={false}
+              filterOption={false}
+              onSearch={debouncedFetchCustomers}
+              notFoundContent={searching ? <Spin size="small" /> : null}
+              options={customerOptions}
             />
           </Form.Item>
         </Col>
@@ -136,11 +184,7 @@ export default function AppointmentForm({
         </Col>
         {/* Trạng thái */}
         <Col span={12}>
-          <Form.Item
-            label="Trạng thái"
-            name="status"
-            initialValue="Chờ xác nhận"
-          >
+          <Form.Item label="Trạng thái" name="status">
             <Select options={APPOINTMENT_STATUS_OPTIONS} />
           </Form.Item>
         </Col>

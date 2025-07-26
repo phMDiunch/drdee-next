@@ -1,3 +1,4 @@
+// src/app/register/page.tsx
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
@@ -5,20 +6,24 @@ import { useRouter } from "next/navigation";
 import RegisterForm from "@/features/auth/components/RegisterForm";
 import { Typography, Card, Spin } from "antd";
 import Link from "next/link";
+import { useEffect } from "react";
 
 export default function RegisterPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && user) {
+      router.replace("/");
+    }
+  }, [loading, user, router]);
 
   // Nếu đang check login thì show loading (tránh nhấp nháy)
   if (loading)
     return <Spin style={{ display: "block", margin: "120px auto" }} />;
 
   // Nếu đã login thì chuyển về trang chủ
-  if (user) {
-    router.replace("/");
-    return null;
-  }
+  if (user) return null;
 
   return (
     <div

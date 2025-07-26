@@ -7,7 +7,7 @@ import CustomerModal from "@/features/customers/components/CustomerModal";
 import { Customer } from "@/features/customers/type";
 import dayjs from "dayjs";
 import { toast } from "react-toastify";
-import { useEmployeeProfile } from "@/features/auth/hooks/useAuth";
+import { useAppStore } from "@/stores/useAppStore";
 
 export default function CustomerListPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -24,7 +24,7 @@ export default function CustomerListPage() {
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState("");
 
-  const { employee } = useEmployeeProfile();
+  const employee = useAppStore((state) => state.employeeProfile);
 
   const fetchCustomers = async (pg = page, ps = pageSize, s = search) => {
     setLoading(true);

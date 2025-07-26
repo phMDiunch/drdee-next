@@ -5,16 +5,20 @@ import { BRANCHES } from "@/constants";
 import { formatDateTimeVN } from "@/utils/date";
 import { APPOINTMENT_STATUS_OPTIONS } from "../constants";
 
+// Kiểu dữ liệu nhận vào giờ đã bao gồm object con
+type AppointmentWithIncludes = Appointment & {
+  customer: { fullName: string };
+  primaryDentist: { fullName: string };
+};
+
 type Props = {
-  data: Appointment[];
+  data: AppointmentWithIncludes[];
   loading: boolean;
   total: number;
   page: number;
   pageSize: number;
   onEdit: (appt: Appointment) => void;
   onPageChange: (page: number, pageSize: number) => void;
-  customers?: any[];
-  employees?: any[];
 };
 
 export default function AppointmentTable({
@@ -25,28 +29,13 @@ export default function AppointmentTable({
   pageSize,
   onEdit,
   onPageChange,
-  customers = [],
-  employees = [],
 }: Props) {
-  const getCustomerName = (id: string) => {
-    const c = customers.find((c) => c.id === id);
-    return c ? c.fullName : "-";
-  };
-  const getEmployeeName = (id: string) => {
-    const e = employees.find((e) => e.id === id);
-    return e ? e.fullName : "-";
-  };
-  const getStatusLabel = (value: string) => {
-    const s = APPOINTMENT_STATUS_OPTIONS.find((opt) => opt.value === value);
-    return s ? s.label : value;
-  };
-
   const columns = [
     {
       title: "Khách hàng",
-      dataIndex: "customerId",
-      key: "customerId",
-      render: (id: string) => getCustomerName(id),
+      dataIndex: "customer",
+      key: "customer",
+      render: (customer: { fullName: string }) => customer?.fullName || "-",
     },
     {
       title: "Thời gian hẹn",
@@ -56,15 +45,20 @@ export default function AppointmentTable({
     },
     {
       title: "Bác sĩ chính",
-      dataIndex: "primaryDentistId",
-      key: "primaryDentistId",
-      render: (id: string) => getEmployeeName(id),
+      dataIndex: "primaryDentist",
+      key: "primaryDentist",
+      render: (dentist: { fullName: string }) => dentist?.fullName || "-",
     },
     {
       title: "Trạng thái",
       dataIndex: "status",
       key: "status",
-      render: (v: string) => <Tag>{getStatusLabel(v)}</Tag>,
+      render: (v: string) => {
+        const status = APPOINTMENT_STATUS_OPTIONS.find(
+          (opt) => opt.value === v
+        );
+        return <Tag color={status?.color}>{status?.label || v}</Tag>;
+      },
     },
     {
       title: "Chi nhánh",
