@@ -1,13 +1,14 @@
 // src/features/appointments/components/AppointmentCalendar.tsx
+"use client";
+
+import { useRef } from "react";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
-import { Modal, Tooltip, Popconfirm } from "antd";
-import { useState } from "react";
+import { Tooltip, Popconfirm } from "antd";
 import { formatDateTimeVN } from "@/utils/date";
 
-// Nên để events dạng {id, title, start, end, ...}
 type Props = {
   fetchEvents: (
     fetchInfo: { startStr: string; endStr: string },
@@ -27,11 +28,65 @@ export default function AppointmentCalendar({
   onDelete,
   onChangeTime,
 }: Props) {
-  // Tooltip event chi tiết
-  const [tooltipEvent, setTooltipEvent] = useState<any | null>(null);
+  const calendarRef = useRef<HTMLDivElement>(null);
+
+  // Hàm render nội dung cho mỗi event, bọc trong Tooltip
+  const renderEventContent = (eventInfo: any) => {
+    const { event } = eventInfo;
+    const { extendedProps } = event;
+
+    const tooltipContent = (
+      <div>
+        <div>
+          <b>{event.title}</b>
+        </div>
+        <div>{formatDateTimeVN(event.startStr)}</div>
+        <div>{extendedProps?.notes || ""}</div>
+        {onDelete && (
+          <Popconfirm
+            title="Xoá lịch hẹn này?"
+            // Ngăn sự kiện click lan ra ngoài, tránh việc mở modal edit
+            onConfirm={(e) => {
+              e?.stopPropagation();
+              onDelete(event.id);
+            }}
+            onCancel={(e) => e?.stopPropagation()}
+            okText="Xoá"
+            cancelText="Huỷ"
+          >
+            <a
+              style={{
+                color: "red",
+                marginTop: "4px",
+                display: "inline-block",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              Xoá
+            </a>
+          </Popconfirm>
+        )}
+      </div>
+    );
+
+    return (
+      <Tooltip
+        title={tooltipContent}
+        placement="top"
+        // Gắn tooltip vào div chứa calendar để định vị chính xác
+        getPopupContainer={() => calendarRef.current!}
+      >
+        <div className="fc-event-main-frame">
+          <div className="fc-event-title-container">
+            <div className="fc-event-title fc-sticky">{event.title}</div>
+          </div>
+        </div>
+      </Tooltip>
+    );
+  };
 
   return (
-    <>
+    <div ref={calendarRef}>
       <FullCalendar
         plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
         initialView="timeGridWeek"
@@ -42,25 +97,19 @@ export default function AppointmentCalendar({
         }}
         locale="vi"
         events={fetchEvents}
+        eventContent={renderEventContent} // <-- Sử dụng hàm render mới
         selectable
         editable
         eventResizableFromStart
         slotMinTime="08:00:00"
         slotMaxTime="19:00:00"
         height={650}
-        // Tạo mới khi chọn range hoặc slot
         select={(info) => {
-          if (onCreate)
-            onCreate({
-              start: info.startStr,
-              end: info.endStr,
-            });
+          if (onCreate) onCreate({ start: info.startStr, end: info.endStr });
         }}
-        // Nhấn vào event để sửa/xoá
         eventClick={(info) => {
           if (onEdit) onEdit(info.event.extendedProps);
         }}
-        // Kéo thả event để đổi thời gian
         eventDrop={(info) => {
           if (onChangeTime)
             onChangeTime({
@@ -69,7 +118,6 @@ export default function AppointmentCalendar({
               end: info.event.endStr,
             });
         }}
-        // Kéo resize event
         eventResize={(info) => {
           if (onChangeTime)
             onChangeTime({
@@ -78,45 +126,7 @@ export default function AppointmentCalendar({
               end: info.event.endStr,
             });
         }}
-        eventMouseEnter={(info) => setTooltipEvent(info.event)}
-        eventMouseLeave={() => setTooltipEvent(null)}
       />
-
-      {/* Tooltip chi tiết event */}
-      {tooltipEvent && (
-        <Tooltip
-          open
-          title={
-            <div>
-              <div>
-                <b>{tooltipEvent.title}</b>
-              </div>
-              <div>
-                {formatDateTimeVN(tooltipEvent.start, "HH:mm DD/MM/YYYY")}
-                {tooltipEvent.end
-                  ? ` - ${formatDateTimeVN(
-                      tooltipEvent.end,
-                      "HH:mm DD/MM/YYYY"
-                    )}`
-                  : ""}
-              </div>
-              <div>{tooltipEvent.extendedProps?.notes || ""}</div>
-              {onDelete && (
-                <Popconfirm
-                  title="Xoá lịch hẹn này?"
-                  onConfirm={() => onDelete(tooltipEvent.id)}
-                >
-                  <a style={{ color: "red" }}>Xoá</a>
-                </Popconfirm>
-              )}
-            </div>
-          }
-          placement="top"
-          getPopupContainer={() => document.body}
-        >
-          <span />
-        </Tooltip>
-      )}
-    </>
+    </div>
   );
 }

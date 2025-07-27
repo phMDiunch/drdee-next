@@ -1,22 +1,20 @@
 // src/features/appointments/components/AppointmentForm.tsx
 import { Form, Input, DatePicker, Select, Row, Col, Button, Spin } from "antd";
+import { useState, useCallback, useEffect } from "react"; // Thêm useEffect
+import debounce from "lodash/debounce";
 import type { Appointment } from "../type";
 import { BRANCHES } from "@/constants";
 import { useAppStore } from "@/stores/useAppStore";
 import dayjs from "dayjs";
 import { APPOINTMENT_STATUS_OPTIONS } from "../constants";
-import { stat } from "fs";
-import { useState, useCallback } from "react"; // Thêm hook
-import debounce from "lodash/debounce"; // Cần cài đặt lodash
 
 type Props = {
   form?: any;
-  initialValues?: Partial<Appointment>;
+  initialValues?: Partial<Appointment & { customer?: any }>; // Thêm customer vào initialValues
   onFinish: (values: Partial<Appointment>) => void;
   loading?: boolean;
   mode?: "add" | "edit";
-  customers?: any[]; // danh sách khách hàng
-  employees?: any[]; // danh sách nhân viên (bác sĩ)
+  employees?: any[];
 };
 
 export default function AppointmentForm({
@@ -25,19 +23,15 @@ export default function AppointmentForm({
   onFinish,
   loading = false,
   mode = "add",
-  customers = [],
   employees = [],
 }: Props) {
   const employee = useAppStore((state) => state.employeeProfile);
-
-  // State để quản lý việc tìm kiếm khách hàng
   const [searching, setSearching] = useState(false);
   const [customerOptions, setCustomerOptions] = useState<any[]>([]);
 
-  // Lấy tên khách hàng ban đầu nếu là mode edit
   useEffect(() => {
     if (mode === "edit" && initialValues.customer) {
-      const customer = initialValues.customer as any;
+      const customer = initialValues.customer;
       setCustomerOptions([
         {
           label: `${customer.fullName} - ${customer.phone}`,

@@ -13,31 +13,24 @@ import { APPOINTMENT_STATUS_OPTIONS } from "@/features/appointments/constants";
 
 // Định nghĩa kiểu cho Lịch hẹn đã bao gồm dữ liệu gộp
 type AppointmentWithIncludes = Appointment & {
-  customer: { fullName: string };
-  primaryDentist: { fullName: string };
-  secondaryDentist?: { fullName: string } | null;
+  customer: { id: string; fullName: string; phone: string };
+  primaryDentist: { id: string; fullName: string };
+  secondaryDentist?: { id: string; fullName: string } | null;
 };
 
 export default function AppointmentListPage() {
   const [loading, setLoading] = useState(false);
+
   const [modal, setModal] = useState<{
     open: boolean;
     mode: "add" | "edit";
-    data?: Partial<Appointment>;
+    data?: Partial<AppointmentWithIncludes>;
   }>({ open: false, mode: "add" });
+  const [view, setView] = useState<"calendar" | "table">("table");
 
-  // State cho filter/phân trang (sẽ dùng trong tương lai)
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(1000); // Tạm thời lấy nhiều
-  const [search, setSearch] = useState("");
-  const [view, setView] = useState<"calendar" | "table">("calendar");
-
-  // Lấy state và action từ Zustand store cho các dropdown
-  const { employeeProfile } = useAppStore();
-  const activeEmployees = useAppStore((state) => state.activeEmployees);
-  const fetchActiveEmployees = useAppStore(
-    (state) => state.fetchActiveEmployees
-  );
+  // State và Logic cho Calendar View
+  const [calendarLoading, setCalendarLoading] = useState(false);
+  const [calendarKey, setCalendarKey] = useState(1);
 
   const handleFetchEvents = useCallback(
     (
@@ -49,28 +42,24 @@ export default function AppointmentListPage() {
       const params = new URLSearchParams({
         from: fetchInfo.startStr,
         to: fetchInfo.endStr,
-        // clinicId, doctorId có thể thêm ở đây
       });
 
       fetch(`/api/appointments?${params.toString()}`)
         .then((res) => res.json())
-        .then((data) => {
-          // Mapping dữ liệu trả về thành định dạng event của FullCalendar
-          const mappedEvents = (data || []).map(
-            (a: AppointmentWithIncludes) => ({
-              id: a.id,
-              title: `${a.customer?.fullName || "Khách lạ"} - ${
-                a.primaryDentist?.fullName || "Chưa có BS"
-              }`,
-              start: a.appointmentDateTime,
-              end: a.appointmentDateTime,
-              backgroundColor:
-                APPOINTMENT_STATUS_OPTIONS.find((s) => s.value === a.status)
-                  ?.color || "#1890ff",
-              borderColor: "#fff",
-              extendedProps: { ...a },
-            })
-          );
+        .then((data: AppointmentWithIncludes[]) => {
+          const mappedEvents = (data || []).map((a) => ({
+            id: a.id,
+            title: `${a.customer?.fullName || "Khách lạ"} - ${
+              a.primaryDentist?.fullName || "Chưa có BS"
+            }`,
+            start: a.appointmentDateTime,
+            end: a.appointmentDateTime,
+            backgroundColor:
+              APPOINTMENT_STATUS_OPTIONS.find((s) => s.value === a.status)
+                ?.color || "#1890ff",
+            borderColor: "#fff",
+            extendedProps: a,
+          }));
           successCallback(mappedEvents);
         })
         .catch((error) => {
@@ -80,64 +69,105 @@ export default function AppointmentListPage() {
         .finally(() => setLoading(false));
     },
     []
-  ); // Thêm các dependency nếu có filter động
+  );
 
-  const [calendarKey, setCalendarKey] = useState(1);
+  // State và Logic cho Table View
+  const [tableAppointments, setTableAppointments] = useState<
+    AppointmentWithIncludes[]
+  >([]);
+  const [tableLoading, setTableLoading] = useState(false);
+  const [tablePage, setTablePage] = useState(1);
+  const [tablePageSize, setTablePageSize] = useState(20);
+  const [tableTotal, setTableTotal] = useState(0);
+  const [tableSearch, setTableSearch] = useState("");
 
-  const handlePageChange = (p: number, ps: number) => {
-    setPage(p);
-    setPageSize(ps);
-  };
+  const { employeeProfile, activeEmployees, fetchActiveEmployees } =
+    useAppStore();
 
-  const handleFinish = async (values: any) => {
+  const fetchTableAppointments = useCallback(async () => {
+    setTableLoading(true);
     try {
-      if (values.appointmentDateTime?.$d)
-        values.appointmentDateTime = dayjs(
-          values.appointmentDateTime
-        ).toISOString();
-
-      if (modal.mode === "add") {
-        values.clinicId = employeeProfile?.clinicId;
-        values.createdById = employeeProfile?.id;
-        values.updatedById = employeeProfile?.id;
-
-        const res = await fetch("/api/appointments", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(values),
-        });
-        if (res.ok) {
-          toast.success(`Đã tạo lịch hẹn thành công!`);
-          setModal({ ...modal, open: false });
-          // fetchAppointments();
-          setCalendarKey((prev) => prev + 1);
-        } else {
-          const { error } = await res.json();
-          toast.error(error || "Lỗi không xác định");
-        }
-      } else if (modal.mode === "edit" && modal.data) {
-        values.updatedById = employeeProfile?.id;
-        const res = await fetch(`/api/appointments/${modal.data.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(values),
-        });
-        if (res.ok) {
-          toast.success("Cập nhật lịch hẹn thành công!");
-          setModal({ ...modal, open: false });
-          // fetchAppointments();
-          setCalendarKey((prev) => prev + 1);
-        } else {
-          const { error } = await res.json();
-          toast.error(error || "Lỗi cập nhật");
-        }
-      }
+      const params = new URLSearchParams({
+        page: String(tablePage),
+        pageSize: String(tablePageSize),
+        search: tableSearch.trim(),
+      });
+      const res = await fetch(`/api/appointments?${params.toString()}`);
+      const data = await res.json();
+      setTableAppointments(data.appointments || []);
+      setTableTotal(data.total || 0);
     } catch {
-      toast.error("Có lỗi xảy ra");
+      toast.error("Không thể tải danh sách lịch hẹn");
+    }
+    setTableLoading(false);
+  }, [tablePage, tablePageSize, tableSearch]);
+
+  useEffect(() => {
+    fetchActiveEmployees();
+    if (view === "table") {
+      fetchTableAppointments();
+    }
+  }, [fetchActiveEmployees, view, fetchTableAppointments]);
+
+  const refetchData = () => {
+    if (view === "table") {
+      fetchTableAppointments();
+    } else {
+      setCalendarKey((prev) => prev + 1);
     }
   };
 
-  const handleEdit = (appt: Appointment) => {
+  const handleFinish = async (values: any) => {
+    setLoading(true); // Bật loading khi bắt đầu save
+    try {
+      if (values.appointmentDateTime?.$d) {
+        values.appointmentDateTime = dayjs(
+          values.appointmentDateTime
+        ).toISOString();
+      }
+
+      const isEdit = modal.mode === "edit";
+      const url = isEdit
+        ? `/api/appointments/${modal.data?.id}`
+        : "/api/appointments";
+      const method = isEdit ? "PUT" : "POST";
+
+      const payload: Partial<Appointment> = {
+        ...values,
+        updatedById: employeeProfile?.id,
+      };
+
+      if (!isEdit) {
+        payload.createdById = employeeProfile?.id;
+        payload.clinicId = employeeProfile?.clinicId;
+      }
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        toast.success(
+          isEdit
+            ? "Cập nhật lịch hẹn thành công!"
+            : "Đã tạo lịch hẹn thành công!"
+        );
+        setModal({ ...modal, open: false });
+        refetchData();
+      } else {
+        const { error } = await res.json();
+        toast.error(error || "Lỗi không xác định");
+      }
+    } catch {
+      toast.error("Có lỗi xảy ra");
+    } finally {
+      setLoading(false); // Tắt loading khi hoàn tất
+    }
+  };
+
+  const handleEdit = (appt: AppointmentWithIncludes) => {
     setModal({
       open: true,
       mode: "edit",
@@ -150,22 +180,11 @@ export default function AppointmentListPage() {
     });
   };
 
-  // ---- Mapping events cho calendar (ĐÃ SỬA) ----
-  const events = appointments?.map((a) => ({
-    id: a.id,
-    title: `${a.customer?.fullName || "Khách lạ"} - ${
-      a.primaryDentist?.fullName || "Chưa có BS"
-    }`,
-    start: a.appointmentDateTime,
-    end: a.appointmentDateTime,
-    backgroundColor:
-      APPOINTMENT_STATUS_OPTIONS.find((s) => s.value === a.status)?.color ||
-      "#1890ff",
-    borderColor: "#fff",
-    extendedProps: { ...a },
-  }));
+  const handlePageChange = (p: number, ps: number) => {
+    setTablePage(p);
+    setTablePageSize(ps);
+  };
 
-  // ---- Chức năng calendar nâng cao (thêm/sửa/xoá/di chuyển lịch) ----
   return (
     <div style={{ padding: 24 }}>
       <Row align="middle" gutter={16} style={{ marginBottom: 16 }}>
@@ -182,17 +201,19 @@ export default function AppointmentListPage() {
             onChange={(val) => setView(val as any)}
           />
         </Col>
-        <Col>
-          <Input.Search
-            allowClear
-            placeholder="Tìm kiếm lịch hẹn..."
-            style={{ width: 240 }}
-            onSearch={(v) => {
-              setPage(1);
-              setSearch(v.trim());
-            }}
-          />
-        </Col>
+        {view === "table" && (
+          <Col>
+            <Input.Search
+              allowClear
+              placeholder="Tìm kiếm..."
+              style={{ width: 240 }}
+              onSearch={(v) => {
+                setTablePage(1);
+                setTableSearch(v);
+              }}
+            />
+          </Col>
+        )}
         <Col>
           <Button
             type="primary"
@@ -205,20 +226,19 @@ export default function AppointmentListPage() {
 
       {view === "table" ? (
         <AppointmentTable
-          data={appointments}
-          loading={loading}
-          total={total}
-          page={page}
-          pageSize={pageSize}
+          data={tableAppointments}
+          loading={tableLoading}
+          total={tableTotal}
+          page={tablePage}
+          pageSize={tablePageSize}
           onEdit={handleEdit}
           onPageChange={handlePageChange}
         />
       ) : (
-        <Spin spinning={loading}>
+        <Spin spinning={calendarLoading}>
           <AppointmentCalendar
-            key={calendarKey} // <-- Thêm key vào đây
+            key={calendarKey}
             fetchEvents={handleFetchEvents}
-            events={events}
             onCreate={(slot) =>
               setModal({
                 open: true,
@@ -233,24 +253,25 @@ export default function AppointmentListPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ appointmentDateTime: start }),
               });
-              fetchAppointments();
+              refetchData();
               toast.success("Đã cập nhật thời gian lịch hẹn!");
             }}
             onDelete={async (id) => {
               await fetch(`/api/appointments/${id}`, { method: "DELETE" });
-              fetchAppointments();
+              refetchData();
               toast.success("Đã xoá lịch hẹn!");
             }}
           />
         </Spin>
       )}
+
       <AppointmentModal
         open={modal.open}
         mode={modal.mode}
         data={modal.data}
         onCancel={() => setModal({ ...modal, open: false })}
         onFinish={handleFinish}
-        loading={loading}
+        loading={tableLoading || calendarLoading}
         employees={activeEmployees}
       />
     </div>

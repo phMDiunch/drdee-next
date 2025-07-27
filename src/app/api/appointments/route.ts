@@ -6,32 +6,74 @@ import { Prisma } from "@prisma/client";
 
 // Lấy danh sách lịch hẹn (theo ngày, bác sĩ, clinic nếu muốn)
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const from = searchParams.get("from");
-  const to = searchParams.get("to");
-  const clinicId = searchParams.get("clinicId");
-  const doctorId = searchParams.get("doctorId");
+  try {
+    const { searchParams } = new URL(request.url);
 
-  const where: any = {};
-  if (from && to) {
-    where.appointmentDateTime = {
-      gte: new Date(from),
-      lte: new Date(to),
-    };
+    // Params cho Calendar View
+    const from = searchParams.get("from");
+    const to = searchParams.get("to");
+
+    // Params cho Table View
+    const page = Number(searchParams.get("page") || "1");
+    const pageSize = Number(searchParams.get("pageSize") || "20");
+    const search = searchParams.get("search")?.trim() || "";
+
+    const where: Prisma.AppointmentWhereInput = {};
+
+    // Logic cho Calendar View (lọc theo ngày)
+    if (from && to) {
+      where.appointmentDateTime = {
+        gte: new Date(from),
+        lte: new Date(to),
+      };
+    }
+
+    // Logic cho Table View (tìm kiếm)
+    if (search) {
+      where.OR = [
+        { customer: { fullName: { contains: search, mode: "insensitive" } } },
+        {
+          primaryDentist: {
+            fullName: { contains: search, mode: "insensitive" },
+          },
+        },
+        { notes: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
+    // Nếu là chế độ xem bảng (không có from/to), ta thực hiện phân trang
+    if (!from && !to) {
+      const [appointments, total] = await prisma.$transaction([
+        prisma.appointment.findMany({
+          where,
+          include: {
+            customer: true,
+            primaryDentist: true,
+            secondaryDentist: true,
+          },
+          orderBy: { appointmentDateTime: "desc" },
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+        }),
+        prisma.appointment.count({ where }),
+      ]);
+      return NextResponse.json({ appointments, total });
+    }
+
+    // Mặc định, nếu là chế độ xem lịch, trả về toàn bộ kết quả trong khoảng thời gian đó
+    const appointments = await prisma.appointment.findMany({
+      where,
+      include: { customer: true, primaryDentist: true, secondaryDentist: true },
+      orderBy: { appointmentDateTime: "asc" },
+    });
+    return NextResponse.json(appointments);
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json(
+      { error: "Lỗi lấy danh sách lịch hẹn" },
+      { status: 500 }
+    );
   }
-  if (clinicId) where.clinicId = clinicId;
-  if (doctorId) where.primaryDentistId = doctorId;
-
-  const appointments = await prisma.appointment.findMany({
-    where,
-    include: {
-      customer: true,
-      primaryDentist: true,
-      secondaryDentist: true,
-    },
-    orderBy: { appointmentDateTime: "asc" },
-  });
-  return NextResponse.json(appointments);
 }
 
 // Tạo mới lịch hẹn
@@ -39,7 +81,11 @@ export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
     // Validate: check trường bắt buộc
-    if (!data.customerId || !data.primaryDentistId || !data.appointmentDateTime) {
+    if (
+      !data.customerId ||
+      !data.primaryDentistId ||
+      !data.appointmentDateTime
+    ) {
       return NextResponse.json(
         { error: "Thiếu thông tin bắt buộc!" },
         { status: 400 }
@@ -69,8 +115,7 @@ function handlePrismaError(error: any) {
       appointmentDateTime: "Thời gian hẹn",
     };
     const msg =
-      "Trùng dữ liệu: " +
-      fields.map((f) => fieldLabel[f] || f).join(", ");
+      "Trùng dữ liệu: " + fields.map((f) => fieldLabel[f] || f).join(", ");
     return NextResponse.json({ error: msg }, { status: 400 });
   }
   return NextResponse.json({ error: error.message }, { status: 500 });
