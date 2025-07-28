@@ -9,14 +9,20 @@ export async function GET(request: Request) {
   if (!uid) {
     return NextResponse.json({ error: "Thiếu uid" }, { status: 400 });
   }
+  try {
+    const employee = await prisma.employee.findUnique({
+      where: { uid },
+    });
 
-  const employee = await prisma.employee.findUnique({
-    where: { uid },
-  });
-
-  if (!employee) {
-    return NextResponse.json({ error: "Không tìm thấy nhân viên" }, { status: 404 });
+    if (!employee) {
+      return NextResponse.json(
+        { error: "Không tìm thấy nhân viên" },
+        { status: 404 }
+      );
+    }
+    return NextResponse.json(employee);
+  } catch (error) {
+    console.error("Lỗi khi lấy profile:", error);
+    return NextResponse.json({ error: "Lỗi server" }, { status: 500 });
   }
-
-  return NextResponse.json(employee);
 }
