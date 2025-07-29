@@ -30,6 +30,15 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * pageSize,
       take: pageSize,
+      include: {
+        primaryContact: {
+          select: {
+            customerCode: true,
+            fullName: true,
+            phone: true,
+          },
+        },
+      },
     }),
     prisma.customer.count({ where }),
   ]);
@@ -52,8 +61,7 @@ function handlePrismaError(error: any) {
       customerCode: "Mã khách hàng",
     };
     const msg =
-      "Trùng dữ liệu: " +
-      fieldsArr.map((f) => fieldNames[f] || f).join(", ");
+      "Trùng dữ liệu: " + fieldsArr.map((f) => fieldNames[f] || f).join(", ");
     return NextResponse.json({ error: msg }, { status: 400 });
   }
   return NextResponse.json({ error: error.message }, { status: 500 });
@@ -63,39 +71,45 @@ function handlePrismaError(error: any) {
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
-    // === BẮT ĐẦU: Sinh tự động các trường đặc biệt ===
+
+    // === BẮT ĐẦU: Logic cập nhật ===
 
     // 1. fullName_lowercase
     data.fullName_lowercase = data.fullName?.toLowerCase().trim() || "";
 
-    // 2. Sinh customerCode
+    // 2. Sinh customerCode (logic này vẫn giữ nguyên)
     const now = new Date();
     const year = now.getFullYear() % 100;
     const month = String(now.getMonth() + 1).padStart(2, "0");
-    const prefixMap = {
+    const prefixMap: Record<string, string> = {
       "450MK": "MK",
-      "TDT": "TDT",
-      "DN": "DN",
+      "143TDT": "TDT", // Giả sử mã chi nhánh là 143TDT
+      "153DN": "DN", // Giả sử mã chi nhánh là 153DN
     };
     const prefix = prefixMap[data.clinicId] || "XX";
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
     const count = await prisma.customer.count({
       where: {
         clinicId: data.clinicId,
         createdAt: { gte: startOfMonth, lte: endOfMonth },
       },
     });
-    data.customerCode = `${prefix}-${year}${month}-${String(count + 1).padStart(3, "0")}`;
+    data.customerCode = `${prefix}-${year}${month}-${String(count + 1).padStart(
+      3,
+      "0"
+    )}`;
 
-    // 3. Sinh searchKeywords
+    // 3. Cập nhật searchKeywords
+    // Nếu có SĐT thì thêm vào, nếu không thì thôi.
     data.searchKeywords = [
       data.customerCode,
       data.fullName_lowercase,
-      data.phone,
+      data.phone, // Sẽ là undefined nếu không có và được filter loại bỏ
     ].filter(Boolean);
 
-    // === KẾT THÚC: Sinh trường tự động ===
+    // === KẾT THÚC: Logic cập nhật ===
 
     const newCustomer = await prisma.customer.create({ data });
     return NextResponse.json(newCustomer, { status: 201 });

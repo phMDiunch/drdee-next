@@ -1,11 +1,19 @@
 // src/features/customers/components/CustomerTable.tsx
-import { Table, Tag, Space, Button } from "antd";
+import { Table, Tag, Space, Button, Typography } from "antd";
 import type { Customer } from "../type";
 import { BRANCHES } from "@/constants";
-import { formatDateTimeVN } from "@/utils/date";
+import { formatDateVN } from "@/utils/date";
+
+type CustomerWithContact = Customer & {
+  primaryContact?: {
+    customerCode: string;
+    fullName: string;
+    phone: string;
+  } | null;
+};
 
 type Props = {
-  data: Customer[];
+  data: CustomerWithContact[];
   loading: boolean;
   total: number;
   page: number;
@@ -25,6 +33,11 @@ export default function CustomerTable({
 }: Props) {
   const columns = [
     {
+      title: "Mã khách hàng",
+      dataIndex: "customerCode",
+      key: "customerCode",
+    },
+    {
       title: "Họ tên",
       dataIndex: "fullName",
       key: "fullName",
@@ -33,17 +46,35 @@ export default function CustomerTable({
       title: "Số điện thoại",
       dataIndex: "phone",
       key: "phone",
+      render: (phone: string) => phone || "-",
     },
     {
-      title: "Email",
-      dataIndex: "email",
-      key: "email",
+      title: "Người liên hệ chính",
+      dataIndex: "primaryContact",
+      key: "primaryContact",
+      render: (
+        primaryContact: CustomerWithContact["primaryContact"],
+        record: CustomerWithContact
+      ) => {
+        if (!primaryContact) {
+          return <Typography.Text type="secondary">Không có</Typography.Text>;
+        }
+        return (
+          <div>
+            <Typography.Text strong>{primaryContact.fullName}</Typography.Text>
+            <br />
+            <Typography.Text type="secondary">
+              ({record.relationshipToPrimary}) - {primaryContact.phone}
+            </Typography.Text>
+          </div>
+        );
+      },
     },
     {
       title: "Ngày sinh",
       dataIndex: "dob",
       key: "dob",
-      render: (v: string) => (v ? formatDateTimeVN(v, "DD/MM/YYYY") : ""),
+      render: (v: string) => (v ? formatDateVN(v) : ""),
     },
     {
       title: "Giới tính",

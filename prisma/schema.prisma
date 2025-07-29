@@ -147,13 +147,14 @@ model Customer {
   gender             String? // Giới tính
 
   // ---- Thông tin liên hệ ----
-  phone    String  @unique // Số điện thoại
+  phone    String? @unique // Số điện thoại
   email    String? @unique
   address  String? // Địa chỉ
   city     String? // Tỉnh/Thành phố
   district String? // Quận/Huyện
 
-  guardianName String? // Người giám hộ
+  relationshipToPrimary String? // Mối quan hệ: Bố, Mẹ, Con, Vợ, Chồng...
+  primaryContactId      String? // ID của người liên hệ chính
 
   // ---- Thông tin phân loại ----
   occupation         String? // Nghề nghiệp
@@ -171,6 +172,9 @@ model Customer {
   updatedById String // ID của người cập nhật cuối
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  primaryContact Customer?  @relation("PrimaryContactDependents", fields: [primaryContactId], references: [id], onDelete: SetNull)
+  dependents     Customer[] @relation("PrimaryContactDependents")
 
   createdBy         Employee           @relation("CreatedCustomers", fields: [createdById], references: [id])
   updatedBy         Employee           @relation("UpdatedCustomers", fields: [updatedById], references: [id])

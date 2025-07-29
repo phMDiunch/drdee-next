@@ -57,15 +57,28 @@ export default function CustomerListPage() {
   const handleFinish = async (values: any) => {
     try {
       if (values.dob?.$d) values.dob = dayjs(values.dob).toISOString();
-      if (modal.mode === "add") {
-        values.clinicId = employee?.clinicId;
-        values.createdById = employee?.id;
-        values.updatedById = employee?.id;
 
+      // Xử lý dữ liệu trước khi gửi đi
+      const processedValues = {
+        ...values,
+        // Nếu primaryContactId là falsy (undefined, ""), set nó thành null
+        primaryContactId: values.primaryContactId || null,
+        // Nếu không có primaryContactId, thì cũng không có mối quan hệ
+        relationshipToPrimary: values.primaryContactId
+          ? values.relationshipToPrimary
+          : null,
+        email: values.email || null,
+      };
+
+      if (modal.mode === "add") {
+        processedValues.clinicId = employee?.clinicId;
+        processedValues.createdById = employee?.id;
+        processedValues.updatedById = employee?.id;
+        console.log("Creating customer:", processedValues);
         const res = await fetch("/api/customers", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(values),
+          body: JSON.stringify(processedValues),
         });
         if (res.ok) {
           const created = await res.json(); // <-- Lấy object vừa tạo
@@ -79,11 +92,12 @@ export default function CustomerListPage() {
           toast.error(error || "Lỗi không xác định");
         }
       } else if (modal.mode === "edit" && modal.data) {
-        values.updatedById = employee?.id;
+        processedValues.updatedById = employee?.id;
+        console.log("Updating customer:", processedValues);
         const res = await fetch(`/api/customers/${modal.data.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(values),
+          body: JSON.stringify(processedValues),
         });
         if (res.ok) {
           toast.success("Cập nhật thành công!");
