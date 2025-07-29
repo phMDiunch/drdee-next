@@ -13,7 +13,7 @@ type Props = {
   onFinish: (values: Partial<Appointment>) => void;
   loading?: boolean;
   customers?: any[];
-  employees?: any[];
+  dentists?: any[];
 };
 
 export default function AppointmentModal({
@@ -24,8 +24,9 @@ export default function AppointmentModal({
   onFinish,
   loading,
   customers = [],
-  employees = [],
+  dentists = [],
 }: Props) {
+  console.log("2. Dữ liệu 'dentists' nhận được tại Modal:", dentists);
   return (
     <Modal
       title={
@@ -46,7 +47,7 @@ export default function AppointmentModal({
         loading={loading}
         mode={mode}
         customers={customers}
-        employees={employees}
+        dentists={dentists}
       />
     </Modal>
   );

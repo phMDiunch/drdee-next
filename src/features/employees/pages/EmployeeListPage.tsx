@@ -9,6 +9,7 @@ import type { Employee } from "@/features/employees/type";
 import dayjs from "dayjs";
 import { toast } from "react-toastify";
 import { toISOStringUTC, parseDateFromISOString } from "@/utils/date";
+import { useAppStore } from "@/stores/useAppStore";
 
 // Filter state type
 type Filters = {
@@ -33,19 +34,31 @@ export default function EmployeeList() {
   const [total, setTotal] = useState(0);
   const [filters, setFilters] = useState<Filters>({});
 
+  const { employeeProfile } = useAppStore();
+
   // Lấy danh sách nhân viên từ API
   const fetchEmployees = useCallback(async () => {
+    // Chỉ fetch khi có thông tin employeeProfile
+    if (!employeeProfile) return;
+
     setLoading(true);
     try {
       const params = new URLSearchParams({
         page: String(page),
         pageSize: String(pageSize),
         search: filters.search || "",
-        clinicId: filters.clinicId || "",
         title: filters.title || "",
-        // Nếu không có filter status, API sẽ tự dùng default
         employmentStatus: filters.employmentStatus || "",
+        // Thêm thông tin người dùng request
+        requestingUserId: employeeProfile.id,
+        requestingUserRole: employeeProfile.role,
+        requestingUserClinicId: employeeProfile.clinicId || "",
       });
+
+      // Chỉ admin mới có thể filter theo clinicId từ UI
+      if (employeeProfile.role === "admin" && filters.clinicId) {
+        params.set("clinicId", filters.clinicId);
+      }
 
       const res = await fetch(`/api/employees?${params.toString()}`);
       const data = await res.json();
@@ -55,11 +68,13 @@ export default function EmployeeList() {
       toast.error("Không thể tải danh sách nhân viên");
     }
     setLoading(false);
-  }, [page, pageSize, filters]);
-
+  }, [page, pageSize, filters, employeeProfile]);
   useEffect(() => {
-    fetchEmployees();
-  }, [fetchEmployees]);
+    // Chỉ fetch khi đã có thông tin người dùng
+    if (employeeProfile) {
+      fetchEmployees();
+    }
+  }, [fetchEmployees, employeeProfile]);
 
   const handleFilter = (newFilters: Filters) => {
     setPage(1); // Reset về trang 1 mỗi khi filter

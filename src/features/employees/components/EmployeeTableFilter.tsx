@@ -4,6 +4,7 @@ import { Input, Select, Row, Col, Space, Button } from "antd";
 import { BRANCHES } from "@/constants";
 import { TITLES, EMPLOYMENT_STATUS_OPTIONS } from "../constants";
 import { useState } from "react";
+import { useAppStore } from "@/stores/useAppStore";
 
 type Props = {
   onFilter: (filters: {
@@ -21,6 +22,13 @@ export default function EmployeeTableFilter({ onFilter }: Props) {
   const [employmentStatus, setEmploymentStatus] = useState<string | undefined>(
     undefined
   );
+
+  const { employeeProfile } = useAppStore();
+  const isAdmin = employeeProfile?.role === "admin";
+
+  if (employeeProfile?.role === "employee") {
+    return null; // Không hiển thị gì cả
+  }
 
   const handleFilter = () => {
     onFilter({ search, clinicId, title, employmentStatus });
@@ -54,6 +62,7 @@ export default function EmployeeTableFilter({ onFilter }: Props) {
           value={clinicId}
           options={BRANCHES.map((b) => ({ label: b.label, value: b.value }))}
           onChange={(v) => setClinicId(v)}
+          disabled={!isAdmin} // Chỉ cho phép admin chọn clinic
         />
       </Col>
       <Col>

@@ -12,7 +12,10 @@ type AppState = {
   // Shared Data
   activeEmployees: Employee[];
   dentalServices: DentalService[];
-  fetchActiveEmployees: () => Promise<void>;
+  fetchActiveEmployees: (
+    employee?: Employee | null,
+    force?: boolean
+  ) => Promise<void>;
   fetchDentalServices: (force?: boolean) => Promise<void>; // Thêm tham số force
 };
 
@@ -45,12 +48,27 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ employeeProfile: null, isLoadingProfile: false });
   },
 
-  fetchActiveEmployees: async () => {
-    if (get().activeEmployees.length > 0) return;
+  fetchActiveEmployees: async (employee, force = false) => {
+    // Chỉ không fetch lại khi không có "force" VÀ đã có dữ liệu
+    if (!employee) return;
+
+    if (!force && get().activeEmployees.length > 0) {
+      return;
+    }
+
     try {
-      const params = new URLSearchParams({ pageSize: "500" });
+      const params = new URLSearchParams({
+        pageSize: "500", // Lấy nhiều để không cần phân trang
+        requestingUserId: employee.id,
+        requestingUserRole: employee.role,
+        requestingUserClinicId: employee.clinicId || "",
+      });
       const res = await fetch(`/api/employees?${params.toString()}`);
       const data = await res.json();
+
+      // Thêm log ở đây để kiểm tra dữ liệu gốc
+      console.log("DỮ LIỆU GỐC TỪ API (activeEmployees):", data.employees);
+
       set({ activeEmployees: data.employees || [] });
     } catch (error) {
       console.error("Failed to fetch active employees:", error);

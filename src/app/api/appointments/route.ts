@@ -17,8 +17,13 @@ export async function GET(request: NextRequest) {
     const page = Number(searchParams.get("page") || "1");
     const pageSize = Number(searchParams.get("pageSize") || "20");
     const search = searchParams.get("search")?.trim() || "";
+    const clinicId = searchParams.get("clinicId");
 
     const where: Prisma.AppointmentWhereInput = {};
+
+    if (clinicId) {
+      where.clinicId = clinicId;
+    }
 
     // Logic cho Calendar View (lọc theo ngày)
     if (from && to) {

@@ -1,6 +1,7 @@
 // src/features/appointments/components/AppointmentForm.tsx
+"use client";
 import { Form, Input, DatePicker, Select, Row, Col, Button, Spin } from "antd";
-import { useState, useCallback, useEffect } from "react"; // Thêm useEffect
+import { useState, useCallback } from "react"; // Bỏ useEffect
 import debounce from "lodash/debounce";
 import type { Appointment } from "../type";
 import { BRANCHES } from "@/constants";
@@ -10,11 +11,11 @@ import { APPOINTMENT_STATUS_OPTIONS } from "../constants";
 
 type Props = {
   form?: any;
-  initialValues?: Partial<Appointment & { customer?: any }>; // Thêm customer vào initialValues
+  initialValues?: Partial<Appointment & { customer?: any }>;
   onFinish: (values: Partial<Appointment>) => void;
   loading?: boolean;
   mode?: "add" | "edit";
-  employees?: any[];
+  dentists?: any[];
 };
 
 export default function AppointmentForm({
@@ -23,23 +24,27 @@ export default function AppointmentForm({
   onFinish,
   loading = false,
   mode = "add",
-  employees = [],
+  dentists = [],
 }: Props) {
   const employee = useAppStore((state) => state.employeeProfile);
   const [searching, setSearching] = useState(false);
-  const [customerOptions, setCustomerOptions] = useState<any[]>([]);
 
-  useEffect(() => {
+  // --- THÊM DÒNG NÀY ĐỂ BẠN KIỂM TRA ---
+  console.log("3. Dữ liệu 'dentists' nhận được tại Form:", dentists);
+
+  // TỐI ƯU: Khởi tạo state với giá trị ban đầu, thay vì dùng useEffect
+  const [customerOptions, setCustomerOptions] = useState<any[]>(() => {
     if (mode === "edit" && initialValues.customer) {
       const customer = initialValues.customer;
-      setCustomerOptions([
+      return [
         {
           label: `${customer.fullName} - ${customer.phone}`,
           value: customer.id,
         },
-      ]);
+      ];
     }
-  }, [initialValues, mode]);
+    return [];
+  });
 
   const fetchCustomers = async (searchValue: string) => {
     if (!searchValue) {
@@ -65,7 +70,6 @@ export default function AppointmentForm({
     setSearching(false);
   };
 
-  // Dùng debounce để tránh gọi API liên tục khi gõ
   const debouncedFetchCustomers = useCallback(
     debounce(fetchCustomers, 500),
     []
@@ -98,7 +102,7 @@ export default function AppointmentForm({
               showSearch
               placeholder="Gõ tên hoặc SĐT để tìm khách hàng..."
               defaultActiveFirstOption={false}
-              showArrow={false}
+              suffixIcon={null} // Tối ưu: Sửa lỗi warning của Antd
               filterOption={false}
               onSearch={debouncedFetchCustomers}
               notFoundContent={searching ? <Spin size="small" /> : null}
@@ -122,20 +126,20 @@ export default function AppointmentForm({
             />
           </Form.Item>
         </Col>
-        {/* Bác sĩ chính */}
+        {/* Bác sĩ chính & phụ */}
         <Col span={12}>
           <Form.Item
-            label="Bác sĩ chính"
+            label="Bác sĩ / Điều dưỡng chính"
             name="primaryDentistId"
-            rules={[{ required: true, message: "Chọn bác sĩ chính" }]}
+            rules={[{ required: true, message: "Chọn người thực hiện chính" }]}
           >
             <Select
               showSearch
-              options={employees.map((e) => ({
+              options={dentists.map((e) => ({
                 label: e.fullName,
                 value: e.id,
               }))}
-              placeholder="Chọn bác sĩ"
+              placeholder="Chọn bác sĩ hoặc điều dưỡng"
               filterOption={(input, option) =>
                 (option?.label ?? "")
                   .toLowerCase()
@@ -144,17 +148,16 @@ export default function AppointmentForm({
             />
           </Form.Item>
         </Col>
-        {/* Bác sĩ phụ */}
         <Col span={12}>
-          <Form.Item label="Bác sĩ phụ" name="secondaryDentistId">
+          <Form.Item label="Bác sĩ / Điều dưỡng phụ" name="secondaryDentistId">
             <Select
               showSearch
-              options={employees.map((e) => ({
+              options={dentists.map((e) => ({
                 label: e.fullName,
                 value: e.id,
               }))}
               allowClear
-              placeholder="Chọn bác sĩ phụ (nếu có)"
+              placeholder="Chọn người phụ (nếu có)"
               filterOption={(input, option) =>
                 (option?.label ?? "")
                   .toLowerCase()
@@ -163,7 +166,7 @@ export default function AppointmentForm({
             />
           </Form.Item>
         </Col>
-        {/* Chi nhánh */}
+        {/* Các trường khác */}
         <Col span={12}>
           <Form.Item label="Chi nhánh" name="clinicId">
             <Select
@@ -171,18 +174,15 @@ export default function AppointmentForm({
                 label: b.label,
                 value: b.value,
               }))}
-              allowClear
               disabled={true}
             />
           </Form.Item>
         </Col>
-        {/* Trạng thái */}
         <Col span={12}>
           <Form.Item label="Trạng thái" name="status">
             <Select options={APPOINTMENT_STATUS_OPTIONS} />
           </Form.Item>
         </Col>
-        {/* Ghi chú */}
         <Col span={24}>
           <Form.Item label="Ghi chú" name="notes">
             <Input.TextArea
