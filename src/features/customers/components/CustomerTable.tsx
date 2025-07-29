@@ -3,6 +3,7 @@ import { Table, Tag, Space, Button, Typography } from "antd";
 import type { Customer } from "../type";
 import { BRANCHES } from "@/constants";
 import { formatDateVN } from "@/utils/date";
+import Link from "next/link";
 
 type CustomerWithContact = Customer & {
   primaryContact?: {
@@ -41,6 +42,9 @@ export default function CustomerTable({
       title: "Họ tên",
       dataIndex: "fullName",
       key: "fullName",
+      render: (text: string, record: Customer) => (
+        <Link href={`/customers/${record.id}`}>{text}</Link>
+      ),
     },
     {
       title: "Số điện thoại",
