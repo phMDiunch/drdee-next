@@ -12,6 +12,7 @@ type Props = {
   onCancel: () => void;
   onFinish: (values: Partial<Customer>) => void;
   loading?: boolean;
+  customers?: any[];
 };
 
 export default function CustomerModal({
@@ -21,6 +22,7 @@ export default function CustomerModal({
   onCancel,
   onFinish,
   loading,
+  customers,
 }: Props) {
   return (
     <Modal
@@ -40,6 +42,7 @@ export default function CustomerModal({
         initialValues={data || {}}
         onFinish={onFinish}
         loading={loading}
+        customers={customers}
       />
     </Modal>
   );

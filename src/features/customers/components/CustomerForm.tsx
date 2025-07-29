@@ -13,6 +13,7 @@ type Props = {
   onFinish: (values: Partial<Customer>) => void;
   loading?: boolean;
   mode?: "add" | "edit";
+  customers?: any[];
 };
 
 export default function CustomerForm({
@@ -20,26 +21,39 @@ export default function CustomerForm({
   initialValues = {},
   onFinish,
   loading = false,
+  customers = [],
   mode = "add",
 }: Props) {
   const [form] = Form.useForm(formProp);
   const employee = useAppStore((state) => state.employeeProfile);
 
   const [searching, setSearching] = useState(false);
-  const [customerOptions, setCustomerOptions] = useState<any[]>([]);
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Nếu là chế độ sửa và có người liên hệ chính, hãy tạo option ban đầu để Select hiển thị tên
+  // --- THAY ĐỔI LỚN: Khởi tạo state từ prop `customers` ---
+  const [customerOptions, setCustomerOptions] = useState<any[]>(() => {
+    // 1. Chuyển danh sách khách hàng có sẵn thành options
+    const initialOptions = customers.map((c) => ({
+      label: `${c.fullName} - ${c.phone || "Chưa có SĐT"}`,
+      value: c.id,
+    }));
+
+    // 2. Nếu là mode Edit, đảm bảo người liên hệ chính luôn có trong danh sách
     if (mode === "edit" && initialValues.primaryContact) {
-      const contact = initialValues.primaryContact;
-      const initialOption = {
-        label: `${contact.fullName} - ${contact.phone || "Chưa có SĐT"}`,
-        value: initialValues.primaryContactId,
-      };
-      setCustomerOptions([initialOption]);
+      const contact = initialValues.primaryContact as any;
+      const contactExists = initialOptions.some(
+        (opt) => opt.value === initialValues.primaryContactId
+      );
+
+      if (!contactExists) {
+        initialOptions.push({
+          label: `${contact.fullName} - ${contact.phone || "Chưa có SĐT"}`,
+          value: initialValues.primaryContactId,
+        });
+      }
     }
-  }, [initialValues, mode]);
+    return initialOptions;
+  });
 
   const fetchCustomers = async (searchValue: string) => {
     if (!searchValue) {

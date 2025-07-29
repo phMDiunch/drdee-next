@@ -27,13 +27,21 @@ export default function CustomerListPage() {
   const employee = useAppStore((state) => state.employeeProfile);
 
   const fetchCustomers = async (pg = page, ps = pageSize, s = search) => {
+    // Chỉ fetch khi đã có thông tin employee
+    if (!employee?.clinicId) {
+      setCustomers([]);
+      setTotal(0);
+      return;
+    }
     setLoading(true);
     try {
       const params = new URLSearchParams({
         page: pg + "",
         pageSize: ps + "",
+        clinicId: employee.clinicId, // Thêm clinicId vào request
       });
       if (s) params.set("search", s.trim());
+
       const res = await fetch(`/api/customers?${params.toString()}`);
       const json = await res.json();
       setCustomers(json.customers);
@@ -45,9 +53,12 @@ export default function CustomerListPage() {
   };
 
   useEffect(() => {
-    fetchCustomers(page, pageSize, search);
+    // Chỉ gọi fetch khi có employee.clinicId
+    if (employee) {
+      fetchCustomers(page, pageSize, search);
+    }
     // eslint-disable-next-line
-  }, [page, pageSize, search]);
+  }, [page, pageSize, search, employee]);
 
   const handlePageChange = (p: number, ps: number) => {
     setPage(p);
@@ -171,6 +182,7 @@ export default function CustomerListPage() {
         data={modal.data}
         onCancel={() => setModal({ ...modal, open: false })}
         onFinish={handleFinish}
+        customers={customers}
       />
     </div>
   );
