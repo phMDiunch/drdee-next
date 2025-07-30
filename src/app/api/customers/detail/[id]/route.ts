@@ -22,6 +22,7 @@ export async function GET(
           orderBy: { appointmentDateTime: "desc" },
           include: {
             primaryDentist: true,
+            secondaryDentist: true,
           },
         },
         consultedServices: {

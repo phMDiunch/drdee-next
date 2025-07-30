@@ -43,6 +43,7 @@ export default function AppointmentForm({
   console.log("3. Dữ liệu 'dentists' nhận được tại Form:", dentists);
 
   // TỐI ƯU: Khởi tạo state với giá trị ban đầu, thay vì dùng useEffect
+  // Nếu có customerId trong initialValues, không cần search customer
   const [customerOptions, setCustomerOptions] = useState<any[]>(() => {
     if (mode === "edit" && initialValues.customer) {
       const customer = initialValues.customer;
@@ -52,6 +53,10 @@ export default function AppointmentForm({
           value: customer.id,
         },
       ];
+    }
+    // Nếu là mode "add" từ customer detail page và có customerId
+    if (mode === "add" && initialValues.customerId) {
+      return []; // Sẽ disable customer select field
     }
     return [];
   });
@@ -113,11 +118,12 @@ export default function AppointmentForm({
               showSearch
               placeholder="Gõ tên hoặc SĐT để tìm khách hàng..."
               defaultActiveFirstOption={false}
-              suffixIcon={null} // Tối ưu: Sửa lỗi warning của Antd
+              suffixIcon={null}
               filterOption={false}
               onSearch={debouncedFetchCustomers}
               notFoundContent={searching ? <Spin size="small" /> : null}
               options={customerOptions}
+              disabled={mode === "add" && initialValues.customerId} // Disable nếu đã có customerId
             />
           </Form.Item>
         </Col>

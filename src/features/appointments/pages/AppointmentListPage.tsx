@@ -10,6 +10,7 @@ import dayjs from "dayjs";
 import { toast } from "react-toastify";
 import { useAppStore } from "@/stores/useAppStore";
 import { APPOINTMENT_STATUS_OPTIONS } from "@/features/appointments/constants";
+import { formatDateTimeVN } from "@/utils/date";
 
 type AppointmentWithIncludes = Appointment & {
   customer: { id: string; fullName: string; phone: string };
@@ -195,6 +196,32 @@ export default function AppointmentListPage() {
     });
   };
 
+  const handleDelete = async (appt: AppointmentWithIncludes) => {
+    const confirmed = window.confirm(
+      `Bạn chắc chắn muốn xóa lịch hẹn của "${
+        appt.customer?.fullName
+      }" vào ${formatDateTimeVN(appt.appointmentDateTime)}?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(`/api/appointments/${appt.id}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        throw new Error("Xóa lịch hẹn thất bại");
+      }
+
+      toast.success("Đã xóa lịch hẹn thành công!");
+      refetchData();
+    } catch (error: any) {
+      console.error("Delete appointment error:", error);
+      toast.error(error.message);
+    }
+  };
+
   const handlePageChange = (p: number, ps: number) => {
     setTablePage(p);
     setTablePageSize(ps);
@@ -247,6 +274,7 @@ export default function AppointmentListPage() {
           page={tablePage}
           pageSize={tablePageSize}
           onEdit={handleEdit}
+          onDelete={handleDelete} // Thêm prop này
           onPageChange={handlePageChange}
         />
       ) : (
