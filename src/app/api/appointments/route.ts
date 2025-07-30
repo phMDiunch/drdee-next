@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/services/prismaClient";
 import { Prisma } from "@prisma/client";
+import dayjs from "dayjs";
 
 // Lấy danh sách lịch hẹn (theo ngày, bác sĩ, clinic nếu muốn)
 export async function GET(request: NextRequest) {
@@ -85,6 +86,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
+
     // Validate: check trường bắt buộc
     if (
       !data.customerId ||
@@ -96,9 +98,58 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const appointmentDate = dayjs(data.appointmentDateTime);
+
+    // ✅ VALIDATION 1: Không được đặt lịch trong quá khứ
+    if (appointmentDate.isBefore(dayjs(), "minute")) {
+      return NextResponse.json(
+        { error: "Không thể đặt lịch hẹn trong quá khứ!" },
+        { status: 400 }
+      );
+    }
+
+    // ✅ VALIDATION 2: Kiểm tra khách hàng đã có lịch trong ngày chưa
+    const startOfDay = appointmentDate.startOf("day").toDate();
+    const endOfDay = appointmentDate.endOf("day").toDate();
+
+    const existingAppointment = await prisma.appointment.findFirst({
+      where: {
+        customerId: data.customerId,
+        appointmentDateTime: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+      },
+      include: {
+        customer: { select: { fullName: true } },
+      },
+    });
+
+    if (existingAppointment) {
+      return NextResponse.json(
+        {
+          error: `Khách hàng ${
+            existingAppointment.customer.fullName
+          } đã có lịch hẹn vào ngày ${appointmentDate.format(
+            "DD/MM/YYYY"
+          )} lúc ${dayjs(existingAppointment.appointmentDateTime).format(
+            "HH:mm"
+          )}!`,
+        },
+        { status: 400 }
+      );
+    }
+
     const created = await prisma.appointment.create({
       data,
+      include: {
+        customer: { select: { id: true, fullName: true, phone: true } },
+        primaryDentist: { select: { id: true, fullName: true } },
+        secondaryDentist: { select: { id: true, fullName: true } },
+      },
     });
+
     return NextResponse.json(created, { status: 201 });
   } catch (error: any) {
     return handlePrismaError(error);

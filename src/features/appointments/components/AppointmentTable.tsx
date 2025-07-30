@@ -9,6 +9,7 @@ import {
   APPOINTMENT_STATUS_OPTIONS,
   CHECKIN_ALLOWED_STATUSES,
 } from "../constants";
+import dayjs from "dayjs";
 
 const { Title } = Typography;
 
@@ -150,42 +151,73 @@ export default function AppointmentTable({
     {
       title: "Thao tác",
       key: "action",
-      render: (_: any, record: Appointment) => (
-        <Space>
-          {/* ✅ CHECK-IN/OUT BUTTONS */}
-          {showCheckInOut && onCheckIn && canCheckIn(record) && (
-            <Tooltip title="Check-in khách hàng">
+      render: (_: any, record: Appointment) => {
+        // ✅ KIỂM TRA LỊCH TRONG QUÁ KHỨ
+        const isPastAppointment = dayjs(record.appointmentDateTime).isBefore(
+          dayjs(),
+          "day"
+        );
+
+        return (
+          <Space>
+            {/* Check-in/out buttons */}
+            {showCheckInOut && onCheckIn && canCheckIn(record) && (
+              <Tooltip title="Check-in khách hàng">
+                <Button
+                  size="small"
+                  type="primary"
+                  icon={<LoginOutlined />}
+                  onClick={() => onCheckIn(record)}
+                >
+                  Check-in
+                </Button>
+              </Tooltip>
+            )}
+
+            {showCheckInOut && onCheckOut && canCheckOut(record) && (
+              <Tooltip title="Check-out khách hàng">
+                <Button
+                  size="small"
+                  icon={<LogoutOutlined />}
+                  onClick={() => onCheckOut(record)}
+                >
+                  Check-out
+                </Button>
+              </Tooltip>
+            )}
+
+            {/* ✅ DISABLE SỬA/XÓA CHO LỊCH QUÁ KHỨ */}
+            <Tooltip
+              title={
+                isPastAppointment ? "Không thể sửa lịch trong quá khứ" : ""
+              }
+            >
               <Button
                 size="small"
-                type="primary"
-                icon={<LoginOutlined />}
-                onClick={() => onCheckIn(record)}
+                onClick={() => onEdit(record)}
+                disabled={isPastAppointment}
               >
-                Check-in
+                Sửa
               </Button>
             </Tooltip>
-          )}
 
-          {showCheckInOut && onCheckOut && canCheckOut(record) && (
-            <Tooltip title="Check-out khách hàng">
+            <Tooltip
+              title={
+                isPastAppointment ? "Không thể xóa lịch trong quá khứ" : ""
+              }
+            >
               <Button
                 size="small"
-                icon={<LogoutOutlined />}
-                onClick={() => onCheckOut(record)}
+                danger
+                onClick={() => onDelete(record)}
+                disabled={isPastAppointment}
               >
-                Check-out
+                Xóa
               </Button>
             </Tooltip>
-          )}
-
-          <Button size="small" onClick={() => onEdit(record)}>
-            Sửa
-          </Button>
-          <Button size="small" danger onClick={() => onDelete(record)}>
-            Xóa
-          </Button>
-        </Space>
-      ),
+          </Space>
+        );
+      },
     },
   ];
 

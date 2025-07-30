@@ -10,8 +10,9 @@ import {
   Button,
   Spin,
   InputNumber,
+  Alert,
 } from "antd";
-import { useState, useCallback } from "react"; // Bỏ useEffect
+import { useState, useCallback } from "react";
 import debounce from "lodash/debounce";
 import type { Appointment } from "../type";
 import { BRANCHES } from "@/constants";
@@ -38,17 +39,14 @@ export default function AppointmentForm({
 }: Props) {
   const employee = useAppStore((state) => state.employeeProfile);
   const [searching, setSearching] = useState(false);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(
+    initialValues.customerId || initialValues.customer?.id || null
+  );
+  const [dateValidationError, setDateValidationError] = useState<string>("");
 
-  // --- THÊM DÒNG NÀY ĐỂ BẠN KIỂM TRA ---
   console.log("3. Dữ liệu 'dentists' nhận được tại Form:", dentists);
-  console.log("4. initialValues tại Form:", initialValues);
-  // TỐI ƯU: Khởi tạo state với giá trị ban đầu, thay vì dùng useEffect
-  // Nếu có customerId trong initialValues, không cần search customer
+
   const [customerOptions, setCustomerOptions] = useState<any[]>(() => {
-    console.log(
-      "5. Khởi tạo customerOptions với initialValues:",
-      initialValues
-    );
     if (mode === "edit" && initialValues.customer) {
       const customer = initialValues.customer;
       return [
@@ -58,7 +56,6 @@ export default function AppointmentForm({
         },
       ];
     }
-    // Nếu là mode "add" từ customer detail page và có customer info
     if (mode === "add" && initialValues.customer) {
       const customer = initialValues.customer;
       return [
@@ -100,6 +97,88 @@ export default function AppointmentForm({
     []
   );
 
+  // ✅ VALIDATION: Kiểm tra ngày được chọn
+  const handleDateChange = async (date: dayjs.Dayjs | null) => {
+    setDateValidationError("");
+
+    if (!date) return;
+
+    // Kiểm tra không được chọn ngày trong quá khứ
+    if (date.isBefore(dayjs(), "minute")) {
+      setDateValidationError("Không thể đặt lịch hẹn trong quá khứ!");
+      return;
+    }
+
+    // Kiểm tra khách hàng đã có lịch trong ngày chưa (chỉ khi có customer)
+    if (selectedCustomerId && mode === "add") {
+      try {
+        const params = new URLSearchParams({
+          customerId: selectedCustomerId,
+          date: date.format("YYYY-MM-DD"),
+        });
+
+        const res = await fetch(
+          `/api/appointments/check-conflict?${params.toString()}`
+        );
+        const data = await res.json();
+
+        if (data.hasConflict) {
+          setDateValidationError(
+            `Khách hàng đã có lịch hẹn vào ngày ${date.format(
+              "DD/MM/YYYY"
+            )} lúc ${dayjs(data.existingAppointment.appointmentDateTime).format(
+              "HH:mm"
+            )}!`
+          );
+        }
+      } catch (error) {
+        console.error("Error checking date conflict:", error);
+      }
+    }
+  };
+
+  // ✅ VALIDATION: Khi thay đổi khách hàng
+  const handleCustomerChange = (customerId: string) => {
+    setSelectedCustomerId(customerId);
+    setDateValidationError(""); // Reset error khi đổi khách hàng
+  };
+
+  // ✅ DISABLE DATES: Disable ngày trong quá khứ
+  const disabledDate = (current: dayjs.Dayjs) => {
+    return current && current.isBefore(dayjs(), "day");
+  };
+
+  // ✅ DISABLE TIMES: Disable giờ trong quá khứ cho ngày hôm nay
+  const disabledTime = (current: dayjs.Dayjs | null) => {
+    if (!current || !current.isSame(dayjs(), "day")) {
+      return {}; // Không disable gì nếu không phải hôm nay
+    }
+
+    const now = dayjs();
+    return {
+      disabledHours: () => {
+        const hours = [];
+        for (let i = 0; i < now.hour(); i++) {
+          hours.push(i);
+        }
+        return hours;
+      },
+      disabledMinutes: (selectedHour: number) => {
+        if (selectedHour < now.hour()) {
+          return [];
+        }
+        if (selectedHour === now.hour()) {
+          const minutes = [];
+          for (let i = 0; i <= now.minute(); i++) {
+            minutes.push(i);
+          }
+          return minutes;
+        }
+        return [];
+      },
+    };
+  };
+
   return (
     <Form
       form={form}
@@ -132,12 +211,13 @@ export default function AppointmentForm({
               suffixIcon={null}
               filterOption={false}
               onSearch={debouncedFetchCustomers}
+              onChange={handleCustomerChange}
               notFoundContent={searching ? <Spin size="small" /> : null}
               options={customerOptions}
               disabled={
                 (mode === "add" && initialValues.customerId) ||
                 (mode === "add" && initialValues.customer)
-              } // Disable nếu đã có customerId
+              }
             />
           </Form.Item>
         </Col>
@@ -148,6 +228,7 @@ export default function AppointmentForm({
             label="Thời gian hẹn"
             name="appointmentDateTime"
             rules={[{ required: true, message: "Chọn thời gian hẹn" }]}
+            validateStatus={dateValidationError ? "error" : ""}
           >
             <DatePicker
               showTime
@@ -155,10 +236,26 @@ export default function AppointmentForm({
               style={{ width: "100%" }}
               minuteStep={15}
               allowClear={false}
+              disabledDate={disabledDate}
+              disabledTime={disabledTime}
+              onChange={handleDateChange}
             />
           </Form.Item>
         </Col>
-        {/* Thời lượng */}
+
+        {/* Alert nếu có lỗi validation */}
+        {dateValidationError && (
+          <Col span={24}>
+            <Alert
+              message={dateValidationError}
+              type="error"
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
+          </Col>
+        )}
+
+        {/* Các trường khác giữ nguyên */}
         <Col span={12}>
           <Form.Item
             label="Thời lượng (phút)"
@@ -168,7 +265,7 @@ export default function AppointmentForm({
             <InputNumber style={{ width: "100%" }} min={5} step={5} />
           </Form.Item>
         </Col>
-        {/* Bác sĩ chính & phụ */}
+
         <Col span={12}>
           <Form.Item
             label="Bác sĩ / Điều dưỡng chính"
@@ -190,6 +287,7 @@ export default function AppointmentForm({
             />
           </Form.Item>
         </Col>
+
         <Col span={12}>
           <Form.Item label="Bác sĩ / Điều dưỡng phụ" name="secondaryDentistId">
             <Select
@@ -208,7 +306,7 @@ export default function AppointmentForm({
             />
           </Form.Item>
         </Col>
-        {/* Các trường khác */}
+
         <Col span={12}>
           <Form.Item label="Chi nhánh" name="clinicId">
             <Select
@@ -220,11 +318,13 @@ export default function AppointmentForm({
             />
           </Form.Item>
         </Col>
+
         <Col span={12}>
           <Form.Item label="Trạng thái" name="status">
             <Select options={APPOINTMENT_STATUS_OPTIONS} />
           </Form.Item>
         </Col>
+
         <Col span={24}>
           <Form.Item label="Ghi chú" name="notes">
             <Input.TextArea
@@ -234,6 +334,7 @@ export default function AppointmentForm({
           </Form.Item>
         </Col>
       </Row>
+
       <Form.Item>
         <Button
           type="primary"
@@ -241,6 +342,7 @@ export default function AppointmentForm({
           loading={loading}
           style={{ marginTop: 12 }}
           block
+          disabled={!!dateValidationError} // Disable nếu có lỗi validation
         >
           Lưu
         </Button>
