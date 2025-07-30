@@ -1,31 +1,36 @@
 // src/features/consulted-service/components/ConsultedServiceTable.tsx
 "use client";
-import { Table, Tag, Button, Space, Typography } from "antd";
-import { PlusOutlined, CheckOutlined } from "@ant-design/icons";
+import { Table, Button, Space, Tag, Typography, Tooltip } from "antd";
+import {
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  CheckOutlined,
+} from "@ant-design/icons";
 import type { ConsultedServiceWithDetails } from "../type";
-import { formatDateTimeVN } from "@/utils/date";
+import { formatCurrency, formatDateTimeVN } from "@/utils/date"; // ✅ SỬA: Đường dẫn đúng
 
 const { Title } = Typography;
 
 type Props = {
   data: ConsultedServiceWithDetails[];
-  loading: boolean;
+  loading?: boolean;
   onAdd: () => void;
   onEdit: (service: ConsultedServiceWithDetails) => void;
   onDelete: (service: ConsultedServiceWithDetails) => void;
-  onConfirm: (service: ConsultedServiceWithDetails) => void; // Thêm prop này
+  onConfirm: (service: ConsultedServiceWithDetails) => void;
+  disableAdd?: boolean;
 };
 
 export default function ConsultedServiceTable({
   data,
-  loading,
+  loading = false,
   onAdd,
   onEdit,
   onDelete,
-  onConfirm, // Nhận prop này
+  onConfirm,
+  disableAdd = false,
 }: Props) {
-  console.log("ConsultedServiceTable data:", data);
-
   const columns = [
     {
       title: "Tên dịch vụ",
@@ -36,7 +41,7 @@ export default function ConsultedServiceTable({
       title: "Đơn giá",
       dataIndex: "price",
       key: "price",
-      render: (price: number) => price?.toLocaleString("vi-VN") + " đ",
+      render: (price: number) => formatCurrency(price), // ✅ SỬA: Dùng formatCurrency
     },
     {
       title: "Số lượng",
@@ -47,7 +52,7 @@ export default function ConsultedServiceTable({
       title: "Thành tiền",
       dataIndex: "finalPrice",
       key: "finalPrice",
-      render: (price: number) => price?.toLocaleString("vi-VN") + " đ",
+      render: (price: number) => formatCurrency(price), // ✅ SỬA: Dùng formatCurrency
     },
     {
       title: "Trạng thái dịch vụ",
@@ -132,18 +137,30 @@ export default function ConsultedServiceTable({
         <Title level={5} style={{ margin: 0 }}>
           Danh sách dịch vụ đã tư vấn
         </Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={onAdd}>
-          Thêm dịch vụ tư vấn
-        </Button>
+
+        {/* ✅ Disable button với tooltip */}
+        <Tooltip
+          title={disableAdd ? "Cần check-in trước khi tạo dịch vụ tư vấn" : ""}
+        >
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={onAdd}
+            disabled={disableAdd} // ✅ DISABLE KHI CHƯA CHECK-IN
+          >
+            Thêm dịch vụ tư vấn
+          </Button>
+        </Tooltip>
       </div>
+
       <Table
         columns={columns}
         dataSource={data}
         rowKey="id"
         loading={loading}
         bordered
-        size="small"
-        pagination={false}
+        size="middle"
+        pagination={{ pageSize: 10 }}
       />
     </div>
   );

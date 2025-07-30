@@ -1,10 +1,15 @@
 // src/features/customers/pages/CustomerDetailPage.tsx
 "use client";
-import { useMemo } from "react";
-import { Spin, Tabs, Typography, TabsProps, Button } from "antd";
+import { useMemo, useEffect } from "react"; // ✅ THÊM useEffect
+import { Spin, Tabs, Typography, TabsProps, Button, Alert } from "antd";
 import Link from "next/link";
-import { ArrowLeftOutlined, PlusOutlined } from "@ant-design/icons";
+import {
+  ArrowLeftOutlined,
+  PlusOutlined,
+  LoginOutlined,
+} from "@ant-design/icons";
 import { useAppStore } from "@/stores/useAppStore";
+import dayjs from "dayjs";
 
 // Custom hooks
 import { useCustomerDetail } from "../hooks/useCustomerDetail";
@@ -38,12 +43,40 @@ export default function CustomerDetailPage({ customerId }: Props) {
     fetchActiveEmployees,
   } = useAppStore();
 
+  // ✅ THÊM useEffect để fetch activeEmployees
+  useEffect(() => {
+    if (employeeProfile?.clinicId && activeEmployees.length === 0) {
+      console.log("Fetching active employees...");
+      fetchActiveEmployees(employeeProfile);
+    }
+  }, [employeeProfile?.clinicId, fetchActiveEmployees, activeEmployees.length]);
+
   // Memoized dentists and nurses
   const dentistsAndNurses = useMemo(() => {
-    return activeEmployees.filter(
+    console.log("Active employees:", activeEmployees); // ✅ DEBUG
+    const filtered = activeEmployees.filter(
       (emp) => emp.title === "Bác sĩ" || emp.title === "Điều dưỡng"
     );
+    console.log("Dentists and nurses:", filtered); // ✅ DEBUG
+    return filtered;
   }, [activeEmployees]);
+
+  // ✅ Kiểm tra customer đã check-in hôm nay chưa
+  const todayCheckinStatus = useMemo(() => {
+    if (!customer?.appointments)
+      return { hasCheckedIn: false, appointment: null };
+
+    const today = dayjs().format("YYYY-MM-DD");
+    const todayAppt = customer.appointments.find((appt) => {
+      const apptDate = dayjs(appt.appointmentDateTime).format("YYYY-MM-DD");
+      return apptDate === today && appt.checkInTime;
+    });
+
+    return {
+      hasCheckedIn: !!todayAppt,
+      appointment: todayAppt || null,
+    };
+  }, [customer?.appointments]);
 
   // Loading state
   if (loading) {
@@ -65,7 +98,10 @@ export default function CustomerDetailPage({ customerId }: Props) {
     );
   }
 
-  // Tab items
+  // ✅ DEBUG: Log dentists data trước khi pass vào modal
+  console.log("Passing dentists to AppointmentModal:", dentistsAndNurses);
+
+  // ✅ Tab items với check-in validation
   const items: TabsProps["items"] = [
     {
       key: "1",
@@ -82,9 +118,12 @@ export default function CustomerDetailPage({ customerId }: Props) {
           onEdit={appointmentHook.handleEditAppointment}
           onDelete={appointmentHook.handleDeleteAppointment}
           hideCustomerColumn={true}
-          showHeader={true} // Hiển thị header và nút Add
-          onAdd={appointmentHook.handleAddAppointment} // Thêm prop này
+          showHeader={true}
+          onAdd={appointmentHook.handleAddAppointment}
           title="Danh sách lịch hẹn"
+          showCheckInOut={true}
+          onCheckIn={appointmentHook.handleCheckIn}
+          onCheckOut={appointmentHook.handleCheckOut}
         />
       ),
     },
@@ -92,14 +131,41 @@ export default function CustomerDetailPage({ customerId }: Props) {
       key: "3",
       label: `Dịch vụ đã tư vấn (${customer?.consultedServices?.length || 0})`,
       children: (
-        <ConsultedServiceTable
-          data={customer?.consultedServices || []}
-          loading={loading}
-          onAdd={consultedServiceHook.handleAddService}
-          onEdit={consultedServiceHook.handleEditService}
-          onDelete={consultedServiceHook.handleDeleteService}
-          onConfirm={consultedServiceHook.handleConfirmService}
-        />
+        <div>
+          {!todayCheckinStatus.hasCheckedIn && (
+            <Alert
+              message="Chưa check-in hôm nay"
+              description="Khách hàng cần check-in trước khi có thể tạo dịch vụ tư vấn. Vui lòng check-in trong tab 'Lịch hẹn' trước."
+              type="warning"
+              showIcon
+              style={{ marginBottom: 16 }}
+              action={
+                <Button
+                  size="small"
+                  icon={<LoginOutlined />}
+                  onClick={() => {
+                    const tabsElement = document.querySelector(
+                      '[role="tablist"] .ant-tabs-tab:nth-child(2)'
+                    ) as HTMLElement;
+                    tabsElement?.click();
+                  }}
+                >
+                  Đi check-in
+                </Button>
+              }
+            />
+          )}
+
+          <ConsultedServiceTable
+            data={customer?.consultedServices || []}
+            loading={loading}
+            onAdd={consultedServiceHook.handleAddService}
+            onEdit={consultedServiceHook.handleEditService}
+            onDelete={consultedServiceHook.handleDeleteService}
+            onConfirm={consultedServiceHook.handleConfirmService}
+            disableAdd={!todayCheckinStatus.hasCheckedIn}
+          />
+        </div>
       ),
     },
   ];
@@ -116,6 +182,22 @@ export default function CustomerDetailPage({ customerId }: Props) {
         <Title level={3} style={{ margin: 0, display: "inline" }}>
           Chi tiết khách hàng: {customer.fullName}
         </Title>
+
+        {/* ✅ Check-in Status Badge - ĐÃ CÓ Ở ĐÂY */}
+        <div style={{ marginTop: 8 }}>
+          {todayCheckinStatus.hasCheckedIn ? (
+            <span style={{ color: "green", fontSize: 14 }}>
+              ✅ Đã check-in hôm nay lúc{" "}
+              {dayjs(todayCheckinStatus.appointment?.checkInTime).format(
+                "HH:mm"
+              )}
+            </span>
+          ) : (
+            <span style={{ color: "orange", fontSize: 14 }}>
+              ⏳ Chưa check-in hôm nay
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Tabs */}
@@ -142,7 +224,7 @@ export default function CustomerDetailPage({ customerId }: Props) {
         }
         onFinish={appointmentHook.handleFinishAppointment}
         loading={loading}
-        dentists={dentistsAndNurses}
+        dentists={dentistsAndNurses} // ✅ Đã có data sau khi fetch
       />
     </div>
   );

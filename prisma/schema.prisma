@@ -217,6 +217,9 @@ model Appointment {
   createdBy        Employee       @relation("CreatedAppointments", fields: [createdById], references: [id])
   updatedBy        Employee       @relation("UpdatedAppointments", fields: [updatedById], references: [id])
   treatmentLogs    TreatmentLog[]
+
+  // ✅ THÊM - 1 appointment có thể có nhiều consulted services
+  consultedServices ConsultedService[]
 }
 
 model ConsultedService {
@@ -276,6 +279,7 @@ model ConsultedService {
 
   treatmentLogs  TreatmentLog[]
   paymentDetails PaymentVoucherDetail[]
+  Appointment    Appointment?           @relation(fields: [appointmentId], references: [id])
 }
 
 model TreatmentLog {

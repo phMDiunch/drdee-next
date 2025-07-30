@@ -61,3 +61,13 @@ export const calculateAge = (dob: string): number => {
   const birthDate = dayjs(dob, "DD/MM/YYYY");
   return today.diff(birthDate, "year");
 };
+
+/**
+ * Định dạng số tiền theo định dạng của Việt Nam
+ * @param amount Số tiền
+ * @returns Chuỗi định dạng số tiền
+ */
+export const formatCurrency = (amount: number): string => {
+  if (!amount && amount !== 0) return "0 đ";
+  return amount.toLocaleString("vi-VN") + " đ";
+};
