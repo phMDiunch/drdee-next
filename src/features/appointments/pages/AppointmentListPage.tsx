@@ -89,19 +89,25 @@ export default function AppointmentListPage() {
       fetch(`/api/appointments?${params.toString()}`)
         .then((res) => res.json())
         .then((data: AppointmentWithIncludes[]) => {
-          const mappedEvents = (data || []).map((a) => ({
-            id: a.id,
-            title: `${a.customer?.fullName || "Khách lạ"} - ${
-              a.primaryDentist?.fullName || "Chưa có BS"
-            }`,
-            start: a.appointmentDateTime,
-            end: a.appointmentDateTime,
-            backgroundColor:
-              APPOINTMENT_STATUS_OPTIONS.find((s) => s.value === a.status)
-                ?.color || "#1890ff",
-            borderColor: "#fff",
-            extendedProps: a,
-          }));
+          const mappedEvents = (data || []).map((a) => {
+            const start = dayjs(a.appointmentDateTime);
+            // Nếu không có duration, mặc định là 30 phút
+            const end = start.add(a.duration || 30, "minute");
+
+            return {
+              id: a.id,
+              title: `${a.customer?.fullName || "Khách lạ"} - ${
+                a.primaryDentist?.fullName || "Chưa có BS"
+              }`,
+              start: start.toISOString(), // Dùng start đã tính
+              end: end.toISOString(), // Dùng end đã tính
+              backgroundColor:
+                APPOINTMENT_STATUS_OPTIONS.find((s) => s.value === a.status)
+                  ?.color || "#1890ff",
+              borderColor: "#fff",
+              extendedProps: a,
+            };
+          });
           successCallback(mappedEvents);
         })
         .catch((error) => {

@@ -190,6 +190,7 @@ model Appointment {
   // ---- Thông tin cơ bản ----
   customerId          String // Liên kết đến Khách hàng
   appointmentDateTime DateTime // Thời gian hẹn chính xác (ngày và giờ)
+  duration            Int      @default(30) // Thời lượng cuộc hẹn tính bằng phút, mặc định là 30 phút
   notes               String? // Nội dung, ghi chú cho cuộc hẹn
 
   // ---- Thông tin phân công ----
@@ -222,14 +223,15 @@ model ConsultedService {
   id String @id @default(uuid())
 
   // ---- Liên kết Dữ liệu ----
-  customerId    String
-  appointmentId String? // Lịch hẹn tư vấn (có thể không bắt buộc)
-  serviceId     String // Dịch vụ gốc (sẽ trỏ đến DentalService) // Đã đổi tên `serviceId` thành `dentalServiceId`
-  clinicId      String // Chi nhánh diễn ra tư vấn
+  customerId      String
+  appointmentId   String? // Lịch hẹn tư vấn (có thể không bắt buộc)
+  dentalServiceId String // Dịch vụ gốc (sẽ trỏ đến DentalService) // Đã đổi tên `serviceId` thành `dentalServiceId`
+  clinicId        String // Chi nhánh diễn ra tư vấn
 
   // ---- Dữ liệu Sao chép (Denormalized) ----
   // Giữ lịch sử giá và tên tại thời điểm tư vấn
-  denormalizedData Json
+  consultedServiceName String // Sao chép tên dịch vụ tại thời điểm tư vấn
+  consultedServiceUnit String // Sao chép đơn vị tính
 
   // ---- Thông tin Điều trị Chi tiết ----
   toothPositions String[] // Mảng vị trí răng, ví dụ: ["R16", "R26"]
@@ -263,7 +265,7 @@ model ConsultedService {
 
   // Quan hệ ảo
   customer      Customer      @relation(fields: [customerId], references: [id])
-  dentalService DentalService @relation(fields: [serviceId], references: [id]) // Đã đổi tên quan hệ và trường tham chiếu
+  dentalService DentalService @relation(fields: [dentalServiceId], references: [id]) // <-- ĐÃ ĐỔI TÊN
 
   consultingDoctor Employee? @relation("ConsultingDoctorServices", fields: [consultingDoctorId], references: [id])
   consultingSale   Employee? @relation("ConsultingSaleServices", fields: [consultingSaleId], references: [id])
@@ -272,8 +274,7 @@ model ConsultedService {
   createdBy Employee @relation("CreatedConsultedServices", fields: [createdById], references: [id])
   updatedBy Employee @relation("UpdatedConsultedServices", fields: [updatedById], references: [id])
 
-  treatmentLogs TreatmentLog[]
-
+  treatmentLogs  TreatmentLog[]
   paymentDetails PaymentVoucherDetail[]
 }
 

@@ -1,6 +1,16 @@
 // src/features/appointments/components/AppointmentForm.tsx
 "use client";
-import { Form, Input, DatePicker, Select, Row, Col, Button, Spin } from "antd";
+import {
+  Form,
+  Input,
+  DatePicker,
+  Select,
+  Row,
+  Col,
+  Button,
+  Spin,
+  InputNumber,
+} from "antd";
 import { useState, useCallback } from "react"; // Bỏ useEffect
 import debounce from "lodash/debounce";
 import type { Appointment } from "../type";
@@ -82,6 +92,7 @@ export default function AppointmentForm({
       initialValues={{
         ...initialValues,
         status: initialValues.status || "Chờ xác nhận",
+        duration: initialValues.duration || 30,
         clinicId: initialValues.clinicId || employee?.clinicId,
         appointmentDateTime: initialValues.appointmentDateTime
           ? dayjs(initialValues.appointmentDateTime)
@@ -121,9 +132,19 @@ export default function AppointmentForm({
               showTime
               format="DD/MM/YYYY HH:mm"
               style={{ width: "100%" }}
-              minuteStep={5}
+              minuteStep={15}
               allowClear={false}
             />
+          </Form.Item>
+        </Col>
+        {/* Thời lượng */}
+        <Col span={12}>
+          <Form.Item
+            label="Thời lượng (phút)"
+            name="duration"
+            rules={[{ required: true, message: "Nhập thời lượng" }]}
+          >
+            <InputNumber style={{ width: "100%" }} min={5} step={5} />
           </Form.Item>
         </Col>
         {/* Bác sĩ chính & phụ */}
