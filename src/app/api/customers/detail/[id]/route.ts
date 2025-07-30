@@ -21,6 +21,7 @@ export async function GET(
         appointments: {
           orderBy: { appointmentDateTime: "desc" },
           include: {
+            customer: true,
             primaryDentist: true,
             secondaryDentist: true,
           },

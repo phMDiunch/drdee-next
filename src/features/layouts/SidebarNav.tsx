@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import { Menu } from "antd";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -9,6 +10,8 @@ import {
   MedicineBoxOutlined,
   SettingOutlined,
   CalendarOutlined,
+  ClockCircleOutlined,
+  ScheduleOutlined,
 } from "@ant-design/icons";
 
 const menuItems = [
@@ -24,13 +27,25 @@ const menuItems = [
   },
   {
     key: "customers",
-    icon: <CalendarOutlined />,
+    icon: <UserOutlined />,
     label: <Link href="/customers">Khách hàng</Link>,
   },
   {
     key: "appointments",
-    icon: <UserOutlined />,
-    label: <Link href="/appointments">Lịch hẹn</Link>,
+    icon: <CalendarOutlined />,
+    label: "Lịch hẹn",
+    children: [
+      {
+        key: "appointments-list",
+        icon: <ScheduleOutlined />,
+        label: <Link href="/appointments">Quản lý lịch hẹn</Link>,
+      },
+      {
+        key: "appointments-today",
+        icon: <ClockCircleOutlined />,
+        label: <Link href="/appointments/today">Lịch hẹn hôm nay</Link>,
+      },
+    ],
   },
   {
     key: "settings",
@@ -42,7 +57,6 @@ const menuItems = [
         icon: <MedicineBoxOutlined />,
         label: <Link href="/dental-services">Dịch vụ nha khoa</Link>,
       },
-      // Thêm menu con khác nếu muốn
     ],
   },
 ];
@@ -50,14 +64,30 @@ const menuItems = [
 export default function SidebarNav() {
   const pathname = usePathname();
 
-  // Xác định key menu đang chọn
+  const [openKeys, setOpenKeys] = useState<string[]>(() => {
+    if (pathname.startsWith("/appointments")) return ["appointments"];
+    if (pathname.startsWith("/dental-services")) return ["settings"];
+    return [];
+  });
+
+  // Xác định selectedKey - loại bỏ customers-checkin
   let selectedKey = "dashboard";
-  if (pathname.startsWith("/employees")) selectedKey = "employees";
-  else if (pathname.startsWith("/customers")) selectedKey = "customers";
-  else if (pathname.startsWith("/services")) selectedKey = "services";
-  else if (pathname.startsWith("/settings")) selectedKey = "settings";
-  else if (pathname.startsWith("/dental-services"))
+
+  if (pathname.startsWith("/employees")) {
+    selectedKey = "employees";
+  } else if (pathname.startsWith("/customers")) {
+    selectedKey = "customers";
+  } else if (pathname.startsWith("/appointments/today")) {
+    selectedKey = "appointments-today";
+  } else if (pathname.startsWith("/appointments")) {
+    selectedKey = "appointments-list";
+  } else if (pathname.startsWith("/dental-services")) {
     selectedKey = "dental-services";
+  }
+
+  const handleOpenChange = (keys: string[]) => {
+    setOpenKeys(keys);
+  };
 
   return (
     <div
@@ -90,6 +120,8 @@ export default function SidebarNav() {
       <Menu
         mode="inline"
         selectedKeys={[selectedKey]}
+        openKeys={openKeys}
+        onOpenChange={handleOpenChange}
         style={{ borderRight: 0, flex: 1, fontSize: 16 }}
         items={menuItems}
       />

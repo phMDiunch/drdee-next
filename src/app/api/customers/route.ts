@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/services/prismaClient";
 import { Prisma } from "@prisma/client";
+import dayjs from "dayjs";
 
 // Lấy danh sách customer
 export async function GET(request: NextRequest) {
@@ -11,6 +12,7 @@ export async function GET(request: NextRequest) {
   const pageSize = Number(searchParams.get("pageSize") || "20");
   const search = searchParams.get("search")?.trim() || "";
   const clinicId = searchParams.get("clinicId") || "";
+  const includeToday = searchParams.get("includeToday") === "true"; // ✅ FLAG MỚI
 
   const where: any = {};
   if (search) {
@@ -24,25 +26,69 @@ export async function GET(request: NextRequest) {
   }
   if (clinicId) where.clinicId = clinicId;
 
+  // ✅ INCLUDE LOGIC
+  const include: any = {
+    primaryContact: {
+      select: {
+        customerCode: true,
+        fullName: true,
+        phone: true,
+      },
+    },
+  };
+
+  // ✅ NẾU CHECK-IN MODE → INCLUDE TODAY APPOINTMENTS
+  if (includeToday) {
+    const startOfDay = dayjs().startOf("day").toDate();
+    const endOfDay = dayjs().endOf("day").toDate();
+
+    include.appointments = {
+      where: {
+        appointmentDateTime: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+      },
+      select: {
+        id: true,
+        appointmentDateTime: true,
+        status: true,
+        checkInTime: true,
+        checkOutTime: true,
+        primaryDentist: {
+          select: {
+            fullName: true,
+          },
+        },
+      },
+      take: 1, // Chỉ lấy 1 appointment (mỗi khách 1 lịch/ngày)
+    };
+  }
+
   const [customers, total] = await Promise.all([
     prisma.customer.findMany({
       where,
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * pageSize,
       take: pageSize,
-      include: {
-        primaryContact: {
-          select: {
-            customerCode: true,
-            fullName: true,
-            phone: true,
-          },
-        },
-      },
+      include,
     }),
     prisma.customer.count({ where }),
   ]);
-  return NextResponse.json({ customers, total });
+
+  // ✅ TRANSFORM DATA CHO CHECK-IN MODE
+  const transformedCustomers = customers.map((customer) => {
+    if (includeToday && customer.appointments) {
+      return {
+        ...customer,
+        todayAppointment: customer.appointments[0] || null,
+        appointments: undefined, // Remove để tránh bloat
+      };
+    }
+    return customer;
+  });
+
+  return NextResponse.json({ customers: transformedCustomers, total });
 }
 
 // Hàm dùng chung để trả lỗi Prisma dạng đẹp tiếng Việt

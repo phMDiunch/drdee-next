@@ -1,7 +1,8 @@
 // src/features/appointments/pages/AppointmentListPage.tsx
 "use client";
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { Button, Col, Input, Row, Segmented, Spin } from "antd";
+import { Button, Col, Input, Row, Segmented, Spin, Typography } from "antd";
+import { PlusOutlined } from "@ant-design/icons";
 import AppointmentTable from "@/features/appointments/components/AppointmentTable";
 import AppointmentModal from "@/features/appointments/components/AppointmentModal";
 import AppointmentCalendar from "@/features/appointments/components/AppointmentCalendar";
@@ -11,6 +12,8 @@ import { toast } from "react-toastify";
 import { useAppStore } from "@/stores/useAppStore";
 import { APPOINTMENT_STATUS_OPTIONS } from "@/features/appointments/constants";
 import { formatDateTimeVN } from "@/utils/date";
+
+const { Title } = Typography;
 
 type AppointmentWithIncludes = Appointment & {
   customer: { id: string; fullName: string; phone: string };
@@ -90,25 +93,30 @@ export default function AppointmentListPage() {
       fetch(`/api/appointments?${params.toString()}`)
         .then((res) => res.json())
         .then((data: AppointmentWithIncludes[]) => {
+          console.log("📊 Raw API data:", data);
+
           const mappedEvents = (data || []).map((a) => {
             const start = dayjs(a.appointmentDateTime);
-            // Nếu không có duration, mặc định là 30 phút
             const end = start.add(a.duration || 30, "minute");
 
-            return {
+            const event = {
               id: a.id,
               title: `${a.customer?.fullName || "Khách lạ"} - ${
                 a.primaryDentist?.fullName || "Chưa có BS"
               }`,
-              start: start.toISOString(), // Dùng start đã tính
-              end: end.toISOString(), // Dùng end đã tính
+              start: start.toISOString(),
+              end: end.toISOString(),
               backgroundColor:
                 APPOINTMENT_STATUS_OPTIONS.find((s) => s.value === a.status)
                   ?.color || "#1890ff",
               borderColor: "#fff",
-              extendedProps: a,
+              extendedProps: a, // Đảm bảo notes có trong đây
             };
+
+            console.log("🗓️ Mapped event:", event);
+            return event;
           });
+
           successCallback(mappedEvents);
         })
         .catch((error) => {
@@ -183,17 +191,43 @@ export default function AppointmentListPage() {
     }
   };
 
-  const handleEdit = (appt: AppointmentWithIncludes) => {
-    setModal({
-      open: true,
-      mode: "edit",
-      data: {
-        ...appt,
-        appointmentDateTime: appt.appointmentDateTime
-          ? dayjs(appt.appointmentDateTime)
-          : undefined,
-      },
-    });
+  const handleEdit = async (appt: AppointmentWithIncludes) => {
+    try {
+      // Fetch fresh data from API trước khi mở modal
+      const res = await fetch(`/api/appointments/${appt.id}`);
+
+      if (!res.ok) {
+        throw new Error("Không thể tải thông tin lịch hẹn");
+      }
+
+      const freshData = await res.json();
+
+      setModal({
+        open: true,
+        mode: "edit",
+        data: {
+          ...freshData, // Dùng fresh data thay vì stale data
+          appointmentDateTime: freshData.appointmentDateTime
+            ? dayjs(freshData.appointmentDateTime)
+            : undefined,
+        },
+      });
+    } catch (error: any) {
+      console.error("Failed to fetch fresh appointment data:", error);
+      toast.error(error.message);
+
+      // Fallback to stale data nếu fetch thất bại
+      setModal({
+        open: true,
+        mode: "edit",
+        data: {
+          ...appt,
+          appointmentDateTime: appt.appointmentDateTime
+            ? dayjs(appt.appointmentDateTime)
+            : undefined,
+        },
+      });
+    }
   };
 
   const handleDelete = async (appt: AppointmentWithIncludes) => {
@@ -229,10 +263,8 @@ export default function AppointmentListPage() {
 
   return (
     <div style={{ padding: 24 }}>
+      {/* Chỉ giữ lại phần control và search, bỏ header và nút "Thêm" */}
       <Row align="middle" gutter={16} style={{ marginBottom: 16 }}>
-        <Col flex={1}>
-          <h2 style={{ margin: 0 }}>Quản lý lịch hẹn</h2>
-        </Col>
         <Col>
           <Segmented
             options={[
@@ -256,14 +288,6 @@ export default function AppointmentListPage() {
             />
           </Col>
         )}
-        <Col>
-          <Button
-            type="primary"
-            onClick={() => setModal({ open: true, mode: "add", data: {} })}
-          >
-            Thêm lịch hẹn
-          </Button>
-        </Col>
       </Row>
 
       {view === "table" ? (
@@ -274,38 +298,112 @@ export default function AppointmentListPage() {
           page={tablePage}
           pageSize={tablePageSize}
           onEdit={handleEdit}
-          onDelete={handleDelete} // Thêm prop này
+          onDelete={handleDelete}
           onPageChange={handlePageChange}
+          showHeader={true}
+          onAdd={() => setModal({ open: true, mode: "add", data: {} })}
+          title="Quản lý lịch hẹn"
         />
       ) : (
-        <Spin spinning={loading}>
-          <AppointmentCalendar
-            key={calendarKey}
-            fetchEvents={handleFetchEvents}
-            onCreate={(slot) =>
-              setModal({
-                open: true,
-                mode: "add",
-                data: { appointmentDateTime: dayjs(slot.start) },
-              })
-            }
-            onEdit={handleEdit}
-            onChangeTime={async ({ id, start }) => {
-              await fetch(`/api/appointments/${id}`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ appointmentDateTime: start }),
-              });
-              refetchData();
-              toast.success("Đã cập nhật thời gian lịch hẹn!");
+        <div>
+          {/* ✅ DÙNG CHUNG HEADER PATTERN */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 16,
             }}
-            onDelete={async (id) => {
-              await fetch(`/api/appointments/${id}`, { method: "DELETE" });
-              refetchData();
-              toast.success("Đã xoá lịch hẹn!");
-            }}
-          />
-        </Spin>
+          >
+            <Title level={5} style={{ margin: 0 }}>
+              Quản lý lịch hẹn
+            </Title>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setModal({ open: true, mode: "add", data: {} })}
+            >
+              Thêm lịch hẹn
+            </Button>
+          </div>
+
+          <Spin spinning={loading}>
+            <AppointmentCalendar
+              key={calendarKey}
+              fetchEvents={handleFetchEvents}
+              onCreate={(slot) =>
+                setModal({
+                  open: true,
+                  mode: "add",
+                  data: { appointmentDateTime: dayjs(slot.start) },
+                })
+              }
+              onEdit={handleEdit}
+              onChangeTime={async ({
+                id,
+                start,
+                end,
+                appointmentDateTime,
+                duration,
+              }) => {
+                try {
+                  const updateData: any = {
+                    appointmentDateTime: appointmentDateTime || start,
+                    updatedById: employeeProfile?.id,
+                  };
+
+                  // Nếu có duration mới (từ resize), cập nhật luôn
+                  if (duration !== undefined) {
+                    updateData.duration = duration;
+                  }
+
+                  console.log("📤 Sending update data:", updateData);
+
+                  const res = await fetch(`/api/appointments/${id}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(updateData),
+                  });
+
+                  console.log("📥 Response status:", res.status);
+
+                  if (!res.ok) {
+                    const errorData = await res.json();
+                    console.log("❌ Error response:", errorData);
+                    throw new Error(errorData.error || "Cập nhật thất bại");
+                  }
+
+                  const responseData = await res.json();
+                  console.log("✅ Success response:", responseData);
+
+                  toast.success("Đã cập nhật thời gian lịch hẹn!");
+
+                  // Không refetch, để calendar tự cập nhật
+                } catch (error: any) {
+                  console.error("❌ API update failed:", error);
+                  toast.error(error.message);
+                  throw error; // Throw để calendar revert
+                }
+              }}
+              onDelete={async (id) => {
+                try {
+                  const res = await fetch(`/api/appointments/${id}`, {
+                    method: "DELETE",
+                  });
+
+                  if (!res.ok) {
+                    throw new Error("Xóa thất bại");
+                  }
+
+                  toast.success("Đã xoá lịch hẹn!");
+                  // Calendar sẽ tự refetch sau khi xóa
+                } catch (error: any) {
+                  toast.error(error.message);
+                }
+              }}
+            />
+          </Spin>
+        </div>
       )}
 
       <AppointmentModal

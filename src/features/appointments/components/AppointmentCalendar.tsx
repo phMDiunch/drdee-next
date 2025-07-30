@@ -8,6 +8,7 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { Tooltip, Popconfirm } from "antd";
 import { formatDateTimeVN } from "@/utils/date";
+import dayjs from "dayjs";
 
 type Props = {
   fetchEvents: (
@@ -35,17 +36,44 @@ export default function AppointmentCalendar({
     const { event } = eventInfo;
     const { extendedProps } = event;
 
+    console.log("Event extendedProps:", extendedProps);
+
     const tooltipContent = (
-      <div>
-        <div>
+      <div style={{ maxWidth: 300 }}>
+        <div style={{ marginBottom: 4 }}>
           <b>{event.title}</b>
         </div>
-        <div>{formatDateTimeVN(event.startStr)}</div>
-        <div>{extendedProps?.notes || ""}</div>
+        <div style={{ marginBottom: 4 }}>
+          <strong>Khách hàng:</strong>{" "}
+          {extendedProps?.customer?.fullName || "N/A"}
+        </div>
+        <div style={{ marginBottom: 4 }}>
+          <strong>Thời gian:</strong>{" "}
+          {formatDateTimeVN(event.start, "HH:mm DD/MM/YYYY")}
+        </div>
+        <div style={{ marginBottom: 4 }}>
+          <strong>Thời lượng:</strong> {extendedProps?.duration || 30} phút
+        </div>
+        <div style={{ marginBottom: 4 }}>
+          <strong>Bác sĩ chính:</strong>{" "}
+          {extendedProps?.primaryDentist?.fullName || "N/A"}
+        </div>
+        {extendedProps?.secondaryDentist && (
+          <div style={{ marginBottom: 4 }}>
+            <strong>Bác sĩ phụ:</strong>{" "}
+            {extendedProps.secondaryDentist.fullName}
+          </div>
+        )}
+        <div style={{ marginBottom: 4 }}>
+          <strong>Trạng thái:</strong> {extendedProps?.status || "N/A"}
+        </div>
+        {/* Sửa phần notes để luôn hiển thị */}
+        <div style={{ marginBottom: 8 }}>
+          <strong>Ghi chú:</strong> {extendedProps?.notes || "Không có ghi chú"}
+        </div>
         {onDelete && (
           <Popconfirm
             title="Xoá lịch hẹn này?"
-            // Ngăn sự kiện click lan ra ngoài, tránh việc mở modal edit
             onConfirm={(e) => {
               e?.stopPropagation();
               onDelete(event.id);
@@ -73,7 +101,6 @@ export default function AppointmentCalendar({
       <Tooltip
         title={tooltipContent}
         placement="top"
-        // Gắn tooltip vào div chứa calendar để định vị chính xác
         getPopupContainer={() => calendarRef.current!}
       >
         <div className="fc-event-main-frame">
@@ -97,7 +124,7 @@ export default function AppointmentCalendar({
         }}
         locale="vi"
         events={fetchEvents}
-        eventContent={renderEventContent} // <-- Sử dụng hàm render mới
+        eventContent={renderEventContent}
         selectable
         editable
         eventResizableFromStart
@@ -110,21 +137,69 @@ export default function AppointmentCalendar({
         eventClick={(info) => {
           if (onEdit) onEdit(info.event.extendedProps);
         }}
-        eventDrop={(info) => {
-          if (onChangeTime)
-            onChangeTime({
-              id: info.event.id,
-              start: info.event.startStr,
-              end: info.event.endStr,
-            });
+        // SỬA: Cập nhật chỉ thời gian khi drag
+        eventDrop={async (info) => {
+          console.log("🔄 Event dropped:", {
+            id: info.event.id,
+            oldStart: info.oldEvent.startStr,
+            newStart: info.event.startStr,
+          });
+
+          if (onChangeTime) {
+            try {
+              await onChangeTime({
+                id: info.event.id,
+                start: info.event.startStr,
+                appointmentDateTime: info.event.startStr,
+              });
+              console.log("✅ Drag successful");
+            } catch (error) {
+              console.error("❌ Drag failed:", error);
+              info.revert();
+            }
+          }
         }}
-        eventResize={(info) => {
-          if (onChangeTime)
-            onChangeTime({
-              id: info.event.id,
-              start: info.event.startStr,
-              end: info.event.endStr,
-            });
+        // SỬA: Cập nhật cả thời gian và duration khi resize
+        eventResize={async (info) => {
+          const start = dayjs(info.event.startStr);
+          const end = dayjs(info.event.endStr);
+          const newDuration = end.diff(start, "minute");
+
+          console.log("📏 Event resized:", {
+            id: info.event.id,
+            oldDuration: info.oldEvent.extendedProps.duration,
+            newDuration,
+            start: info.event.startStr,
+            end: info.event.endStr,
+          });
+
+          if (onChangeTime) {
+            try {
+              await onChangeTime({
+                id: info.event.id,
+                start: info.event.startStr,
+                end: info.event.endStr,
+                appointmentDateTime: info.event.startStr,
+                duration: newDuration,
+              });
+
+              // ✅ CẬP NHẬT EXTENDED PROPS SAU KHI API THÀNH CÔNG
+              info.event.setExtendedProp("duration", newDuration);
+              info.event.setExtendedProp(
+                "appointmentDateTime",
+                info.event.startStr
+              );
+
+              console.log("✅ Resize successful, updated extendedProps:", {
+                duration: info.event.extendedProps.duration,
+                appointmentDateTime:
+                  info.event.extendedProps.appointmentDateTime,
+              });
+            } catch (error) {
+              console.error("❌ Resize failed:", error);
+              info.revert();
+            }
+          }
         }}
       />
     </div>

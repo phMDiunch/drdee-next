@@ -10,7 +10,9 @@ const VN_TZ = "Asia/Ho_Chi_Minh";
 /**
  * Format hiển thị ngày giờ cho user (DD/MM/YYYY HH:mm:ss) ở VN
  */
-export function formatDateTimeVN(date: string | Date | undefined | null): string {
+export function formatDateTimeVN(
+  date: string | Date | undefined | null
+): string {
   if (!date) return "";
   return dayjs(date).tz(VN_TZ).format("DD/MM/YYYY HH:mm:ss");
 }
@@ -48,3 +50,14 @@ export function parseDateFromISOString(dateStr?: string) {
   if (!dateStr) return undefined;
   return dayjs(dateStr).tz(VN_TZ);
 }
+
+/**
+ * Tính tuổi dựa vào ngày sinh
+ * @param dob Ngày sinh (định dạng DD/MM/YYYY)
+ * @returns Tuổi
+ */
+export const calculateAge = (dob: string): number => {
+  const today = dayjs();
+  const birthDate = dayjs(dob, "DD/MM/YYYY");
+  return today.diff(birthDate, "year");
+};

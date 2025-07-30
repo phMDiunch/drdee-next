@@ -1,9 +1,12 @@
 // src/features/customers/components/CustomerTable.tsx
-import { Table, Tag, Space, Button, Typography } from "antd";
+"use client";
+import { Table, Tag, Button, Typography } from "antd";
 import type { Customer } from "../type";
-import { BRANCHES } from "@/constants";
-import { formatDateVN } from "@/utils/date";
+import { formatDateTimeVN, calculateAge } from "@/utils/date";
+import { LoginOutlined } from "@ant-design/icons";
 import Link from "next/link";
+
+const { Text } = Typography;
 
 type CustomerWithContact = Customer & {
   primaryContact?: {
@@ -19,8 +22,8 @@ type Props = {
   total: number;
   page: number;
   pageSize: number;
-  onEdit: (customer: Customer) => void;
   onPageChange: (page: number, pageSize: number) => void;
+  onCheckIn?: (customer: Customer) => void;
 };
 
 export default function CustomerTable({
@@ -29,12 +32,12 @@ export default function CustomerTable({
   total,
   page,
   pageSize,
-  onEdit,
   onPageChange,
+  onCheckIn,
 }: Props) {
   const columns = [
     {
-      title: "Mã khách hàng",
+      title: "Mã KH",
       dataIndex: "customerCode",
       key: "customerCode",
     },
@@ -52,67 +55,97 @@ export default function CustomerTable({
       key: "phone",
       render: (phone: string) => phone || "-",
     },
+
     {
       title: "Người liên hệ chính",
-      dataIndex: "primaryContact",
       key: "primaryContact",
-      render: (
-        primaryContact: CustomerWithContact["primaryContact"],
-        record: CustomerWithContact
-      ) => {
-        if (!primaryContact) {
-          return <Typography.Text type="secondary">Không có</Typography.Text>;
+      render: (_: any, record: CustomerWithContact) => {
+        if (!record.primaryContact) {
+          return <Text type="secondary">Không có</Text>;
         }
         return (
           <div>
-            <Typography.Text strong>{primaryContact.fullName}</Typography.Text>
+            <Text strong>{record.primaryContact.fullName}</Text>
             <br />
-            <Typography.Text type="secondary">
-              ({record.relationshipToPrimary}) - {primaryContact.phone}
-            </Typography.Text>
+            <Text type="secondary">
+              ({record.relationshipToPrimary}) - {record.primaryContact.phone}
+            </Text>
           </div>
         );
       },
     },
     {
-      title: "Ngày sinh",
-      dataIndex: "dob",
-      key: "dob",
-      render: (v: string) => (v ? formatDateVN(v) : ""),
+      title: "Tuổi",
+      key: "age",
+      render: (_: any, record: Customer) => (
+        <div>{record.dob ? calculateAge(record.dob) + " tuổi" : "N/A"}</div>
+      ),
     },
     {
-      title: "Giới tính",
-      dataIndex: "gender",
-      key: "gender",
-      render: (v: string) => v || "-",
-    },
-    {
-      title: "Chi nhánh",
-      dataIndex: "clinicId",
-      key: "clinicId",
-      render: (v: string) => {
-        const branch = BRANCHES.find((b) => b.value === v);
-        return branch ? <Tag color={branch.color}>{branch.label}</Tag> : null;
+      title: "Lịch hẹn hôm nay",
+      key: "todayAppointment",
+      render: (_: any, record: Customer) => {
+        if (!record.todayAppointment) {
+          return <Text type="secondary">Chưa có lịch</Text>;
+        }
+
+        const appt = record.todayAppointment;
+        const isCheckedIn = !!appt.checkInTime;
+
+        return (
+          <div>
+            <div>
+              <Tag
+                size="small"
+                color={
+                  isCheckedIn
+                    ? "green"
+                    : appt.status === "Đã xác nhận"
+                    ? "blue"
+                    : appt.status === "Chờ xác nhận"
+                    ? "orange"
+                    : "red"
+                }
+              >
+                {appt.status}
+              </Tag>
+            </div>
+            {isCheckedIn && (
+              <div style={{ marginTop: 4 }}>
+                <Text type="success" style={{ fontSize: 12 }}>
+                  ✅ Check-in: {formatDateTimeVN(appt.checkInTime!, "HH:mm")}
+                </Text>
+              </div>
+            )}
+          </div>
+        );
       },
     },
     {
       title: "Nguồn khách",
       dataIndex: "source",
       key: "source",
-      render: (v: string) => v || "-",
+      render: (source: string) => source || "-",
     },
     {
       title: "Thao tác",
       key: "action",
-      render: (_: any, record: Customer) => (
-        <Space>
-          <Button size="small" onClick={() => onEdit(record)}>
-            Sửa
+      fixed: "right" as const,
+      render: (_: any, record: Customer) =>
+        onCheckIn ? (
+          <Button
+            size="small"
+            type={record.todayAppointment?.checkInTime ? "default" : "primary"}
+            icon={<LoginOutlined />}
+            onClick={() => onCheckIn(record)}
+            disabled={!!record.todayAppointment?.checkInTime}
+          >
+            {record.todayAppointment?.checkInTime ? "Đã check-in" : "Check-in"}
           </Button>
-        </Space>
-      ),
+        ) : null,
     },
   ];
+
   return (
     <Table
       columns={columns}

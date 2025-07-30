@@ -1,9 +1,16 @@
 // src/features/appointments/components/AppointmentTable.tsx
-import { Table, Tag, Space, Button } from "antd";
+"use client";
+import { Table, Tag, Space, Button, Typography, Tooltip } from "antd";
+import { PlusOutlined, LoginOutlined, LogoutOutlined } from "@ant-design/icons";
 import type { Appointment } from "../type";
 import { BRANCHES } from "@/constants";
 import { formatDateTimeVN } from "@/utils/date";
-import { APPOINTMENT_STATUS_OPTIONS } from "../constants";
+import {
+  APPOINTMENT_STATUS_OPTIONS,
+  CHECKIN_ALLOWED_STATUSES,
+} from "../constants";
+
+const { Title } = Typography;
 
 // Kiểu dữ liệu nhận vào giờ đã bao gồm object con
 type AppointmentWithIncludes = Appointment & {
@@ -14,13 +21,21 @@ type AppointmentWithIncludes = Appointment & {
 type Props = {
   data: AppointmentWithIncludes[];
   loading: boolean;
-  total?: number; // Làm optional cho customer detail page
-  page?: number; // Làm optional cho customer detail page
-  pageSize?: number; // Làm optional cho customer detail page
+  total?: number; // Optional cho customer detail page
+  page?: number; // Optional cho customer detail page
+  pageSize?: number; // Optional cho customer detail page
   onEdit: (appt: Appointment) => void;
-  onDelete: (appt: Appointment) => void; // Thêm prop này
-  onPageChange?: (page: number, pageSize: number) => void; // Làm optional
+  onDelete: (appt: Appointment) => void;
+  onPageChange?: (page: number, pageSize: number) => void; // Optional
   hideCustomerColumn?: boolean;
+  // Thêm props như ConsultedServiceTable
+  onAdd?: () => void;
+  showHeader?: boolean; // Có hiển thị header và nút Add không
+  title?: string; // Title tùy chỉnh
+  // ✅ THÊM PROPS MỚI
+  onCheckIn?: (appt: Appointment) => void;
+  onCheckOut?: (appt: Appointment) => void;
+  showCheckInOut?: boolean; // Có hiển thị nút check-in/out không
 };
 
 export default function AppointmentTable({
@@ -33,8 +48,28 @@ export default function AppointmentTable({
   onDelete,
   onPageChange,
   hideCustomerColumn = false,
+  onAdd,
+  showHeader = false, // Default false để không ảnh hưởng existing code
+  title = "Danh sách lịch hẹn",
+  // ✅ PROPS MỚI
+  onCheckIn,
+  onCheckOut,
+  showCheckInOut = false,
 }: Props) {
   console.log("AppointmentTable data:", data);
+
+  // ✅ HELPER FUNCTIONS
+  const canCheckIn = (appointment: Appointment) => {
+    return (
+      CHECKIN_ALLOWED_STATUSES.includes(appointment.status) &&
+      !appointment.checkInTime
+    );
+  };
+
+  const canCheckOut = (appointment: Appointment) => {
+    return appointment.checkInTime && !appointment.checkOutTime;
+  };
+
   const columns = [
     {
       title: "Khách hàng",
@@ -48,6 +83,25 @@ export default function AppointmentTable({
       key: "appointmentDateTime",
       render: (v: string) => (v ? formatDateTimeVN(v, "HH:mm DD/MM/YYYY") : ""),
     },
+    // ✅ THÊM CỘT CHECK-IN/OUT TIME
+    ...(showCheckInOut
+      ? [
+          {
+            title: "Check-in",
+            dataIndex: "checkInTime",
+            key: "checkInTime",
+            render: (v: string) =>
+              v ? formatDateTimeVN(v, "HH:mm DD/MM") : "-",
+          },
+          {
+            title: "Check-out",
+            dataIndex: "checkOutTime",
+            key: "checkOutTime",
+            render: (v: string) =>
+              v ? formatDateTimeVN(v, "HH:mm DD/MM") : "-",
+          },
+        ]
+      : []),
     {
       title: "Thời lượng",
       dataIndex: "duration",
@@ -84,7 +138,6 @@ export default function AppointmentTable({
         return <Tag color={status?.color}>{status?.label || v}</Tag>;
       },
     },
-
     {
       title: "Chi nhánh",
       dataIndex: "clinicId",
@@ -99,6 +152,32 @@ export default function AppointmentTable({
       key: "action",
       render: (_: any, record: Appointment) => (
         <Space>
+          {/* ✅ CHECK-IN/OUT BUTTONS */}
+          {showCheckInOut && onCheckIn && canCheckIn(record) && (
+            <Tooltip title="Check-in khách hàng">
+              <Button
+                size="small"
+                type="primary"
+                icon={<LoginOutlined />}
+                onClick={() => onCheckIn(record)}
+              >
+                Check-in
+              </Button>
+            </Tooltip>
+          )}
+
+          {showCheckInOut && onCheckOut && canCheckOut(record) && (
+            <Tooltip title="Check-out khách hàng">
+              <Button
+                size="small"
+                icon={<LogoutOutlined />}
+                onClick={() => onCheckOut(record)}
+              >
+                Check-out
+              </Button>
+            </Tooltip>
+          )}
+
           <Button size="small" onClick={() => onEdit(record)}>
             Sửa
           </Button>
@@ -109,29 +188,53 @@ export default function AppointmentTable({
       ),
     },
   ];
+
   const showColumns = hideCustomerColumn
     ? columns.filter((col) => col.key !== "customer")
     : columns;
 
   return (
-    <Table
-      columns={showColumns}
-      dataSource={data}
-      rowKey="id"
-      loading={loading}
-      bordered
-      size="middle"
-      pagination={
-        total !== undefined && page !== undefined && pageSize !== undefined
-          ? {
-              current: page,
-              pageSize,
-              total,
-              showSizeChanger: true,
-              onChange: onPageChange,
-            }
-          : false // Không có pagination cho customer detail page
-      }
-    />
+    <div>
+      {/* Header giống như ConsultedServiceTable */}
+      {showHeader && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 16,
+          }}
+        >
+          <Title level={5} style={{ margin: 0 }}>
+            {title}
+          </Title>
+          {onAdd && (
+            <Button type="primary" icon={<PlusOutlined />} onClick={onAdd}>
+              Thêm lịch hẹn
+            </Button>
+          )}
+        </div>
+      )}
+
+      <Table
+        columns={showColumns}
+        dataSource={data}
+        rowKey="id"
+        loading={loading}
+        bordered
+        size="small" // Giống ConsultedServiceTable
+        pagination={
+          total !== undefined && page !== undefined && pageSize !== undefined
+            ? {
+                current: page,
+                pageSize,
+                total,
+                showSizeChanger: true,
+                onChange: onPageChange,
+              }
+            : false // Không có pagination cho customer detail page
+        }
+      />
+    </div>
   );
 }

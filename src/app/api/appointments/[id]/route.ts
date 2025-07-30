@@ -6,60 +6,97 @@ import { Prisma } from "@prisma/client";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } // Đổi thành Promise
 ) {
-  const { id } = params;
-  const appointment = await prisma.appointment.findUnique({
-    where: { id },
-    include: { customer: true, primaryDentist: true, secondaryDentist: true },
-  });
-  if (!appointment)
-    return NextResponse.json(
-      { error: "Không tìm thấy lịch hẹn" },
-      { status: 404 }
-    );
-  return NextResponse.json(appointment);
+  try {
+    const { id } = await params;
+
+    const appointment = await prisma.appointment.findUnique({
+      where: { id },
+      include: {
+        customer: true,
+        primaryDentist: true,
+        secondaryDentist: true,
+      },
+    });
+
+    if (!appointment) {
+      return NextResponse.json(
+        { error: "Không tìm thấy lịch hẹn" },
+        { status: 404 }
+      );
+    }
+
+    console.log("📋 Fresh appointment data:", appointment);
+    return NextResponse.json(appointment);
+  } catch (error: any) {
+    console.error("GET appointment error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } // Đổi thành Promise
 ) {
   try {
-    const { id } = params;
+    const { id } = await params; // Thêm await
     const data = await request.json();
 
-    // Không cho sửa id
-    delete data.id;
+    console.log("📝 PUT request data:", data);
+    console.log("🆔 Appointment ID:", id);
 
-    // Validate tương tự như khi tạo
-    if (
-      !data.customerId ||
-      !data.primaryDentistId ||
-      !data.appointmentDateTime
-    ) {
+    // Không cho sửa id
+    if (data.id) {
+      delete data.id;
+    }
+
+    // Validation cơ bản
+    if (!id) {
+      return NextResponse.json({ error: "Thiếu ID lịch hẹn" }, { status: 400 });
+    }
+
+    // Kiểm tra appointment có tồn tại không
+    const existingAppointment = await prisma.appointment.findUnique({
+      where: { id },
+    });
+
+    if (!existingAppointment) {
       return NextResponse.json(
-        { error: "Thiếu thông tin bắt buộc!" },
-        { status: 400 }
+        { error: "Không tìm thấy lịch hẹn" },
+        { status: 404 }
       );
     }
 
-    const updated = await prisma.appointment.update({
+    // Cập nhật appointment
+    const updatedAppointment = await prisma.appointment.update({
       where: { id },
-      data,
+      data: {
+        ...data,
+        updatedAt: new Date(),
+      },
+      include: {
+        customer: true,
+        primaryDentist: true,
+        secondaryDentist: true,
+      },
     });
-    return NextResponse.json(updated);
+
+    console.log("✅ Updated appointment:", updatedAppointment);
+
+    return NextResponse.json(updatedAppointment);
   } catch (error: any) {
+    console.error("❌ PUT appointment error:", error);
     return handlePrismaError(error);
   }
 }
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> } // Đổi thành Promise
 ) {
   try {
-    const { id } = await params;
+    const { id } = await params; // Thêm await
 
     // Kiểm tra appointment có tồn tại không
     const existingAppointment = await prisma.appointment.findUnique({
@@ -80,8 +117,8 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error("Lỗi khi xóa lịch hẹn:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("❌ DELETE appointment error:", error);
+    return handlePrismaError(error);
   }
 }
 

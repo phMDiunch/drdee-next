@@ -1,9 +1,22 @@
 // src/features/appointments/constants.ts
 
 export const APPOINTMENT_STATUS_OPTIONS = [
-  { label: "Chờ xác nhận", value: "Chờ xác nhận", color: "#faad14" },
-  { label: "Đã xác nhận", value: "Đã xác nhận", color: "#1890ff" },
-  { label: "Đã đến", value: "Đã đến", color: "#52c41a" },
-  { label: "Không đến", value: "Không đến", color: "#d9d9d9" },
-  { label: "Đã hủy", value: "Đã hủy", color: "#ff4d4f" },
+  { value: "Chờ xác nhận", label: "Chờ xác nhận", color: "orange" },
+  { value: "Đã xác nhận", label: "Đã xác nhận", color: "blue" },
+  { value: "Đã đến", label: "Đã đến", color: "green" },
+  { value: "Đến đột xuất", label: "Đến đột xuất", color: "purple" }, // Mới thêm
+  { value: "Không đến", label: "Không đến", color: "red" },
+  { value: "Đã hủy", label: "Đã hủy", color: "gray" },
+];
+
+// Logic check-in rules
+export const CHECKIN_ALLOWED_STATUSES = [
+  "Chờ xác nhận",
+  "Đã xác nhận",
+  "Không đến", // Có thể check-in muộn
+];
+
+export const CHECKIN_BLOCKED_STATUSES = [
+  "Đã đến", // Đã check-in rồi
+  "Đã hủy", // Đã hủy
 ];

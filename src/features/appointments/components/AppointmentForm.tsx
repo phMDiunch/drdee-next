@@ -41,10 +41,14 @@ export default function AppointmentForm({
 
   // --- THÊM DÒNG NÀY ĐỂ BẠN KIỂM TRA ---
   console.log("3. Dữ liệu 'dentists' nhận được tại Form:", dentists);
-
+  console.log("4. initialValues tại Form:", initialValues);
   // TỐI ƯU: Khởi tạo state với giá trị ban đầu, thay vì dùng useEffect
   // Nếu có customerId trong initialValues, không cần search customer
   const [customerOptions, setCustomerOptions] = useState<any[]>(() => {
+    console.log(
+      "5. Khởi tạo customerOptions với initialValues:",
+      initialValues
+    );
     if (mode === "edit" && initialValues.customer) {
       const customer = initialValues.customer;
       return [
@@ -54,9 +58,15 @@ export default function AppointmentForm({
         },
       ];
     }
-    // Nếu là mode "add" từ customer detail page và có customerId
-    if (mode === "add" && initialValues.customerId) {
-      return []; // Sẽ disable customer select field
+    // Nếu là mode "add" từ customer detail page và có customer info
+    if (mode === "add" && initialValues.customer) {
+      const customer = initialValues.customer;
+      return [
+        {
+          label: `${customer.fullName} - ${customer.phone}`,
+          value: customer.id,
+        },
+      ];
     }
     return [];
   });
@@ -102,6 +112,7 @@ export default function AppointmentForm({
         appointmentDateTime: initialValues.appointmentDateTime
           ? dayjs(initialValues.appointmentDateTime)
           : undefined,
+        customerId: initialValues.customerId || initialValues.customer?.id,
       }}
       onFinish={onFinish}
       autoComplete="off"
@@ -123,10 +134,14 @@ export default function AppointmentForm({
               onSearch={debouncedFetchCustomers}
               notFoundContent={searching ? <Spin size="small" /> : null}
               options={customerOptions}
-              disabled={mode === "add" && initialValues.customerId} // Disable nếu đã có customerId
+              disabled={
+                (mode === "add" && initialValues.customerId) ||
+                (mode === "add" && initialValues.customer)
+              } // Disable nếu đã có customerId
             />
           </Form.Item>
         </Col>
+
         {/* Thời gian hẹn */}
         <Col span={12}>
           <Form.Item
