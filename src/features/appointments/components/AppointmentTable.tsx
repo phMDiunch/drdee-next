@@ -84,25 +84,7 @@ export default function AppointmentTable({
       key: "appointmentDateTime",
       render: (v: string) => (v ? formatDateTimeVN(v, "HH:mm DD/MM/YYYY") : ""),
     },
-    // ✅ THÊM CỘT CHECK-IN/OUT TIME
-    ...(showCheckInOut
-      ? [
-          {
-            title: "Check-in",
-            dataIndex: "checkInTime",
-            key: "checkInTime",
-            render: (v: string) =>
-              v ? formatDateTimeVN(v, "HH:mm DD/MM") : "-",
-          },
-          {
-            title: "Check-out",
-            dataIndex: "checkOutTime",
-            key: "checkOutTime",
-            render: (v: string) =>
-              v ? formatDateTimeVN(v, "HH:mm DD/MM") : "-",
-          },
-        ]
-      : []),
+
     {
       title: "Thời lượng",
       dataIndex: "duration",
@@ -139,6 +121,25 @@ export default function AppointmentTable({
         return <Tag color={status?.color}>{status?.label || v}</Tag>;
       },
     },
+    // ✅ THÊM CỘT CHECK-IN/OUT TIME
+    ...(showCheckInOut
+      ? [
+          {
+            title: "Check-in",
+            dataIndex: "checkInTime",
+            key: "checkInTime",
+            render: (v: string) =>
+              v ? formatDateTimeVN(v, "HH:mm DD/MM") : "-",
+          },
+          {
+            title: "Check-out",
+            dataIndex: "checkOutTime",
+            key: "checkOutTime",
+            render: (v: string) =>
+              v ? formatDateTimeVN(v, "HH:mm DD/MM") : "-",
+          },
+        ]
+      : []),
     {
       title: "Chi nhánh",
       dataIndex: "clinicId",
