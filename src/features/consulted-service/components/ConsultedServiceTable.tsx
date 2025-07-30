@@ -1,7 +1,7 @@
 // src/features/consulted-service/components/ConsultedServiceTable.tsx
 "use client";
 import { Table, Tag, Button, Space, Typography } from "antd";
-import { PlusOutlined } from "@ant-design/icons";
+import { PlusOutlined, CheckOutlined } from "@ant-design/icons";
 import type { ConsultedServiceWithDetails } from "../type";
 import { formatDateTimeVN } from "@/utils/date";
 
@@ -10,9 +10,10 @@ const { Title } = Typography;
 type Props = {
   data: ConsultedServiceWithDetails[];
   loading: boolean;
-  onAdd: () => void; // Hàm xử lý khi nhấn nút Thêm
-  onEdit: (service: ConsultedServiceWithDetails) => void; // <-- Thêm prop
-  onDelete: (service: ConsultedServiceWithDetails) => void; // <-- Thêm prop
+  onAdd: () => void;
+  onEdit: (service: ConsultedServiceWithDetails) => void;
+  onDelete: (service: ConsultedServiceWithDetails) => void;
+  onConfirm: (service: ConsultedServiceWithDetails) => void; // Thêm prop này
 };
 
 export default function ConsultedServiceTable({
@@ -21,19 +22,14 @@ export default function ConsultedServiceTable({
   onAdd,
   onEdit,
   onDelete,
+  onConfirm, // Nhận prop này
 }: Props) {
   console.log("ConsultedServiceTable data:", data);
 
   const columns = [
-    // {
-    //   title: "Tên dịch vụ",
-    //   dataIndex: "dentalService",
-    //   key: "serviceName",
-    //   render: (dentalService: any) => dentalService?.name || "N/A",
-    // },
     {
       title: "Tên dịch vụ",
-      dataIndex: "consultedServiceName", // Lấy tên đã được sao chép
+      dataIndex: "consultedServiceName",
       key: "serviceName",
     },
     {
@@ -54,10 +50,30 @@ export default function ConsultedServiceTable({
       render: (price: number) => price?.toLocaleString("vi-VN") + " đ",
     },
     {
-      title: "Trạng thái",
+      title: "Trạng thái dịch vụ",
+      dataIndex: "serviceStatus",
+      key: "serviceStatus",
+      render: (status: string) => (
+        <Tag color={status === "Đã chốt" ? "green" : "orange"}>{status}</Tag>
+      ),
+    },
+    {
+      title: "Trạng thái điều trị",
       dataIndex: "treatmentStatus",
       key: "treatmentStatus",
-      render: (status: string) => <Tag>{status}</Tag>,
+      render: (status: string) => (
+        <Tag
+          color={
+            status === "Hoàn thành"
+              ? "green"
+              : status === "Đang điều trị"
+              ? "blue"
+              : "default"
+          }
+        >
+          {status}
+        </Tag>
+      ),
     },
     {
       title: "Ngày tư vấn",
@@ -66,16 +82,38 @@ export default function ConsultedServiceTable({
       render: (date: string) => formatDateTimeVN(date),
     },
     {
+      title: "Ngày chốt",
+      dataIndex: "serviceConfirmDate",
+      key: "serviceConfirmDate",
+      render: (date: string) => (date ? formatDateTimeVN(date) : "-"),
+    },
+    {
       title: "Thao tác",
       key: "action",
       render: (_: any, record: ConsultedServiceWithDetails) => (
         <Space>
+          {/* Button Chốt - chỉ hiện khi chưa chốt */}
+          {record.serviceStatus !== "Đã chốt" && (
+            <Button
+              size="small"
+              type="primary"
+              icon={<CheckOutlined />}
+              onClick={() => onConfirm(record)}
+            >
+              Chốt
+            </Button>
+          )}
+
           <Button size="small" onClick={() => onEdit(record)}>
             Sửa
           </Button>
-          <Button size="small" danger onClick={() => onDelete(record)}>
-            Xóa
-          </Button>
+
+          {/* Button Xóa - chỉ hiện khi chưa chốt */}
+          {record.serviceStatus !== "Đã chốt" && (
+            <Button size="small" danger onClick={() => onDelete(record)}>
+              Xóa
+            </Button>
+          )}
         </Space>
       ),
     },

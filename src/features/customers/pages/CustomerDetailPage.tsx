@@ -12,7 +12,10 @@ import {
 } from "antd"; // Thêm AntdModal
 import { toast } from "react-toastify";
 import Link from "next/link";
-import { ArrowLeftOutlined } from "@ant-design/icons";
+import {
+  ArrowLeftOutlined,
+  ExclamationCircleOutlined,
+} from "@ant-design/icons";
 import { useAppStore } from "@/stores/useAppStore"; // Thêm import này
 import ConsultedServiceTable from "@/features/consulted-service/components/ConsultedServiceTable";
 import ConsultedServiceModal from "@/features/consulted-service/components/ConsultedServiceModal";
@@ -87,6 +90,8 @@ export default function CustomerDetailPage({ customerId }: Props) {
         debt: values.finalPrice - (values.amountPaid || 0),
         consultedServiceName: selectedService.name,
         consultedServiceUnit: selectedService.unit,
+        serviceStatus: isEdit ? values.serviceStatus : "Chưa chốt",
+        treatmentStatus: isEdit ? values.treatmentStatus : "Chưa điều trị",
       };
 
       const res = await fetch(url, {
@@ -193,6 +198,69 @@ export default function CustomerDetailPage({ customerId }: Props) {
     return <Title level={3}>Không tìm thấy thông tin khách hàng.</Title>;
   }
 
+  const handleConfirmService = async (service: ConsultedServiceWithDetails) => {
+    console.log("handleConfirmService called with:", service);
+
+    if (!service || !service.id) {
+      toast.error("Không thể xác định dịch vụ cần chốt");
+      return;
+    }
+
+    console.log(
+      "About to show confirm modal for service:",
+      service.consultedServiceName
+    );
+
+    // Tạm thời sử dụng window.confirm để test
+    const confirmed = window.confirm(
+      `Bạn chắc chắn muốn chốt dịch vụ "${service.consultedServiceName}"?\n\nSau khi chốt, dịch vụ sẽ chính thức được xác nhận và phát sinh nghiệp vụ tài chính.`
+    );
+
+    if (!confirmed) {
+      console.log("Confirm cancelled");
+      return;
+    }
+
+    console.log("Proceeding with confirm service...");
+
+    try {
+      const res = await fetch(`/api/consulted-services/${service.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceStatus: "Đã chốt",
+          serviceConfirmDate: new Date().toISOString(),
+          updatedById: employeeProfile?.id,
+        }),
+      });
+
+      console.log("API response status:", res.status);
+      console.log("API response ok:", res.ok);
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.log("API error response:", errorText);
+        throw new Error("Chốt dịch vụ thất bại");
+      }
+
+      const updatedService = await res.json();
+      console.log("Updated service:", updatedService);
+
+      // Cập nhật state local
+      setCustomer((prev: any) => ({
+        ...prev,
+        consultedServices: prev.consultedServices.map((s: any) =>
+          s.id === service.id ? updatedService : s
+        ),
+      }));
+
+      toast.success("Đã chốt dịch vụ thành công!");
+    } catch (error: any) {
+      console.error("Confirm service error:", error);
+      toast.error(error.message);
+    }
+  };
+
   const items: TabsProps["items"] = [
     {
       key: "1",
@@ -239,6 +307,7 @@ export default function CustomerDetailPage({ customerId }: Props) {
           onAdd={() => setModalState({ open: true, mode: "add" })}
           onEdit={handleEditService}
           onDelete={handleDeleteService}
+          onConfirm={handleConfirmService}
         />
       ),
     },
