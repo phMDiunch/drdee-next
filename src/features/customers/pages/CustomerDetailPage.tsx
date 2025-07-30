@@ -1,15 +1,31 @@
 // src/features/customers/pages/CustomerDetailPage.tsx
 "use client";
 import { useMemo, useEffect } from "react"; // ✅ THÊM useEffect
-import { Spin, Tabs, Typography, TabsProps, Button, Alert } from "antd";
+import {
+  Spin,
+  Tabs,
+  Typography,
+  TabsProps,
+  Button,
+  Alert,
+  Card,
+  Row,
+  Col,
+  Tag,
+  Statistic,
+  Breadcrumb, // ✅ THÊM
+} from "antd";
 import Link from "next/link";
 import {
   ArrowLeftOutlined,
   PlusOutlined,
   LoginOutlined,
+  CheckCircleOutlined, // ✅ THÊM
+  ClockCircleOutlined, // ✅ THÊM
 } from "@ant-design/icons";
 import { useAppStore } from "@/stores/useAppStore";
 import dayjs from "dayjs";
+import { formatCurrency } from "@/utils/date";
 
 // Custom hooks
 import { useCustomerDetail } from "../hooks/useCustomerDetail";
@@ -23,7 +39,7 @@ import ConsultedServiceTable from "@/features/consulted-service/components/Consu
 import ConsultedServiceModal from "@/features/consulted-service/components/ConsultedServiceModal";
 import AppointmentModal from "@/features/appointments/components/AppointmentModal";
 
-const { Title } = Typography;
+const { Title, Text } = Typography; // ✅ THÊM Text
 
 type Props = {
   customerId: string;
@@ -77,6 +93,26 @@ export default function CustomerDetailPage({ customerId }: Props) {
       appointment: todayAppt || null,
     };
   }, [customer?.appointments]);
+
+  // Tính toán tài chính
+  const financialSummary = useMemo(() => {
+    const confirmedServices =
+      customer?.consultedServices?.filter(
+        (service) => service.serviceStatus === "Đã chốt"
+      ) || [];
+
+    const totalAmount = confirmedServices.reduce(
+      (sum, service) => sum + service.finalPrice,
+      0
+    );
+    const amountPaid = confirmedServices.reduce(
+      (sum, service) => sum + (service.amountPaid || 0),
+      0
+    );
+    const debt = totalAmount - amountPaid;
+
+    return { totalAmount, amountPaid, debt };
+  }, [customer?.consultedServices]);
 
   // Loading state
   if (loading) {
@@ -174,30 +210,127 @@ export default function CustomerDetailPage({ customerId }: Props) {
     <div style={{ padding: 24 }}>
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
-        <Link href="/customers">
-          <Button icon={<ArrowLeftOutlined />} style={{ marginRight: 16 }}>
-            Quay về
-          </Button>
-        </Link>
-        <Title level={3} style={{ margin: 0, display: "inline" }}>
-          Chi tiết khách hàng: {customer.fullName}
-        </Title>
-
-        {/* ✅ Check-in Status Badge - ĐÃ CÓ Ở ĐÂY */}
-        <div style={{ marginTop: 8 }}>
-          {todayCheckinStatus.hasCheckedIn ? (
-            <span style={{ color: "green", fontSize: 14 }}>
-              ✅ Đã check-in hôm nay lúc{" "}
-              {dayjs(todayCheckinStatus.appointment?.checkInTime).format(
-                "HH:mm"
-              )}
-            </span>
-          ) : (
-            <span style={{ color: "orange", fontSize: 14 }}>
-              ⏳ Chưa check-in hôm nay
-            </span>
-          )}
+        {/* Top Row: Back button + Breadcrumb */}
+        <div
+          style={{ display: "flex", alignItems: "center", marginBottom: 16 }}
+        >
+          <Link href="/customers">
+            <Button icon={<ArrowLeftOutlined />} style={{ marginRight: 16 }}>
+              Quay về
+            </Button>
+          </Link>
+          <Breadcrumb
+            items={[{ title: "Khách hàng" }, { title: customer.fullName }]}
+          />
         </div>
+
+        {/* Main Info Row: 2 Columns */}
+        <Row gutter={16}>
+          {/* Left Column: Customer Info */}
+          <Col span={12}>
+            <Card size="small">
+              <Title level={4} style={{ margin: 0, marginBottom: 4 }}>
+                👤 {customer.fullName}
+              </Title>
+              <Text
+                type="secondary"
+                style={{ display: "block", marginBottom: 8 }}
+              >
+                Mã KH: <Text strong>{customer.customerCode || "Chưa có"}</Text>
+              </Text>
+
+              {/* Check-in Status */}
+              {todayCheckinStatus.hasCheckedIn ? (
+                <Tag color="success" icon={<CheckCircleOutlined />}>
+                  Đã check-in{" "}
+                  {dayjs(todayCheckinStatus.appointment?.checkInTime).format(
+                    "HH:mm"
+                  )}
+                </Tag>
+              ) : (
+                <Tag color="warning" icon={<ClockCircleOutlined />}>
+                  Chưa check-in
+                </Tag>
+              )}
+            </Card>
+          </Col>
+
+          {/* Right Column: Financial Info */}
+          <Col span={12}>
+            {financialSummary.totalAmount > 0 ? (
+              <Card size="small">
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 8,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Text type="secondary">💰 Tổng tiền:</Text>
+                    <Text strong style={{ color: "#1890ff" }}>
+                      {formatCurrency(financialSummary.totalAmount)}
+                    </Text>
+                  </div>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Text type="secondary">✅ Đã trả:</Text>
+                    <Text strong style={{ color: "#52c41a" }}>
+                      {formatCurrency(financialSummary.amountPaid)}
+                    </Text>
+                  </div>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Text type="secondary">⚠️ Còn nợ:</Text>
+                    <Text
+                      strong
+                      style={{
+                        color:
+                          financialSummary.debt > 0 ? "#ff4d4f" : "#52c41a",
+                      }}
+                    >
+                      {formatCurrency(financialSummary.debt)}
+                    </Text>
+                  </div>
+                </div>
+              </Card>
+            ) : (
+              <Card
+                size="small"
+                style={{
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                }}
+              >
+                <Text
+                  type="secondary"
+                  style={{ textAlign: "center", width: "100%" }}
+                >
+                  📋 Chưa có dịch vụ nào được chốt
+                </Text>
+              </Card>
+            )}
+          </Col>
+        </Row>
       </div>
 
       {/* Tabs */}

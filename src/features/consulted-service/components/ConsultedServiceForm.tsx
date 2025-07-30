@@ -29,8 +29,20 @@ export default function ConsultedServiceForm({
   // Lọc ra danh sách bác sĩ và sale
   const doctors = employees.filter((e) => e.title === "Bác sĩ");
   const sales = employees.filter(
-    (e) => e.title === "Sale online" || e.title === "Sale offline"
+    (e) =>
+      e.title &&
+      (e.title.toLowerCase().includes("sale") ||
+        e.title === "Lễ tân" ||
+        e.title === "Tư vấn viên")
   );
+
+  // Thêm console.log để debug:
+  console.log("All employees:", employees); // ✅ DEBUG
+  console.log("Filtered sales:", sales); // ✅ DEBUG
+  console.log(
+    "Available titles:",
+    employees.map((e) => e.title)
+  ); // ✅ DEBUG
 
   // Hàm xử lý khi chọn một dịch vụ
   const handleServiceChange = (dentalServiceId: string) => {

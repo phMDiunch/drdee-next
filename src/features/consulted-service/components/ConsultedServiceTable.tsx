@@ -97,7 +97,7 @@ export default function ConsultedServiceTable({
       key: "action",
       render: (_: any, record: ConsultedServiceWithDetails) => (
         <Space>
-          {/* Button Chốt - chỉ hiện khi chưa chốt */}
+          {/* Button Chốt */}
           {record.serviceStatus !== "Đã chốt" && (
             <Button
               size="small"
@@ -109,7 +109,12 @@ export default function ConsultedServiceTable({
             </Button>
           )}
 
-          <Button size="small" onClick={() => onEdit(record)}>
+          {/* ✅ SỬA: Disable edit nếu đã chốt */}
+          <Button
+            size="small"
+            onClick={() => onEdit(record)}
+            disabled={record.serviceStatus === "Đã chốt"}
+          >
             Sửa
           </Button>
 

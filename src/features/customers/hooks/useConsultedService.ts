@@ -23,8 +23,8 @@ export function useConsultedService(customer: any, setCustomer: any) {
   };
 
   const handleFinishService = async (values: any) => {
+    setSaving(true);
     try {
-      setSaving(true);
       const isEdit = modalState.mode === "edit";
       const url = isEdit
         ? `/api/consulted-services/${modalState.data?.id}`
@@ -47,6 +47,10 @@ export function useConsultedService(customer: any, setCustomer: any) {
 
       if (!res.ok) {
         const { error } = await res.json();
+        // ✅ Hiển thị error message rõ ràng
+        if (error.includes("đã chốt")) {
+          throw new Error("Dịch vụ đã chốt không thể chỉnh sửa!");
+        }
         throw new Error(
           error || `Lỗi khi ${isEdit ? "cập nhật" : "tạo"} dịch vụ`
         );

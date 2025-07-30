@@ -8,22 +8,46 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params; // Thêm await
+    const { id } = await params;
     const data = await request.json();
 
-    // Loại bỏ các trường không cần thiết để tránh lỗi
-    delete data.id;
-    delete data.customer;
-    delete data.dentalService;
-
-    const updatedService = await prisma.consultedService.update({
+    // ✅ Kiểm tra dịch vụ đã chốt chưa
+    const existingService = await prisma.consultedService.findUnique({
       where: { id },
-      data: data,
     });
 
-    return NextResponse.json(updatedService);
+    if (!existingService) {
+      return NextResponse.json(
+        { error: "Không tìm thấy dịch vụ" },
+        { status: 404 }
+      );
+    }
+
+    if (existingService.serviceStatus === "Đã chốt") {
+      return NextResponse.json(
+        { error: "Không thể sửa dịch vụ đã chốt!" },
+        { status: 400 }
+      );
+    }
+
+    // Tiếp tục logic update...
+    const updated = await prisma.consultedService.update({
+      where: { id },
+      data: {
+        ...data,
+        updatedAt: new Date(),
+      },
+      include: {
+        customer: { select: { id: true, fullName: true } },
+        dentalService: { select: { id: true, name: true, unit: true } },
+        consultingDoctor: { select: { id: true, fullName: true } },
+        consultingSale: { select: { id: true, fullName: true } },
+        treatingDoctor: { select: { id: true, fullName: true } },
+      },
+    });
+
+    return NextResponse.json(updated);
   } catch (error: any) {
-    console.error("Lỗi khi cập nhật dịch vụ tư vấn:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
