@@ -5,10 +5,10 @@ import { prisma } from "@/services/prismaClient";
 // --- HÀM CẬP NHẬT (SỬA) ---
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params; // Thêm await
     const data = await request.json();
 
     // Loại bỏ các trường không cần thiết để tránh lỗi
@@ -31,10 +31,10 @@ export async function PUT(
 // --- HÀM XÓA ---
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params; // Thêm await
     await prisma.consultedService.delete({
       where: { id },
     });

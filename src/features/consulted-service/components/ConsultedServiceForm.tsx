@@ -134,7 +134,7 @@ export default function ConsultedServiceForm({
           block
           style={{ marginTop: 16 }}
         >
-          Lưu
+          {loading ? "Đang lưu..." : "Lưu"}
         </Button>
       </Form.Item>
     </Form>

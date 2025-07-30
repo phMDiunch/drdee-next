@@ -4,11 +4,14 @@ import { Modal, Typography, Form } from "antd";
 import ConsultedServiceForm from "./ConsultedServiceForm";
 import { useAppStore } from "@/stores/useAppStore";
 import { useEffect } from "react";
+import type { ConsultedServiceWithDetails } from "../type";
 
 const { Title } = Typography;
 
 type Props = {
   open: boolean;
+  mode: "add" | "edit";
+  initialData?: Partial<ConsultedServiceWithDetails>;
   onCancel: () => void;
   onFinish: (values: any) => void;
   loading?: boolean;
@@ -16,6 +19,8 @@ type Props = {
 
 export default function ConsultedServiceModal({
   open,
+  mode,
+  initialData,
   onCancel,
   onFinish,
   loading,
@@ -32,27 +37,40 @@ export default function ConsultedServiceModal({
 
   useEffect(() => {
     if (open) {
-      // Khi modal mở, đảm bảo đã có dữ liệu từ store
       fetchDentalServices();
       fetchActiveEmployees();
+      // Nếu là chế độ sửa, điền dữ liệu vào form
+      if (mode === "edit" && initialData) {
+        form.setFieldsValue(initialData);
+      } else {
+        form.resetFields();
+      }
     }
-  }, [open, fetchDentalServices, fetchActiveEmployees]);
+  }, [
+    open,
+    mode,
+    initialData,
+    form,
+    fetchDentalServices,
+    fetchActiveEmployees,
+  ]);
 
-  const handleOk = () => {
-    form.submit();
-  };
+  // const handleOk = () => {
+  //   form.submit();
+  // };
 
   return (
     <Modal
       title={
         <Title level={4} style={{ margin: 0 }}>
-          Thêm dịch vụ tư vấn
+          {mode === "edit" ? "Sửa dịch vụ tư vấn" : "Thêm dịch vụ tư vấn"}
         </Title>
       }
       open={open}
       onCancel={onCancel}
-      onOk={handleOk}
+      // onOk={handleOk}
       confirmLoading={loading}
+      footer={null}
       destroyOnHidden
       width={800}
     >

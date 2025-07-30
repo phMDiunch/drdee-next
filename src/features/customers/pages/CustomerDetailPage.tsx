@@ -1,13 +1,22 @@
 // src/features/customers/pages/CustomerDetailPage.tsx
 "use client";
 import { useEffect, useState } from "react";
-import { Spin, Tabs, Typography, Descriptions, Card, TabsProps } from "antd";
+import {
+  Spin,
+  Tabs,
+  Typography,
+  Descriptions,
+  Card,
+  TabsProps,
+  Modal,
+} from "antd"; // Thêm AntdModal
 import { toast } from "react-toastify";
 import Link from "next/link";
 import { ArrowLeftOutlined } from "@ant-design/icons";
 import { useAppStore } from "@/stores/useAppStore"; // Thêm import này
 import ConsultedServiceTable from "@/features/consulted-service/components/ConsultedServiceTable";
 import ConsultedServiceModal from "@/features/consulted-service/components/ConsultedServiceModal";
+import type { ConsultedServiceWithDetails } from "@/features/consulted-service/type";
 
 const { Title, Text } = Typography;
 
@@ -20,8 +29,16 @@ type Props = {
 export default function CustomerDetailPage({ customerId }: Props) {
   const [customer, setCustomer] = useState<CustomerDetails>(null);
   const [loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // const [isModalOpen, setIsModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const [activeTab, setActiveTab] = useState("1"); // Thêm state cho active tab
+
+  const [modalState, setModalState] = useState<{
+    open: boolean;
+    mode: "add" | "edit";
+    data?: Partial<ConsultedServiceWithDetails>;
+  }>({ open: false, mode: "add" });
 
   const { employeeProfile, dentalServices } = useAppStore();
 
@@ -50,48 +67,121 @@ export default function CustomerDetailPage({ customerId }: Props) {
   const handleFinishConsultedService = async (values: any) => {
     setSaving(true);
     try {
-      // 1. Tìm thông tin chi tiết của dịch vụ đã chọn từ trong store
+      const isEdit = modalState.mode === "edit";
+      const url = isEdit
+        ? `/api/consulted-services/${modalState.data?.id}`
+        : "/api/consulted-services";
+      const method = isEdit ? "PUT" : "POST";
+
       const selectedService = dentalServices.find(
         (s) => s.id === values.dentalServiceId
       );
-      if (!selectedService) {
-        throw new Error("Không tìm thấy thông tin dịch vụ đã chọn.");
-      }
+      if (!selectedService) throw new Error("Không tìm thấy dịch vụ đã chọn.");
 
-      // 2. Tính toán công nợ
-      const debt = values.finalPrice - (values.amountPaid || 0);
-
-      // 3. Tạo payload hoàn chỉnh với các trường riêng lẻ
       const payload = {
         ...values,
         customerId: customer.id,
         clinicId: customer.clinicId,
-        createdById: employeeProfile?.id,
+        createdById: isEdit ? undefined : employeeProfile?.id,
         updatedById: employeeProfile?.id,
-        debt: debt,
-        // Thêm các trường đã được "phi chuẩn hóa" (denormalized)
+        debt: values.finalPrice - (values.amountPaid || 0),
         consultedServiceName: selectedService.name,
         consultedServiceUnit: selectedService.unit,
       };
 
-      const res = await fetch("/api/consulted-services", {
-        method: "POST",
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
         const { error } = await res.json();
-        throw new Error(error || "Lỗi khi thêm dịch vụ tư vấn");
+        throw new Error(
+          error || `Lỗi khi ${isEdit ? "cập nhật" : "thêm"} dịch vụ`
+        );
       }
 
-      toast.success("Thêm dịch vụ tư vấn thành công!");
-      setIsModalOpen(false);
-      fetchDetails(); // Tải lại dữ liệu để cập nhật bảng
+      const responseData = await res.json();
+
+      // Cập nhật state local thay vì refetch
+      setCustomer((prev: any) => {
+        const updatedCustomer = { ...prev };
+
+        if (isEdit) {
+          // Cập nhật service đã có
+          updatedCustomer.consultedServices = prev.consultedServices.map(
+            (service: any) =>
+              service.id === modalState.data?.id ? responseData : service
+          );
+        } else {
+          // Thêm service mới
+          updatedCustomer.consultedServices = [
+            responseData,
+            ...prev.consultedServices,
+          ];
+        }
+
+        return updatedCustomer;
+      });
+
+      toast.success(`${isEdit ? "Cập nhật" : "Thêm"} dịch vụ thành công!`);
+      setModalState({ open: false, mode: "add" });
+
+      // Không cần fetchDetails() nữa
     } catch (error: any) {
       toast.error(error.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleEditService = (service: ConsultedServiceWithDetails) => {
+    setModalState({ open: true, mode: "edit", data: service });
+  };
+
+  const handleDeleteService = async (service: ConsultedServiceWithDetails) => {
+    console.log("handleDeleteService called with:", service);
+    console.log("Service ID:", service?.id);
+
+    if (!service || !service.id) {
+      toast.error("Không thể xác định dịch vụ cần xóa");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Bạn chắc chắn muốn xóa dịch vụ "${service.consultedServiceName}"?`
+    );
+
+    if (!confirmed) {
+      console.log("Delete cancelled");
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/consulted-services/${service.id}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error("Xóa dịch vụ thất bại");
+      }
+
+      // Cập nhật state local thay vì refetch
+      setCustomer((prev: any) => ({
+        ...prev,
+        consultedServices: prev.consultedServices.filter(
+          (s: any) => s.id !== service.id
+        ),
+      }));
+
+      toast.success("Đã xóa dịch vụ thành công!");
+
+      // Không cần fetchDetails() nữa
+    } catch (error: any) {
+      console.error("Delete error:", error);
+      toast.error(error.message);
     }
   };
 
@@ -141,12 +231,14 @@ export default function CustomerDetailPage({ customerId }: Props) {
     },
     {
       key: "2",
-      label: `Dịch vụ đã tư vấn (${customer.consultedServices.length})`,
+      label: `Dịch vụ đã tư vấn (${customer?.consultedServices?.length || 0})`,
       children: (
         <ConsultedServiceTable
-          data={customer.consultedServices}
+          data={customer?.consultedServices || []}
           loading={loading}
-          onAdd={() => setIsModalOpen(true)}
+          onAdd={() => setModalState({ open: true, mode: "add" })}
+          onEdit={handleEditService}
+          onDelete={handleDeleteService}
         />
       ),
     },
@@ -180,11 +272,17 @@ export default function CustomerDetailPage({ customerId }: Props) {
         <Text type="secondary">{customer.customerCode}</Text>
       </Title>
 
-      <Tabs defaultActiveKey="1" items={items} />
+      <Tabs
+        activeKey={activeTab} // Sử dụng activeKey thay vì defaultActiveKey
+        onChange={setActiveTab} // Cập nhật state khi user chuyển tab
+        items={items}
+      />
 
       <ConsultedServiceModal
-        open={isModalOpen}
-        onCancel={() => setIsModalOpen(false)}
+        open={modalState.open}
+        mode={modalState.mode}
+        initialData={modalState.data}
+        onCancel={() => setModalState({ open: false, mode: "add" })}
         onFinish={handleFinishConsultedService}
         loading={saving}
       />

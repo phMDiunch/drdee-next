@@ -11,15 +11,30 @@ type Props = {
   data: ConsultedServiceWithDetails[];
   loading: boolean;
   onAdd: () => void; // Hàm xử lý khi nhấn nút Thêm
+  onEdit: (service: ConsultedServiceWithDetails) => void; // <-- Thêm prop
+  onDelete: (service: ConsultedServiceWithDetails) => void; // <-- Thêm prop
 };
 
-export default function ConsultedServiceTable({ data, loading, onAdd }: Props) {
+export default function ConsultedServiceTable({
+  data,
+  loading,
+  onAdd,
+  onEdit,
+  onDelete,
+}: Props) {
+  console.log("ConsultedServiceTable data:", data);
+
   const columns = [
+    // {
+    //   title: "Tên dịch vụ",
+    //   dataIndex: "dentalService",
+    //   key: "serviceName",
+    //   render: (dentalService: any) => dentalService?.name || "N/A",
+    // },
     {
       title: "Tên dịch vụ",
-      dataIndex: "dentalService",
+      dataIndex: "consultedServiceName", // Lấy tên đã được sao chép
       key: "serviceName",
-      render: (dentalService: any) => dentalService?.name || "N/A",
     },
     {
       title: "Đơn giá",
@@ -55,8 +70,10 @@ export default function ConsultedServiceTable({ data, loading, onAdd }: Props) {
       key: "action",
       render: (_: any, record: ConsultedServiceWithDetails) => (
         <Space>
-          <Button size="small">Sửa</Button>
-          <Button size="small" danger>
+          <Button size="small" onClick={() => onEdit(record)}>
+            Sửa
+          </Button>
+          <Button size="small" danger onClick={() => onDelete(record)}>
             Xóa
           </Button>
         </Space>
