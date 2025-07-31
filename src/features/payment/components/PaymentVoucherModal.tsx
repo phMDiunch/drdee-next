@@ -8,7 +8,7 @@ const { Title } = Typography;
 
 type Props = {
   open: boolean;
-  mode: "add" | "view";
+  mode: "add" | "view" | "edit";
   data?: any;
   onCancel: () => void;
   onFinish?: (values: any) => void;
@@ -27,11 +27,21 @@ export default function PaymentVoucherModal({
   availableServices = [],
   employees = [],
 }: Props) {
-  const title = mode === "add" ? "Tạo phiếu thu mới" : "Chi tiết phiếu thu";
+  const getTitle = () => {
+    switch (mode) {
+      case "view":
+        return `Chi tiết phiếu thu ${data?.paymentNumber || ""}`;
+      case "edit":
+        return `Sửa phiếu thu ${data?.paymentNumber || ""}`;
+      case "add":
+      default:
+        return "Lập phiếu thu";
+    }
+  };
 
   return (
     <Modal
-      title={title}
+      title={getTitle()}
       open={open}
       onCancel={onCancel}
       footer={null}

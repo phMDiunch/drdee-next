@@ -61,7 +61,12 @@ export default function AppointmentTable({
 
   // ✅ HELPER FUNCTIONS
   const canCheckIn = (appointment: Appointment) => {
+    const isToday = dayjs(appointment.appointmentDateTime).isSame(
+      dayjs(),
+      "day"
+    );
     return (
+      isToday &&
       CHECKIN_ALLOWED_STATUSES.includes(appointment.status) &&
       !appointment.checkInTime
     );
@@ -158,6 +163,18 @@ export default function AppointmentTable({
           dayjs(),
           "day"
         );
+        const isCheckedIn = !!record.checkInTime;
+        const isLocked = isPastAppointment || isCheckedIn;
+
+        const getTooltipTitle = () => {
+          if (isPastAppointment) {
+            return "Không thể sửa/xóa lịch trong quá khứ";
+          }
+          if (isCheckedIn) {
+            return "Không thể sửa/xóa lịch đã check-in";
+          }
+          return "";
+        };
 
         return (
           <Space>
@@ -188,30 +205,24 @@ export default function AppointmentTable({
             )}
 
             {/* ✅ DISABLE SỬA/XÓA CHO LỊCH QUÁ KHỨ */}
-            <Tooltip
-              title={
-                isPastAppointment ? "Không thể sửa lịch trong quá khứ" : ""
-              }
-            >
+            <Tooltip title={getTooltipTitle()}>
+              {/* Nút Sửa */}
               <Button
                 size="small"
                 onClick={() => onEdit(record)}
-                disabled={isPastAppointment}
+                disabled={isLocked}
               >
                 Sửa
               </Button>
             </Tooltip>
 
-            <Tooltip
-              title={
-                isPastAppointment ? "Không thể xóa lịch trong quá khứ" : ""
-              }
-            >
+            <Tooltip title={getTooltipTitle()}>
+              {/* Nút Xóa */}
               <Button
                 size="small"
                 danger
                 onClick={() => onDelete(record)}
-                disabled={isPastAppointment}
+                disabled={isLocked}
               >
                 Xóa
               </Button>

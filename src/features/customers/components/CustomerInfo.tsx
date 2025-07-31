@@ -1,15 +1,24 @@
 // src/features/customers/components/CustomerInfo.tsx
-import { Card, Descriptions } from "antd";
+import { Card, Descriptions, Button } from "antd";
+import { EditOutlined } from "@ant-design/icons";
 
 type Props = {
   customer: any;
+  onEdit?: () => void;
 };
 
-export default function CustomerInfo({ customer }: Props) {
+export default function CustomerInfo({ customer, onEdit }: Props) {
   if (!customer) return null;
 
   return (
-    <Card>
+    <Card
+      title="Thông tin chi tiết"
+      extra={
+        <Button icon={<EditOutlined />} onClick={onEdit}>
+          Sửa
+        </Button>
+      }
+    >
       <Descriptions bordered column={2}>
         <Descriptions.Item label="Mã khách hàng">
           {customer.customerCode}

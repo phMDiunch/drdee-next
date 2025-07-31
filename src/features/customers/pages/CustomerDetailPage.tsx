@@ -1,6 +1,6 @@
 // src/features/customers/pages/CustomerDetailPage.tsx
 "use client";
-import { useMemo, useEffect } from "react"; // ✅ THÊM useEffect
+import { useMemo, useEffect, useState } from "react";
 import {
   Spin,
   Tabs,
@@ -13,19 +13,21 @@ import {
   Col,
   Tag,
   Statistic,
-  Breadcrumb, // ✅ THÊM
+  Breadcrumb,
 } from "antd";
 import Link from "next/link";
 import {
   ArrowLeftOutlined,
   PlusOutlined,
   LoginOutlined,
-  CheckCircleOutlined, // ✅ THÊM
-  ClockCircleOutlined, // ✅ THÊM
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  EditOutlined,
 } from "@ant-design/icons";
 import { useAppStore } from "@/stores/useAppStore";
 import dayjs from "dayjs";
 import { formatCurrency } from "@/utils/date";
+import { toast } from "react-toastify";
 
 // Custom hooks
 import { useCustomerDetail } from "../hooks/useCustomerDetail";
@@ -41,8 +43,9 @@ import ConsultedServiceModal from "@/features/consulted-service/components/Consu
 import AppointmentModal from "@/features/appointments/components/AppointmentModal";
 import PaymentVoucherTable from "@/features/payment/components/PaymentVoucherTable";
 import PaymentVoucherModal from "@/features/payment/components/PaymentVoucherModal";
+import CustomerModal from "../components/CustomerModal";
 
-const { Title, Text } = Typography; // ✅ THÊM Text
+const { Title, Text } = Typography;
 
 type Props = {
   customerId: string;
@@ -50,10 +53,18 @@ type Props = {
 
 export default function CustomerDetailPage({ customerId }: Props) {
   // Custom hooks
-  const { customer, setCustomer, loading } = useCustomerDetail(customerId);
+  const { customer, setCustomer, loading, refetch } =
+    useCustomerDetail(customerId);
   const consultedServiceHook = useConsultedService(customer, setCustomer);
   const appointmentHook = useAppointment(customer, setCustomer);
   const paymentHook = usePayment(customer, setCustomer);
+
+  // State for customer edit modal
+  const [customerModal, setCustomerModal] = useState<{
+    open: boolean;
+    data?: any;
+  }>({ open: false });
+  const [isSavingCustomer, setIsSavingCustomer] = useState(false);
 
   // Store
   const {
@@ -63,31 +74,24 @@ export default function CustomerDetailPage({ customerId }: Props) {
     fetchActiveEmployees,
   } = useAppStore();
 
-  // ✅ THÊM useEffect để fetch activeEmployees
   useEffect(() => {
     if (employeeProfile?.clinicId && activeEmployees.length === 0) {
-      console.log("Fetching active employees...");
       fetchActiveEmployees(employeeProfile);
     }
   }, [employeeProfile?.clinicId, fetchActiveEmployees, activeEmployees.length]);
 
-  // Memoized dentists and nurses
   const dentistsAndNurses = useMemo(() => {
-    console.log("Active employees:", activeEmployees); // ✅ DEBUG
-    const filtered = activeEmployees.filter(
+    return activeEmployees.filter(
       (emp) => emp.title === "Bác sĩ" || emp.title === "Điều dưỡng"
     );
-    console.log("Dentists and nurses:", filtered); // ✅ DEBUG
-    return filtered;
   }, [activeEmployees]);
 
-  // ✅ Kiểm tra customer đã check-in hôm nay chưa
   const todayCheckinStatus = useMemo(() => {
     if (!customer?.appointments)
       return { hasCheckedIn: false, appointment: null };
 
     const today = dayjs().format("YYYY-MM-DD");
-    const todayAppt = customer.appointments.find((appt) => {
+    const todayAppt = customer.appointments.find((appt: any) => {
       const apptDate = dayjs(appt.appointmentDateTime).format("YYYY-MM-DD");
       return apptDate === today && appt.checkInTime;
     });
@@ -98,19 +102,18 @@ export default function CustomerDetailPage({ customerId }: Props) {
     };
   }, [customer?.appointments]);
 
-  // Tính toán tài chính
   const financialSummary = useMemo(() => {
     const confirmedServices =
       customer?.consultedServices?.filter(
-        (service) => service.serviceStatus === "Đã chốt"
+        (service: any) => service.serviceStatus === "Đã chốt"
       ) || [];
 
     const totalAmount = confirmedServices.reduce(
-      (sum, service) => sum + service.finalPrice,
+      (sum: number, service: any) => sum + service.finalPrice,
       0
     );
     const amountPaid = confirmedServices.reduce(
-      (sum, service) => sum + (service.amountPaid || 0),
+      (sum: number, service: any) => sum + (service.amountPaid || 0),
       0
     );
     const debt = totalAmount - amountPaid;
@@ -118,7 +121,55 @@ export default function CustomerDetailPage({ customerId }: Props) {
     return { totalAmount, amountPaid, debt };
   }, [customer?.consultedServices]);
 
-  // Loading state
+  // Handlers for editing customer
+  const handleEditCustomer = () => {
+    setCustomerModal({
+      open: true,
+      data: {
+        ...customer,
+        dob: customer.dob ? dayjs(customer.dob) : null,
+      },
+    });
+  };
+
+  const handleFinishEdit = async (values: any) => {
+    setIsSavingCustomer(true);
+    try {
+      if (values.dob?.$d) {
+        values.dob = dayjs(values.dob).toISOString();
+      }
+
+      const processedValues = {
+        ...values,
+        primaryContactId: values.primaryContactId || null,
+        relationshipToPrimary: values.primaryContactId
+          ? values.relationshipToPrimary
+          : null,
+        email: values.email || null,
+        updatedById: employeeProfile?.id,
+      };
+
+      const res = await fetch(`/api/customers/${customerId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(processedValues),
+      });
+
+      if (!res.ok) {
+        const { error } = await res.json();
+        throw new Error(error || "Cập nhật thông tin thất bại");
+      }
+
+      toast.success("Cập nhật thông tin khách hàng thành công!");
+      setCustomerModal({ open: false });
+      await refetch(); // Refetch all customer data
+    } catch (err: any) {
+      toast.error(err.message || "Có lỗi xảy ra khi cập nhật");
+    } finally {
+      setIsSavingCustomer(false);
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ padding: 24, textAlign: "center" }}>
@@ -138,15 +189,13 @@ export default function CustomerDetailPage({ customerId }: Props) {
     );
   }
 
-  // ✅ DEBUG: Log dentists data trước khi pass vào modal
-  console.log("Passing dentists to AppointmentModal:", dentistsAndNurses);
-
-  // ✅ Tab items với check-in validation
   const items: TabsProps["items"] = [
     {
       key: "1",
       label: "Thông tin chung",
-      children: <CustomerInfo customer={customer} />,
+      children: (
+        <CustomerInfo customer={customer} onEdit={handleEditCustomer} />
+      ),
     },
     {
       key: "2",
@@ -217,6 +266,8 @@ export default function CustomerDetailPage({ customerId }: Props) {
           loading={loading}
           onAdd={paymentHook.handleAddPayment}
           onView={paymentHook.handleViewPayment}
+          onEdit={paymentHook.handleEditPayment}
+          onDelete={paymentHook.handleDeletePayment}
           hideCustomerColumn={true}
         />
       ),
@@ -227,7 +278,6 @@ export default function CustomerDetailPage({ customerId }: Props) {
     <div style={{ padding: 24 }}>
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
-        {/* Top Row: Back button + Breadcrumb */}
         <div
           style={{ display: "flex", alignItems: "center", marginBottom: 16 }}
         >
@@ -241,9 +291,7 @@ export default function CustomerDetailPage({ customerId }: Props) {
           />
         </div>
 
-        {/* Main Info Row: 2 Columns */}
         <Row gutter={16}>
-          {/* Left Column: Customer Info */}
           <Col span={12}>
             <Card size="small">
               <Title level={4} style={{ margin: 0, marginBottom: 4 }}>
@@ -255,8 +303,6 @@ export default function CustomerDetailPage({ customerId }: Props) {
               >
                 Mã KH: <Text strong>{customer.customerCode || "Chưa có"}</Text>
               </Text>
-
-              {/* Check-in Status */}
               {todayCheckinStatus.hasCheckedIn ? (
                 <Tag color="success" icon={<CheckCircleOutlined />}>
                   Đã check-in{" "}
@@ -272,7 +318,6 @@ export default function CustomerDetailPage({ customerId }: Props) {
             </Card>
           </Col>
 
-          {/* Right Column: Financial Info */}
           <Col span={12}>
             {financialSummary.totalAmount > 0 ? (
               <Card size="small">
@@ -374,7 +419,7 @@ export default function CustomerDetailPage({ customerId }: Props) {
         }
         onFinish={appointmentHook.handleFinishAppointment}
         loading={loading}
-        dentists={dentistsAndNurses} // ✅ Đã có data sau khi fetch
+        dentists={dentistsAndNurses}
       />
 
       <PaymentVoucherModal
@@ -387,10 +432,21 @@ export default function CustomerDetailPage({ customerId }: Props) {
         onFinish={paymentHook.handleFinishPayment}
         loading={paymentHook.saving}
         availableServices={customer?.consultedServices?.filter(
-          (s) =>
+          (s: any) =>
             s.serviceStatus === "Đã chốt" && s.finalPrice > (s.amountPaid || 0)
         )}
         employees={activeEmployees}
+      />
+
+      {/* Customer Edit Modal */}
+      <CustomerModal
+        open={customerModal.open}
+        mode="edit"
+        data={customerModal.data}
+        onCancel={() => setCustomerModal({ open: false })}
+        onFinish={handleFinishEdit}
+        loading={isSavingCustomer}
+        customers={[]}
       />
     </div>
   );

@@ -4,6 +4,7 @@ import { Table, Button, Space, Tag, Typography } from "antd";
 import { EyeOutlined, PlusOutlined } from "@ant-design/icons";
 import type { PaymentVoucherWithDetails } from "../type";
 import { formatCurrency, formatDateTimeVN } from "@/utils/date";
+import { useAppStore } from "@/stores/useAppStore";
 
 const { Title } = Typography;
 
@@ -12,6 +13,8 @@ type Props = {
   loading?: boolean;
   onAdd: () => void;
   onView: (voucher: PaymentVoucherWithDetails) => void;
+  onEdit: (voucher: any) => void; // Prop mới
+  onDelete: (voucher: any) => void; // Prop mới
   hideCustomerColumn?: boolean;
 };
 
@@ -20,8 +23,11 @@ export default function PaymentVoucherTable({
   loading = false,
   onAdd,
   onView,
+  onEdit,
+  onDelete,
   hideCustomerColumn = false,
 }: Props) {
+  const { employeeProfile } = useAppStore();
   const columns = [
     {
       title: "Số phiếu",
@@ -70,6 +76,16 @@ export default function PaymentVoucherTable({
           >
             Xem
           </Button>
+          {employeeProfile?.role === "admin" && (
+            <>
+              <Button size="small" onClick={() => onEdit(record)}>
+                Sửa
+              </Button>
+              <Button size="small" danger onClick={() => onDelete(record)}>
+                Xóa
+              </Button>
+            </>
+          )}
         </Space>
       ),
     },

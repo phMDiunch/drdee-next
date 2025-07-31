@@ -6,9 +6,9 @@ import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
-import { Tooltip, Popconfirm } from "antd";
+import { Tooltip } from "antd";
 import { formatDateTimeVN } from "@/utils/date";
-import dayjs from "dayjs";
+import { toast } from "react-toastify";
 
 type Props = {
   fetchEvents: (
@@ -26,7 +26,6 @@ export default function AppointmentCalendar({
   fetchEvents,
   onCreate,
   onEdit,
-  onDelete,
   onChangeTime,
 }: Props) {
   const calendarRef = useRef<HTMLDivElement>(null);
@@ -36,7 +35,7 @@ export default function AppointmentCalendar({
     const { event } = eventInfo;
     const { extendedProps } = event;
 
-    console.log("Event extendedProps:", extendedProps);
+    const isCheckedIn = !!extendedProps.checkInTime;
 
     const tooltipContent = (
       <div style={{ maxWidth: 300 }}>
@@ -71,29 +70,6 @@ export default function AppointmentCalendar({
         <div style={{ marginBottom: 8 }}>
           <strong>Ghi chú:</strong> {extendedProps?.notes || "Không có ghi chú"}
         </div>
-        {onDelete && (
-          <Popconfirm
-            title="Xoá lịch hẹn này?"
-            onConfirm={(e) => {
-              e?.stopPropagation();
-              onDelete(event.id);
-            }}
-            onCancel={(e) => e?.stopPropagation()}
-            okText="Xoá"
-            cancelText="Huỷ"
-          >
-            <a
-              style={{
-                color: "red",
-                marginTop: "4px",
-                display: "inline-block",
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              Xoá
-            </a>
-          </Popconfirm>
-        )}
       </div>
     );
 
@@ -135,15 +111,23 @@ export default function AppointmentCalendar({
           if (onCreate) onCreate({ start: info.startStr, end: info.endStr });
         }}
         eventClick={(info) => {
-          if (onEdit) onEdit(info.event.extendedProps);
+          const { extendedProps } = info.event;
+          // ✅ KIỂM TRA TRƯỚC KHI SỬA
+          if (extendedProps.checkInTime) {
+            toast.warn("Không thể sửa lịch hẹn đã check-in.");
+            return;
+          }
+          if (onEdit) onEdit(extendedProps);
         }}
         // SỬA: Cập nhật chỉ thời gian khi drag
         eventDrop={async (info) => {
-          console.log("🔄 Event dropped:", {
-            id: info.event.id,
-            oldStart: info.oldEvent.startStr,
-            newStart: info.event.startStr,
-          });
+          const { extendedProps } = info.event;
+          // ✅ KIỂM TRA TRƯỚC KHI KÉO THẢ
+          if (extendedProps.checkInTime) {
+            toast.warn("Không thể thay đổi lịch hẹn đã check-in.");
+            info.revert();
+            return;
+          }
 
           if (onChangeTime) {
             try {
@@ -161,17 +145,13 @@ export default function AppointmentCalendar({
         }}
         // SỬA: Cập nhật cả thời gian và duration khi resize
         eventResize={async (info) => {
-          const start = dayjs(info.event.startStr);
-          const end = dayjs(info.event.endStr);
-          const newDuration = end.diff(start, "minute");
-
-          console.log("📏 Event resized:", {
-            id: info.event.id,
-            oldDuration: info.oldEvent.extendedProps.duration,
-            newDuration,
-            start: info.event.startStr,
-            end: info.event.endStr,
-          });
+          const { extendedProps } = info.event;
+          // ✅ KIỂM TRA TRƯỚC KHI THAY ĐỔI KÍCH THƯỚC
+          if (extendedProps.checkInTime) {
+            toast.warn("Không thể thay đổi lịch hẹn đã check-in.");
+            info.revert();
+            return;
+          }
 
           if (onChangeTime) {
             try {
