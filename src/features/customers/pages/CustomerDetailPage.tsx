@@ -266,8 +266,8 @@ export default function CustomerDetailPage({ customerId }: Props) {
           loading={loading}
           onAdd={paymentHook.handleAddPayment}
           onView={paymentHook.handleViewPayment}
-          onEdit={paymentHook.handleEditPayment}
-          onDelete={paymentHook.handleDeletePayment}
+          onEdit={paymentHook.handleEditPayment} // ✅ Thêm handler
+          onDelete={paymentHook.handleDeletePayment} // ✅ Thêm handler
           hideCustomerColumn={true}
         />
       ),
@@ -424,7 +424,7 @@ export default function CustomerDetailPage({ customerId }: Props) {
 
       <PaymentVoucherModal
         open={paymentHook.paymentModal.open}
-        mode={paymentHook.paymentModal.mode}
+        mode={paymentHook.paymentModal.mode} // ✅ Support edit mode
         data={paymentHook.paymentModal.data}
         onCancel={() =>
           paymentHook.setPaymentModal({ open: false, mode: "add" })

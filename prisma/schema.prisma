@@ -330,6 +330,7 @@ model PaymentVoucher {
   totalAmount   Int // Tổng tiền của cả phiếu thu
   notes         String?
   cashierId     String
+  clinicId      String?
 
   // Metadata
   createdById String

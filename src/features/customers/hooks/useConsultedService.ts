@@ -71,6 +71,17 @@ export function useConsultedService(customer: any, setCustomer: any) {
         return updated;
       });
 
+      // ✅ Refresh customer data
+      if (customer) {
+        const refreshRes = await fetch(
+          `/api/customers/${customer.id}?includeDetails=true`
+        );
+        if (refreshRes.ok) {
+          const refreshedCustomer = await refreshRes.json();
+          setCustomer(refreshedCustomer);
+        }
+      }
+
       toast.success(`${isEdit ? "Cập nhật" : "Tạo"} dịch vụ thành công!`);
       setModalState({ open: false, mode: "add" });
     } catch (error: any) {
@@ -102,6 +113,17 @@ export function useConsultedService(customer: any, setCustomer: any) {
           (s: any) => s.id !== service.id
         ),
       }));
+
+      // ✅ Refresh customer data
+      if (customer) {
+        const refreshRes = await fetch(
+          `/api/customers/${customer.id}?includeDetails=true`
+        );
+        if (refreshRes.ok) {
+          const refreshedCustomer = await refreshRes.json();
+          setCustomer(refreshedCustomer);
+        }
+      }
 
       toast.success("Đã xóa dịch vụ thành công!");
     } catch (error: any) {

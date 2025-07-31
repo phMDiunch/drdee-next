@@ -7,14 +7,22 @@ import {
   Row,
   Col,
   Button,
-  Table,
   Input,
+  Card,
+  Typography,
+  Space,
+  List,
+  Tag,
+  Alert,
 } from "antd";
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { DeleteOutlined, DollarOutlined } from "@ant-design/icons";
 import type { ConsultedService } from "@prisma/client";
 import { formatCurrency } from "@/utils/date";
+import { useAppStore } from "@/stores/useAppStore";
 
 const { TextArea } = Input;
+const { Title, Text } = Typography;
 
 type Props = {
   form?: any;
@@ -33,107 +41,48 @@ export default function PaymentVoucherForm({
 }: Props) {
   const [formInstance] = Form.useForm(form);
   const [selectedServices, setSelectedServices] = useState<any[]>([]);
-
-  const cashiers = employees.filter(
-    (e) => e.title === "Kế toán" || e.title === "Lễ tân" || e.role === "admin"
-  );
+  const { employeeProfile } = useAppStore();
 
   const handleServiceSelect = (serviceId: string) => {
     const service = availableServices.find((s) => s.id === serviceId);
     if (!service) return;
 
     const remainingDebt = service.finalPrice - service.amountPaid;
-
     const newService = {
       consultedServiceId: serviceId,
       serviceName: service.consultedServiceName,
       remainingDebt: remainingDebt,
-      amount: remainingDebt, // ✅ SỬA: Mặc định = full debt
+      amount: remainingDebt,
       paymentMethod: "Tiền mặt",
     };
 
     setSelectedServices((prev) => [...prev, newService]);
-    calculateTotal([...selectedServices, newService]);
   };
 
   const removeService = (index: number) => {
     const newServices = selectedServices.filter((_, i) => i !== index);
     setSelectedServices(newServices);
-    calculateTotal(newServices);
   };
 
-  const calculateTotal = (services: any[]) => {
-    const total = services.reduce((sum, service) => sum + service.amount, 0);
-    formInstance.setFieldsValue({ totalAmount: total });
+  const updateServiceAmount = (index: number, amount: number) => {
+    const newServices = [...selectedServices];
+    newServices[index].amount = amount;
+    setSelectedServices(newServices);
   };
 
-  const columns = [
-    {
-      title: "Dịch vụ",
-      dataIndex: "serviceName",
-      key: "serviceName",
-    },
-    {
-      title: "Còn nợ",
-      dataIndex: "remainingDebt",
-      key: "remainingDebt",
-      render: (amount: number) => formatCurrency(amount),
-    },
-    {
-      title: "Số tiền thu",
-      dataIndex: "amount",
-      key: "amount",
-      render: (amount: number, record: any, index: number) => (
-        <InputNumber
-          value={amount}
-          min={0}
-          max={record.remainingDebt}
-          formatter={(value) =>
-            `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
-          }
-          onChange={(value) => {
-            const newServices = [...selectedServices];
-            newServices[index].amount = value || 0;
-            setSelectedServices(newServices);
-            calculateTotal(newServices);
-          }}
-        />
-      ),
-    },
-    {
-      title: "Phương thức",
-      dataIndex: "paymentMethod",
-      key: "paymentMethod",
-      render: (method: string, record: any, index: number) => (
-        <Select
-          value={method}
-          onChange={(value) => {
-            const newServices = [...selectedServices];
-            newServices[index].paymentMethod = value;
-            setSelectedServices(newServices);
-          }}
-          options={[
-            { label: "Tiền mặt", value: "Tiền mặt" },
-            { label: "Chuyển khoản", value: "Chuyển khoản" },
-            { label: "Quẹt thẻ", value: "Quẹt thẻ" },
-          ]}
-        />
-      ),
-    },
-    {
-      title: "Thao tác",
-      key: "action",
-      render: (_: any, record: any, index: number) => (
-        <Button size="small" danger onClick={() => removeService(index)}>
-          Xóa
-        </Button>
-      ),
-    },
-  ];
+  const updatePaymentMethod = (index: number, method: string) => {
+    const newServices = [...selectedServices];
+    newServices[index].paymentMethod = method;
+    setSelectedServices(newServices);
+  };
+
+  const totalAmount = selectedServices.reduce((sum, s) => sum + s.amount, 0);
 
   const handleFinish = (values: any) => {
     onFinish({
       ...values,
+      cashierId: employeeProfile?.id,
+      totalAmount,
       details: selectedServices.map((service) => ({
         consultedServiceId: service.consultedServiceId,
         amount: service.amount,
@@ -143,96 +92,175 @@ export default function PaymentVoucherForm({
   };
 
   return (
-    <Form
-      form={formInstance}
-      layout="vertical"
-      onFinish={handleFinish}
-      initialValues={{
-        paymentMethod: "Tiền mặt",
-      }}
-    >
-      <Row gutter={16}>
-        <Col span={12}>
-          <Form.Item
-            label="Thu ngân"
-            name="cashierId"
-            rules={[{ required: true, message: "Vui lòng chọn thu ngân" }]}
-          >
-            <Select
-              placeholder="Chọn thu ngân"
-              options={cashiers.map((c) => ({
-                label: c.fullName,
-                value: c.id,
+    <div>
+      {/* Header - Compact Info */}
+      <Alert
+        message={`Thu ngân: ${
+          employeeProfile?.fullName
+        } | ${new Date().toLocaleDateString("vi-VN")}`}
+        type="info"
+        showIcon
+        style={{ marginBottom: 16 }}
+      />
+
+      {/* Main Form */}
+      <Form form={formInstance} layout="vertical" onFinish={handleFinish}>
+        {/* Service Selection - Simplified */}
+        <Card size="small" style={{ marginBottom: 16 }}>
+          <Text strong style={{ display: "block", marginBottom: 8 }}>
+            Chọn dịch vụ cần thu tiền:
+          </Text>
+          <Select
+            placeholder="Tìm dịch vụ..."
+            size="large"
+            style={{ width: "100%" }}
+            showSearch
+            value=""
+            onSelect={handleServiceSelect}
+            filterOption={(input, option) =>
+              (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
+            }
+            options={availableServices
+              .filter(
+                (s) =>
+                  s.serviceStatus === "Đã chốt" &&
+                  s.finalPrice > s.amountPaid &&
+                  !selectedServices.some(
+                    (sel) => sel.consultedServiceId === s.id
+                  )
+              )
+              .map((s) => ({
+                label: `${s.consultedServiceName} (Nợ: ${formatCurrency(
+                  s.finalPrice - s.amountPaid
+                )})`,
+                value: s.id,
               }))}
-            />
-          </Form.Item>
-        </Col>
-
-        <Col span={12}>
-          <Form.Item label="Tổng tiền" name="totalAmount">
-            <InputNumber
-              style={{ width: "100%" }}
-              disabled
-              formatter={(value) =>
-                `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
-              }
-            />
-          </Form.Item>
-        </Col>
-
-        <Col span={24}>
-          <Form.Item label="Ghi chú" name="notes">
-            <TextArea rows={2} placeholder="Ghi chú về phiếu thu..." />
-          </Form.Item>
-        </Col>
-
-        <Col span={24}>
-          <Form.Item label="Chọn dịch vụ thanh toán">
-            <Select
-              placeholder="Chọn dịch vụ cần thanh toán"
-              onSelect={(value) => handleServiceSelect(value, 0)}
-              options={availableServices
-                .filter(
-                  (s) =>
-                    s.serviceStatus === "Đã chốt" &&
-                    s.finalPrice > s.amountPaid &&
-                    !selectedServices.some(
-                      (sel) => sel.consultedServiceId === s.id
-                    )
-                )
-                .map((s) => ({
-                  label: `${s.consultedServiceName} - Còn nợ: ${formatCurrency(
-                    s.finalPrice - s.amountPaid
-                  )}`,
-                  value: s.id,
-                }))}
-            />
-          </Form.Item>
-        </Col>
-
-        <Col span={24}>
-          <Table
-            columns={columns}
-            dataSource={selectedServices}
-            rowKey="consultedServiceId"
-            pagination={false}
-            size="small"
           />
-        </Col>
-      </Row>
+        </Card>
 
-      <Form.Item>
-        <Button
-          type="primary"
-          htmlType="submit"
-          loading={loading}
-          disabled={selectedServices.length === 0}
-          block
-          style={{ marginTop: 16 }}
-        >
-          Tạo phiếu thu
-        </Button>
-      </Form.Item>
-    </Form>
+        {/* Selected Services - Clean List */}
+        {selectedServices.length > 0 && (
+          <Card
+            size="small"
+            title={`Đã chọn ${selectedServices.length} dịch vụ`}
+            style={{ marginBottom: 16 }}
+          >
+            <List
+              dataSource={selectedServices}
+              renderItem={(service, index) => (
+                <List.Item
+                  key={service.consultedServiceId}
+                  style={{
+                    backgroundColor: "#fafafa",
+                    marginBottom: 8,
+                    padding: 12,
+                    borderRadius: 6,
+                  }}
+                >
+                  <Row style={{ width: "100%" }} gutter={8} align="middle">
+                    {/* Service Name */}
+                    <Col span={8}>
+                      <Text strong>{service.serviceName}</Text>
+                      <br />
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        Còn nợ: {formatCurrency(service.remainingDebt)}
+                      </Text>
+                    </Col>
+
+                    {/* Amount Input */}
+                    <Col span={6}>
+                      <InputNumber
+                        value={service.amount}
+                        min={0}
+                        max={service.remainingDebt}
+                        style={{ width: "100%" }}
+                        placeholder="Số tiền"
+                        formatter={(value) =>
+                          `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+                        }
+                        parser={(value) => value!.replace(/\$\s?|(,*)/g, "")}
+                        onChange={(value) =>
+                          updateServiceAmount(index, value || 0)
+                        }
+                      />
+                    </Col>
+
+                    {/* Payment Method */}
+                    <Col span={6}>
+                      <Select
+                        value={service.paymentMethod}
+                        style={{ width: "100%" }}
+                        onChange={(value) => updatePaymentMethod(index, value)}
+                        options={[
+                          { label: "Tiền mặt", value: "Tiền mặt" },
+                          { label: "Chuyển khoản", value: "Chuyển khoản" },
+                          { label: "Quẹt thẻ", value: "Quẹt thẻ" },
+                        ]}
+                      />
+                    </Col>
+
+                    {/* Delete Button */}
+                    <Col span={4} style={{ textAlign: "right" }}>
+                      <Button
+                        type="text"
+                        danger
+                        icon={<DeleteOutlined />}
+                        onClick={() => removeService(index)}
+                      />
+                    </Col>
+                  </Row>
+                </List.Item>
+              )}
+            />
+          </Card>
+        )}
+
+        {/* Total & Notes */}
+        <Row gutter={16}>
+          <Col span={16}>
+            <Form.Item label="Ghi chú" name="notes">
+              <TextArea rows={2} placeholder="Ghi chú (không bắt buộc)..." />
+            </Form.Item>
+          </Col>
+
+          <Col span={8}>
+            <Card
+              size="small"
+              bodyStyle={{
+                textAlign: "center",
+                backgroundColor: "#f0f9ff",
+                padding: 16,
+              }}
+            >
+              <DollarOutlined style={{ fontSize: 24, color: "#1890ff" }} />
+              <br />
+              <Text type="secondary">TỔNG CỘNG</Text>
+              <br />
+              <Title level={3} style={{ color: "#1890ff", margin: "4px 0" }}>
+                {formatCurrency(totalAmount)}
+              </Title>
+            </Card>
+          </Col>
+        </Row>
+
+        {/* Submit Button */}
+        <div style={{ textAlign: "center", marginTop: 24 }}>
+          <Button
+            type="primary"
+            size="large"
+            htmlType="submit"
+            loading={loading}
+            disabled={selectedServices.length === 0}
+            style={{
+              minWidth: 200,
+              height: 48,
+              fontSize: 16,
+            }}
+          >
+            Tạo phiếu thu ({selectedServices.length} dịch vụ)
+          </Button>
+        </div>
+      </Form>
+    </div>
   );
 }

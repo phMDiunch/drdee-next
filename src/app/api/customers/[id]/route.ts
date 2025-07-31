@@ -4,48 +4,107 @@ import { prisma } from "@/services/prismaClient";
 import { Prisma } from "@prisma/client";
 
 export async function GET(
-  _request: NextRequest,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const customer = await prisma.customer.findUnique({
-    where: { id: params.id },
-    include: {
-      primaryContact: {
-        select: {
-          id: true,
-          customerCode: true,
-          fullName: true,
-          phone: true,
-        },
-      },
-      paymentVouchers: {
-        include: {
-          cashier: { select: { id: true, fullName: true } },
-          details: {
+  try {
+    const { id } = await params;
+    const { searchParams } = new URL(request.url);
+    const includeDetails = searchParams.get("includeDetails") === "true";
+
+    // ✅ Conditional includes based on query param
+    const include = includeDetails
+      ? {
+          // Full details for CustomerDetailPage
+          primaryContact: true,
+          appointments: {
+            orderBy: { appointmentDateTime: "desc" },
             include: {
-              consultedService: {
+              customer: true,
+              primaryDentist: true,
+              secondaryDentist: true,
+            },
+          },
+          consultedServices: {
+            orderBy: { consultationDate: "desc" },
+            include: {
+              dentalService: true,
+            },
+          },
+          treatmentLogs: {
+            orderBy: { treatmentDate: "desc" },
+            include: {
+              dentist: true,
+            },
+          },
+          paymentVouchers: {
+            orderBy: { paymentDate: "desc" },
+            include: {
+              cashier: { select: { id: true, fullName: true } },
+              details: {
                 include: {
-                  dentalService: { select: { name: true } },
+                  consultedService: {
+                    include: {
+                      dentalService: { select: { name: true } },
+                    },
+                  },
                 },
               },
             },
           },
-        },
-        orderBy: { createdAt: "desc" },
-      },
-    },
-  });
-  if (!customer)
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  return NextResponse.json(customer);
+        }
+      : {
+          // Basic includes for simple operations
+          primaryContact: {
+            select: {
+              id: true,
+              customerCode: true,
+              fullName: true,
+              phone: true,
+            },
+          },
+          paymentVouchers: {
+            include: {
+              cashier: { select: { id: true, fullName: true } },
+              details: {
+                include: {
+                  consultedService: {
+                    include: {
+                      dentalService: { select: { name: true } },
+                    },
+                  },
+                },
+              },
+            },
+            orderBy: { createdAt: "desc" },
+          },
+        };
+
+    const customer = await prisma.customer.findUnique({
+      where: { id },
+      include,
+    });
+
+    if (!customer) {
+      return NextResponse.json(
+        { error: "Không tìm thấy khách hàng" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(customer);
+  } catch (error: any) {
+    console.error("Lỗi lấy thông tin khách hàng:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = params.id;
+    const { id } = await params;
     const data = await request.json();
 
     // --- Lấy thông tin khách cũ ---
@@ -89,10 +148,11 @@ export async function PUT(
 
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await prisma.customer.delete({ where: { id: params.id } });
+    const { id } = await params;
+    await prisma.customer.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

@@ -27,36 +27,32 @@ export default function PaymentVoucherModal({
   availableServices = [],
   employees = [],
 }: Props) {
-  const getTitle = () => {
-    switch (mode) {
-      case "view":
-        return `Chi tiết phiếu thu ${data?.paymentNumber || ""}`;
-      case "edit":
-        return `Sửa phiếu thu ${data?.paymentNumber || ""}`;
-      case "add":
-      default:
-        return "Lập phiếu thu";
-    }
-  };
+  const title =
+    mode === "add"
+      ? "Tạo phiếu thu mới"
+      : mode === "edit"
+      ? "Sửa phiếu thu"
+      : "Chi tiết phiếu thu";
 
   return (
     <Modal
-      title={getTitle()}
+      title={title}
       open={open}
       onCancel={onCancel}
       footer={null}
       width={mode === "view" ? 800 : 1000}
-      destroyOnHidden
+      destroyOnClose
     >
-      {mode === "add" ? (
+      {mode === "view" ? (
+        <PaymentVoucherDetail voucher={data} />
+      ) : (
         <PaymentVoucherForm
+          initialData={mode === "edit" ? data : undefined} // ✅ Pass data for edit
           onFinish={onFinish!}
           loading={loading}
           availableServices={availableServices}
           employees={employees}
         />
-      ) : (
-        <PaymentVoucherDetail voucher={data} />
       )}
     </Modal>
   );

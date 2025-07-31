@@ -37,16 +37,52 @@ export async function POST(request: NextRequest) {
     const { details, ...voucherData } = data;
 
     const result = await prisma.$transaction(async (tx) => {
+      // ✅ LOGIC TẠO SỐ PHIẾU THU GIỐNG MÃ KHÁCH HÀNG
+      const now = new Date();
+      const year = now.getFullYear() % 100; // 2 số cuối năm (25)
+      const month = String(now.getMonth() + 1).padStart(2, "0"); // Tháng (07)
+
+      // Map clinicId to prefix
+      const prefixMap: Record<string, string> = {
+        "450MK": "MK",
+        "143TDT": "TDT",
+        "153DN": "DN",
+      };
+
+      const prefix = prefixMap[voucherData.clinicId] || "XX";
+
+      // Đếm số phiếu thu trong tháng của chi nhánh
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+      const count = await tx.paymentVoucher.count({
+        where: {
+          // ✅ Lọc theo chi nhánh thông qua customer
+          customer: {
+            clinicId: voucherData.clinicId,
+          },
+          createdAt: {
+            gte: startOfMonth,
+            lte: endOfMonth,
+          },
+        },
+      });
+
+      // Format: MK-2507-0001
+      const paymentNumber = `${prefix}-${year}${month}-${String(
+        count + 1
+      ).padStart(4, "0")}`;
+
       // Tạo phiếu thu chính
       const voucher = await tx.paymentVoucher.create({
         data: {
           ...voucherData,
-          paymentNumber: `PT${Date.now()}`, // Auto generate
-          paymentDate: new Date(), // ✅ THÊM paymentDate
+          paymentNumber, // ✅ Sử dụng số phiếu thu đã tạo
+          paymentDate: new Date(),
         },
       });
 
-      // ✅ SỬA: Tạo chi tiết phiếu thu với createdById
+      // Tạo chi tiết phiếu thu
       const voucherDetails = await Promise.all(
         details.map((detail: any) =>
           tx.paymentVoucherDetail.create({
@@ -54,8 +90,8 @@ export async function POST(request: NextRequest) {
               consultedServiceId: detail.consultedServiceId,
               amount: detail.amount,
               paymentMethod: detail.paymentMethod,
-              paymentVoucherId: voucher.id, // ✅ Chỉ cần ID
-              createdById: voucherData.createdById, // ✅ THÊM createdById
+              paymentVoucherId: voucher.id,
+              createdById: voucherData.createdById,
             },
           })
         )
@@ -75,7 +111,7 @@ export async function POST(request: NextRequest) {
         )
       );
 
-      // ✅ RETURN với includes để có data đầy đủ
+      // Return với includes để có data đầy đủ
       return await tx.paymentVoucher.findUnique({
         where: { id: voucher.id },
         include: {
@@ -98,7 +134,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error: any) {
-    console.error("Payment voucher creation error:", error); // ✅ DEBUG
+    console.error("Payment voucher creation error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

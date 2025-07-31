@@ -10,7 +10,7 @@ export const usePayment = (
 ) => {
   const [paymentModal, setPaymentModal] = useState<{
     open: boolean;
-    mode: "add" | "view" | "edit";
+    mode: "add" | "view" | "edit"; // ✅ Thêm mode edit
     data?: any;
   }>({ open: false, mode: "add" });
 
@@ -33,13 +33,22 @@ export const usePayment = (
     });
   };
 
-  // Hàm mở modal ở chế độ sửa
   const handleEditPayment = (voucher: any) => {
-    setPaymentModal({ open: true, mode: "edit", data: voucher });
+    setPaymentModal({
+      open: true,
+      mode: "edit",
+      data: voucher,
+    });
   };
 
   // Hàm xử lý xóa phiếu thu
   const handleDeletePayment = async (voucher: any) => {
+    // ✅ Kiểm tra quyền Admin
+    if (employeeProfile?.role !== "admin") {
+      toast.error("Chỉ Admin mới có quyền xóa phiếu thu!");
+      return;
+    }
+
     if (
       !window.confirm(
         `Bạn chắc chắn muốn XÓA phiếu thu ${voucher.paymentNumber}? Hành động này sẽ cập nhật lại công nợ của khách hàng.`
@@ -53,56 +62,13 @@ export const usePayment = (
         method: "DELETE",
       });
 
-      if (!res.ok) {
-        const { error } = await res.json();
-        throw new Error(error || "Xóa phiếu thu thất bại");
-      }
-      toast.success("Đã xóa phiếu thu thành công!");
-      if (customer) {
-        const refreshRes = await fetch(`/api/customers/detail/${customer.id}`);
-        if (refreshRes.ok) setCustomer(await refreshRes.json());
-      }
-    } catch (error: any) {
-      toast.error(error.message);
-    }
-  };
-
-  // Cập nhật hàm onFinish để xử lý cả Sửa và Thêm mới
-  const handleFinishPayment = async (values: any) => {
-    setSaving(true);
-    try {
-      const isEdit = paymentModal.mode === "edit";
-      const url = isEdit
-        ? `/api/payment-vouchers/${paymentModal.data?.id}`
-        : "/api/payment-vouchers";
-      const method = isEdit ? "PUT" : "POST";
-
-      const payload = {
-        ...values,
-        customerId: customer?.id,
-        // createdById chỉ cần khi tạo mới
-        createdById: isEdit ? undefined : employeeProfile?.id,
-        updatedById: employeeProfile?.id,
-      };
-
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
       if (res.ok) {
-        toast.success(
-          isEdit
-            ? "Cập nhật phiếu thu thành công!"
-            : "Tạo phiếu thu thành công!"
-        );
-        setPaymentModal({ open: false, mode: "add" });
+        toast.success("Xóa phiếu thu thành công!");
 
-        // Làm mới lại dữ liệu khách hàng
+        // ✅ SỬA: Refresh với includeDetails=true
         if (customer) {
           const refreshRes = await fetch(
-            `/api/customers/detail/${customer.id}`
+            `/api/customers/${customer.id}?includeDetails=true`
           );
           if (refreshRes.ok) {
             const refreshedCustomer = await refreshRes.json();
@@ -111,7 +77,63 @@ export const usePayment = (
         }
       } else {
         const { error } = await res.json();
-        toast.error(error || "Thao tác thất bại");
+        toast.error(error || "Xóa phiếu thu thất bại");
+      }
+    } catch (error: any) {
+      toast.error("Có lỗi xảy ra khi xóa phiếu thu");
+    }
+  };
+
+  // Cập nhật hàm onFinish để xử lý cả Sửa và Thêm mới
+  const handleFinishPayment = async (values: any) => {
+    // ✅ Kiểm tra quyền Edit cho mode edit
+    if (paymentModal.mode === "edit" && employeeProfile?.role !== "admin") {
+      toast.error("Chỉ Admin mới có quyền sửa phiếu thu!");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const isEdit = paymentModal.mode === "edit";
+      const payload = {
+        ...values,
+        customerId: customer?.id,
+        clinicId: customer?.clinicId || employeeProfile?.clinicId, // ✅ THÊM clinicId
+        createdById: employeeProfile?.id,
+        updatedById: employeeProfile?.id,
+      };
+
+      const url = isEdit
+        ? `/api/payment-vouchers/${paymentModal.data.id}`
+        : "/api/payment-vouchers";
+
+      const method = isEdit ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        toast.success(`${isEdit ? "Cập nhật" : "Tạo"} phiếu thu thành công!`);
+        setPaymentModal({ open: false, mode: "add" });
+
+        // ✅ SỬA: Refresh với includeDetails=true
+        if (customer) {
+          const refreshRes = await fetch(
+            `/api/customers/${customer.id}?includeDetails=true`
+          );
+          if (refreshRes.ok) {
+            const refreshedCustomer = await refreshRes.json();
+            setCustomer(refreshedCustomer);
+          }
+        }
+      } else {
+        const { error } = await res.json();
+        toast.error(
+          error || `${isEdit ? "Cập nhật" : "Tạo"} phiếu thu thất bại`
+        );
       }
     } catch (error: any) {
       toast.error("Có lỗi xảy ra");
@@ -126,8 +148,8 @@ export const usePayment = (
     saving,
     handleAddPayment,
     handleViewPayment,
-    handleEditPayment,
-    handleDeletePayment,
+    handleEditPayment, // ✅ Export handler mới
+    handleDeletePayment, // ✅ Export handler mới
     handleFinishPayment,
   };
 };

@@ -10,6 +10,7 @@ import {
   CHECKIN_ALLOWED_STATUSES,
 } from "../constants";
 import dayjs from "dayjs";
+import Link from "next/link";
 
 const { Title } = Typography;
 
@@ -81,7 +82,20 @@ export default function AppointmentTable({
       title: "Khách hàng",
       dataIndex: "customer",
       key: "customer",
-      render: (customer: { fullName: string }) => customer?.fullName || "-",
+      render: (
+        customer: { fullName: string; id?: string },
+        record: Appointment
+      ) => {
+        const customerId = customer?.id || record.customerId;
+
+        return customerId ? (
+          <Link href={`/customers/${customerId}`} style={{ color: "#1890ff" }}>
+            {customer?.fullName || "-"}
+          </Link>
+        ) : (
+          customer?.fullName || "-"
+        );
+      },
     },
     {
       title: "Thời gian hẹn",

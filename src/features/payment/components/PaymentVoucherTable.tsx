@@ -1,7 +1,12 @@
 // src/features/payment/components/PaymentVoucherTable.tsx
 "use client";
 import { Table, Button, Space, Tag, Typography } from "antd";
-import { EyeOutlined, PlusOutlined } from "@ant-design/icons";
+import {
+  EyeOutlined,
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+} from "@ant-design/icons";
 import type { PaymentVoucherWithDetails } from "../type";
 import { formatCurrency, formatDateTimeVN } from "@/utils/date";
 import { useAppStore } from "@/stores/useAppStore";
@@ -76,12 +81,23 @@ export default function PaymentVoucherTable({
           >
             Xem
           </Button>
+
+          {/* ✅ Chỉ Admin mới thấy Edit/Delete */}
           {employeeProfile?.role === "admin" && (
             <>
-              <Button size="small" onClick={() => onEdit(record)}>
+              <Button
+                size="small"
+                icon={<EditOutlined />}
+                onClick={() => onEdit(record)}
+              >
                 Sửa
               </Button>
-              <Button size="small" danger onClick={() => onDelete(record)}>
+              <Button
+                size="small"
+                danger
+                icon={<DeleteOutlined />}
+                onClick={() => onDelete(record)}
+              >
                 Xóa
               </Button>
             </>

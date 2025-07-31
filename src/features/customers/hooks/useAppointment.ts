@@ -110,6 +110,15 @@ export function useAppointment(
             ) || [],
         };
         setCustomer(updatedCustomer);
+
+        // Refresh customer details
+        const refreshRes = await fetch(
+          `/api/customers/${customer.id}?includeDetails=true`
+        );
+        if (refreshRes.ok) {
+          const refreshedCustomer = await refreshRes.json();
+          setCustomer(refreshedCustomer);
+        }
       }
     } catch (error: any) {
       console.error("Delete appointment error:", error);
@@ -257,6 +266,15 @@ export function useAppointment(
               appointments: [...(customer.appointments || []), result],
             };
             setCustomer(updatedCustomer);
+          }
+
+          // Refresh customer details
+          const refreshRes = await fetch(
+            `/api/customers/${customer.id}?includeDetails=true`
+          );
+          if (refreshRes.ok) {
+            const refreshedCustomer = await refreshRes.json();
+            setCustomer(refreshedCustomer);
           }
         }
       } else {
