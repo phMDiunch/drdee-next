@@ -18,6 +18,21 @@ export async function GET(
           phone: true,
         },
       },
+      paymentVouchers: {
+        include: {
+          cashier: { select: { id: true, fullName: true } },
+          details: {
+            include: {
+              consultedService: {
+                include: {
+                  dentalService: { select: { name: true } },
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      },
     },
   });
   if (!customer)

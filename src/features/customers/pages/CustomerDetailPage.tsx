@@ -31,6 +31,7 @@ import { formatCurrency } from "@/utils/date";
 import { useCustomerDetail } from "../hooks/useCustomerDetail";
 import { useConsultedService } from "../hooks/useConsultedService";
 import { useAppointment } from "../hooks/useAppointment";
+import { usePayment } from "../hooks/usePayment";
 
 // Components
 import CustomerInfo from "../components/CustomerInfo";
@@ -38,6 +39,8 @@ import AppointmentTable from "@/features/appointments/components/AppointmentTabl
 import ConsultedServiceTable from "@/features/consulted-service/components/ConsultedServiceTable";
 import ConsultedServiceModal from "@/features/consulted-service/components/ConsultedServiceModal";
 import AppointmentModal from "@/features/appointments/components/AppointmentModal";
+import PaymentVoucherTable from "@/features/payment/components/PaymentVoucherTable";
+import PaymentVoucherModal from "@/features/payment/components/PaymentVoucherModal";
 
 const { Title, Text } = Typography; // ✅ THÊM Text
 
@@ -50,6 +53,7 @@ export default function CustomerDetailPage({ customerId }: Props) {
   const { customer, setCustomer, loading } = useCustomerDetail(customerId);
   const consultedServiceHook = useConsultedService(customer, setCustomer);
   const appointmentHook = useAppointment(customer, setCustomer);
+  const paymentHook = usePayment(customer, setCustomer);
 
   // Store
   const {
@@ -202,6 +206,19 @@ export default function CustomerDetailPage({ customerId }: Props) {
             disableAdd={!todayCheckinStatus.hasCheckedIn}
           />
         </div>
+      ),
+    },
+    {
+      key: "4",
+      label: `Phiếu thu (${customer?.paymentVouchers?.length || 0})`,
+      children: (
+        <PaymentVoucherTable
+          data={customer?.paymentVouchers || []}
+          loading={loading}
+          onAdd={paymentHook.handleAddPayment}
+          onView={paymentHook.handleViewPayment}
+          hideCustomerColumn={true}
+        />
       ),
     },
   ];
@@ -358,6 +375,22 @@ export default function CustomerDetailPage({ customerId }: Props) {
         onFinish={appointmentHook.handleFinishAppointment}
         loading={loading}
         dentists={dentistsAndNurses} // ✅ Đã có data sau khi fetch
+      />
+
+      <PaymentVoucherModal
+        open={paymentHook.paymentModal.open}
+        mode={paymentHook.paymentModal.mode}
+        data={paymentHook.paymentModal.data}
+        onCancel={() =>
+          paymentHook.setPaymentModal({ open: false, mode: "add" })
+        }
+        onFinish={paymentHook.handleFinishPayment}
+        loading={paymentHook.saving}
+        availableServices={customer?.consultedServices?.filter(
+          (s) =>
+            s.serviceStatus === "Đã chốt" && s.finalPrice > (s.amountPaid || 0)
+        )}
+        employees={activeEmployees}
       />
     </div>
   );

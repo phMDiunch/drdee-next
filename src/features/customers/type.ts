@@ -4,6 +4,7 @@ import type {
   Appointment,
   Employee,
 } from "@prisma/client";
+import type { PaymentVoucherWithDetails } from "@/features/payment/type";
 
 // Base customer type
 export type Customer = PrismaCustomer & {
@@ -34,4 +35,9 @@ export type CustomerWithRelations = PrismaCustomer & {
   appointments?: Appointment[];
   primaryContact?: PrismaCustomer | null;
   // Có thể thêm các relations khác khi cần
+};
+
+export type CustomerWithDetails = Customer & {
+  // ...existing relations...
+  paymentVouchers?: PaymentVoucherWithDetails[];
 };
