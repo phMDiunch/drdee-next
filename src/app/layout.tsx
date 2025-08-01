@@ -2,11 +2,13 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css"; // Global styles của bạn
-import AntdRegistry from "@/lib/AntdRegistry"; // Import AntdRegistry
+// import AntdRegistry from "@/lib/AntdRegistry"; // Import AntdRegistry
 import { ToastContainer } from "react-toastify"; // Import ToastContainer
 import "react-toastify/dist/ReactToastify.css"; // Import CSS của Toastify
-
+import '@ant-design/v5-patch-for-react-19';
 import { AuthProvider } from "@/contexts/AuthContext";
+import { AntdRegistry } from '@ant-design/nextjs-registry';
+
 
 const inter = Inter({ subsets: ["latin"] });
 
