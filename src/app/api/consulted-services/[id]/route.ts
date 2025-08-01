@@ -2,6 +2,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/services/prismaClient";
 
+export const dynamic = "force-dynamic";
+
 // --- HÀM CẬP NHẬT (SỬA) ---
 export async function PUT(
   request: NextRequest,

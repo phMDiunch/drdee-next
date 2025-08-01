@@ -2,6 +2,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/services/prismaClient";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const data = await prisma.dentalService.findMany();
   return NextResponse.json(data);
