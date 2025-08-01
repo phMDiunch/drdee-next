@@ -1,5 +1,5 @@
 // src/app/api/dental-services/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/services/prismaClient";
 
 export async function GET() {
@@ -7,7 +7,7 @@ export async function GET() {
   return NextResponse.json(data);
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     console.log(body);
@@ -15,7 +15,7 @@ export async function POST(request: Request) {
     const newService = await prisma.dentalService.create({ data: body });
     return NextResponse.json(newService);
   } catch (error: any) {
-    console.error(error); 
+    console.error(error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

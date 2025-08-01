@@ -1,8 +1,8 @@
 // src/app/api/employees/by-uid/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/services/prismaClient";
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const uid = searchParams.get("uid");
 
