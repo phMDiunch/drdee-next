@@ -30,6 +30,7 @@ type Props = {
   loading?: boolean;
   availableServices: ConsultedService[];
   employees: any[];
+  customers: any[]; // Thêm prop customers
 };
 
 export default function PaymentVoucherForm({
@@ -38,6 +39,7 @@ export default function PaymentVoucherForm({
   loading = false,
   availableServices = [],
   employees = [],
+  customers = [], // Thêm prop customers
 }: Props) {
   const [formInstance] = Form.useForm(form);
   const [selectedServices, setSelectedServices] = useState<any[]>([]);
@@ -105,6 +107,33 @@ export default function PaymentVoucherForm({
 
       {/* Main Form */}
       <Form form={formInstance} layout="vertical" onFinish={handleFinish}>
+        {/* Customer Selection - New Section */}
+        <Card size="small" style={{ marginBottom: 16 }}>
+          <Text strong style={{ display: "block", marginBottom: 8 }}>
+            Chọn khách hàng:
+          </Text>
+          <Form.Item
+            name="customerId"
+            rules={[{ required: true, message: "Vui lòng chọn khách hàng!" }]}
+          >
+            <Select
+              placeholder="Chọn khách hàng..."
+              showSearch
+              optionFilterProp="children"
+              // onSelect={handleCustomerSelect} // Hàm xử lý khi chọn khách hàng
+              filterOption={(input, option) =>
+                (option?.label ?? "")
+                  .toLowerCase()
+                  .includes(input.toLowerCase())
+              }
+              options={customers.map((customer) => ({
+                label: customer.fullName,
+                value: customer.id,
+              }))}
+            />
+          </Form.Item>
+        </Card>
+
         {/* Service Selection - Simplified */}
         <Card size="small" style={{ marginBottom: 16 }}>
           <Text strong style={{ display: "block", marginBottom: 8 }}>

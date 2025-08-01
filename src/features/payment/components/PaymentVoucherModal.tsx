@@ -8,7 +8,7 @@ const { Title } = Typography;
 
 type Props = {
   open: boolean;
-  mode: "add" | "view" | "edit";
+  mode: "add" | "view"; // ✅ BỎ "edit"
   data?: any;
   onCancel: () => void;
   onFinish?: (values: any) => void;
@@ -27,12 +27,7 @@ export default function PaymentVoucherModal({
   availableServices = [],
   employees = [],
 }: Props) {
-  const title =
-    mode === "add"
-      ? "Tạo phiếu thu mới"
-      : mode === "edit"
-      ? "Sửa phiếu thu"
-      : "Chi tiết phiếu thu";
+  const title = mode === "add" ? "Tạo phiếu thu mới" : "Chi tiết phiếu thu";
 
   return (
     <Modal
@@ -41,13 +36,13 @@ export default function PaymentVoucherModal({
       onCancel={onCancel}
       footer={null}
       width={mode === "view" ? 800 : 1000}
-      destroyOnClose
+      destroyOnHidden
     >
       {mode === "view" ? (
         <PaymentVoucherDetail voucher={data} />
       ) : (
         <PaymentVoucherForm
-          initialData={mode === "edit" ? data : undefined} // ✅ Pass data for edit
+          // ✅ BỎ initialData prop vì không cần edit
           onFinish={onFinish!}
           loading={loading}
           availableServices={availableServices}

@@ -10,7 +10,7 @@ export const usePayment = (
 ) => {
   const [paymentModal, setPaymentModal] = useState<{
     open: boolean;
-    mode: "add" | "view" | "edit"; // ✅ Thêm mode edit
+    mode: "add" | "view"; // ✅ BỎ "edit" mode
     data?: any;
   }>({ open: false, mode: "add" });
 
@@ -18,32 +18,28 @@ export const usePayment = (
   const { employeeProfile } = useAppStore();
 
   const handleAddPayment = () => {
-    setPaymentModal({
-      open: true,
-      mode: "add",
-      data: { customerId: customer?.id },
-    });
+    setPaymentModal({ open: true, mode: "add" });
   };
 
   const handleViewPayment = (voucher: any) => {
+    // Enrich voucher data
+    const enrichedVoucher = {
+      ...voucher,
+      customer: voucher.customer || {
+        id: customer?.id,
+        fullName: customer?.fullName,
+        customerCode: customer?.customerCode,
+      },
+    };
+
     setPaymentModal({
       open: true,
       mode: "view",
-      data: voucher,
+      data: enrichedVoucher,
     });
   };
 
-  const handleEditPayment = (voucher: any) => {
-    setPaymentModal({
-      open: true,
-      mode: "edit",
-      data: voucher,
-    });
-  };
-
-  // Hàm xử lý xóa phiếu thu
   const handleDeletePayment = async (voucher: any) => {
-    // ✅ Kiểm tra quyền Admin
     if (employeeProfile?.role !== "admin") {
       toast.error("Chỉ Admin mới có quyền xóa phiếu thu!");
       return;
@@ -56,8 +52,8 @@ export const usePayment = (
     ) {
       return;
     }
+
     try {
-      // Giả định API endpoint là /api/payment-vouchers/[id]
       const res = await fetch(`/api/payment-vouchers/${voucher.id}`, {
         method: "DELETE",
       });
@@ -65,7 +61,6 @@ export const usePayment = (
       if (res.ok) {
         toast.success("Xóa phiếu thu thành công!");
 
-        // ✅ SỬA: Refresh với includeDetails=true
         if (customer) {
           const refreshRes = await fetch(
             `/api/customers/${customer.id}?includeDetails=true`
@@ -84,42 +79,27 @@ export const usePayment = (
     }
   };
 
-  // Cập nhật hàm onFinish để xử lý cả Sửa và Thêm mới
   const handleFinishPayment = async (values: any) => {
-    // ✅ Kiểm tra quyền Edit cho mode edit
-    if (paymentModal.mode === "edit" && employeeProfile?.role !== "admin") {
-      toast.error("Chỉ Admin mới có quyền sửa phiếu thu!");
-      return;
-    }
-
+    // ✅ CHỈ XỬ LÝ ADD, BỎ EDIT
     setSaving(true);
     try {
-      const isEdit = paymentModal.mode === "edit";
       const payload = {
         ...values,
         customerId: customer?.id,
-        clinicId: customer?.clinicId || employeeProfile?.clinicId, // ✅ THÊM clinicId
+        clinicId: customer?.clinicId || employeeProfile?.clinicId,
         createdById: employeeProfile?.id,
-        updatedById: employeeProfile?.id,
       };
 
-      const url = isEdit
-        ? `/api/payment-vouchers/${paymentModal.data.id}`
-        : "/api/payment-vouchers";
-
-      const method = isEdit ? "PUT" : "POST";
-
-      const res = await fetch(url, {
-        method,
+      const res = await fetch("/api/payment-vouchers", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
       if (res.ok) {
-        toast.success(`${isEdit ? "Cập nhật" : "Tạo"} phiếu thu thành công!`);
+        toast.success("Tạo phiếu thu thành công!");
         setPaymentModal({ open: false, mode: "add" });
 
-        // ✅ SỬA: Refresh với includeDetails=true
         if (customer) {
           const refreshRes = await fetch(
             `/api/customers/${customer.id}?includeDetails=true`
@@ -131,9 +111,7 @@ export const usePayment = (
         }
       } else {
         const { error } = await res.json();
-        toast.error(
-          error || `${isEdit ? "Cập nhật" : "Tạo"} phiếu thu thất bại`
-        );
+        toast.error(error || "Tạo phiếu thu thất bại");
       }
     } catch (error: any) {
       toast.error("Có lỗi xảy ra");
@@ -148,8 +126,7 @@ export const usePayment = (
     saving,
     handleAddPayment,
     handleViewPayment,
-    handleEditPayment, // ✅ Export handler mới
-    handleDeletePayment, // ✅ Export handler mới
+    handleDeletePayment,
     handleFinishPayment,
   };
 };

@@ -12,6 +12,7 @@ import {
   CalendarOutlined,
   ClockCircleOutlined,
   ScheduleOutlined,
+  DollarOutlined, // ✅ THÊM icon cho Payment
 } from "@ant-design/icons";
 
 const menuItems = [
@@ -47,6 +48,12 @@ const menuItems = [
       },
     ],
   },
+  // ✅ THÊM: Menu Payment
+  {
+    key: "payments",
+    icon: <DollarOutlined />,
+    label: <Link href="/payments">Phiếu thu</Link>,
+  },
   {
     key: "settings",
     icon: <SettingOutlined />,
@@ -70,7 +77,7 @@ export default function SidebarNav() {
     return [];
   });
 
-  // Xác định selectedKey - loại bỏ customers-checkin
+  // ✅ SỬA: Xác định selectedKey - thêm payments
   let selectedKey = "dashboard";
 
   if (pathname.startsWith("/employees")) {
@@ -81,6 +88,9 @@ export default function SidebarNav() {
     selectedKey = "appointments-today";
   } else if (pathname.startsWith("/appointments")) {
     selectedKey = "appointments-list";
+  } else if (pathname.startsWith("/payments")) {
+    // ✅ THÊM
+    selectedKey = "payments";
   } else if (pathname.startsWith("/dental-services")) {
     selectedKey = "dental-services";
   }

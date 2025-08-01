@@ -142,30 +142,6 @@ export default function PaymentVoucherDetail({ voucher }: Props) {
           pagination={false}
           size="small"
           bordered
-          summary={(pageData) => {
-            const total = pageData.reduce(
-              (sum, record) => sum + (record.amount || 0),
-              0
-            );
-            return (
-              <Table.Summary fixed>
-                <Table.Summary.Row>
-                  <Table.Summary.Cell index={0} colSpan={2}>
-                    <strong>Tổng cộng</strong>
-                  </Table.Summary.Cell>
-                  <Table.Summary.Cell index={2}>
-                    <Tag
-                      color="red"
-                      style={{ fontSize: 14, padding: "4px 8px" }}
-                    >
-                      {formatCurrency(total)}
-                    </Tag>
-                  </Table.Summary.Cell>
-                  <Table.Summary.Cell index={3}></Table.Summary.Cell>
-                </Table.Summary.Row>
-              </Table.Summary>
-            );
-          }}
         />
       )}
     </div>

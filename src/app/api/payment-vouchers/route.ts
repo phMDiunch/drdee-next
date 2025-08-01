@@ -5,28 +5,68 @@ import { prisma } from "@/services/prismaClient";
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const customerId = searchParams.get("customerId");
+    const page = parseInt(searchParams.get("page") || "1");
+    const pageSize = parseInt(searchParams.get("pageSize") || "20");
+    const search = searchParams.get("search")?.trim() || "";
+    const clinicId = searchParams.get("clinicId");
 
+    const skip = (page - 1) * pageSize;
+
+    // Build where condition
+    const where: any = {};
+
+    if (clinicId) {
+      where.customer = { clinicId };
+    }
+
+    if (search) {
+      where.OR = [
+        { paymentNumber: { contains: search, mode: "insensitive" } },
+        { customer: { fullName: { contains: search, mode: "insensitive" } } },
+        {
+          customer: { customerCode: { contains: search, mode: "insensitive" } },
+        },
+      ];
+    }
+
+    // Get total count
+    const total = await prisma.paymentVoucher.count({ where });
+
+    // Get paginated data
     const vouchers = await prisma.paymentVoucher.findMany({
-      where: customerId ? { customerId } : {},
+      where,
+      skip,
+      take: pageSize,
+      orderBy: { createdAt: "desc" },
       include: {
-        customer: { select: { id: true, fullName: true, customerCode: true } },
+        customer: {
+          select: { id: true, fullName: true, customerCode: true },
+        },
         cashier: { select: { id: true, fullName: true } },
         details: {
           include: {
             consultedService: {
-              include: {
+              select: {
+                id: true,
+                consultedServiceName: true,
+                finalPrice: true,
                 dentalService: { select: { name: true } },
               },
             },
           },
         },
       },
-      orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json(vouchers);
+    return NextResponse.json({
+      vouchers,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    });
   } catch (error: any) {
+    console.error("Get payment vouchers error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -37,10 +77,10 @@ export async function POST(request: NextRequest) {
     const { details, ...voucherData } = data;
 
     const result = await prisma.$transaction(async (tx) => {
-      // ✅ LOGIC TẠO SỐ PHIẾU THU GIỐNG MÃ KHÁCH HÀNG
+      // ✅ SỬA: Logic tạo số phiếu thu an toàn
       const now = new Date();
-      const year = now.getFullYear() % 100; // 2 số cuối năm (25)
-      const month = String(now.getMonth() + 1).padStart(2, "0"); // Tháng (07)
+      const year = now.getFullYear() % 100; // 25
+      const month = String(now.getMonth() + 1).padStart(2, "0"); // 07
 
       // Map clinicId to prefix
       const prefixMap: Record<string, string> = {
@@ -49,35 +89,74 @@ export async function POST(request: NextRequest) {
         "153DN": "DN",
       };
 
-      const prefix = prefixMap[voucherData.clinicId] || "XX";
+      // ✅ SỬA: Lấy clinicId từ customer nếu không có trong voucherData
+      let clinicId = voucherData.clinicId;
+      if (!clinicId) {
+        const customer = await tx.customer.findUnique({
+          where: { id: voucherData.customerId },
+          select: { clinicId: true },
+        });
+        clinicId = customer?.clinicId;
+      }
 
-      // Đếm số phiếu thu trong tháng của chi nhánh
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      const prefix = prefixMap[clinicId] || "XX";
 
-      const count = await tx.paymentVoucher.count({
-        where: {
-          // ✅ Lọc theo chi nhánh thông qua customer
-          customer: {
-            clinicId: voucherData.clinicId,
+      // ✅ SỬA: Tạo số phiếu thu duy nhất với retry logic
+      let paymentNumber = "";
+      let retryCount = 0;
+      const maxRetries = 10;
+
+      while (retryCount < maxRetries) {
+        // Đếm số phiếu thu trong tháng với prefix này
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const endOfMonth = new Date(
+          now.getFullYear(),
+          now.getMonth() + 1,
+          0,
+          23,
+          59,
+          59
+        );
+
+        const count = await tx.paymentVoucher.count({
+          where: {
+            paymentNumber: {
+              startsWith: `${prefix}-${year}${month}-`, // ✅ SỬA: Đếm theo prefix cụ thể
+            },
+            createdAt: {
+              gte: startOfMonth,
+              lte: endOfMonth,
+            },
           },
-          createdAt: {
-            gte: startOfMonth,
-            lte: endOfMonth,
-          },
-        },
-      });
+        });
 
-      // Format: MK-2507-0001
-      const paymentNumber = `${prefix}-${year}${month}-${String(
-        count + 1
-      ).padStart(4, "0")}`;
+        // Tạo số phiếu thu
+        const sequenceNumber = String(count + 1 + retryCount).padStart(4, "0");
+        paymentNumber = `${prefix}-${year}${month}-${sequenceNumber}`;
+
+        // ✅ KIỂM TRA: Số phiếu thu đã tồn tại chưa
+        const existing = await tx.paymentVoucher.findUnique({
+          where: { paymentNumber },
+        });
+
+        if (!existing) {
+          break; // Số phiếu thu hợp lệ
+        }
+
+        retryCount++;
+      }
+
+      if (retryCount >= maxRetries) {
+        throw new Error(
+          "Không thể tạo số phiếu thu duy nhất sau nhiều lần thử"
+        );
+      }
 
       // Tạo phiếu thu chính
       const voucher = await tx.paymentVoucher.create({
         data: {
           ...voucherData,
-          paymentNumber, // ✅ Sử dụng số phiếu thu đã tạo
+          paymentNumber,
           paymentDate: new Date(),
         },
       });

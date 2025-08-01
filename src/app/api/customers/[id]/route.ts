@@ -40,12 +40,26 @@ export async function GET(
           paymentVouchers: {
             orderBy: { paymentDate: "desc" },
             include: {
+              customer: {
+                select: {
+                  id: true,
+                  fullName: true, // ✅ THÊM
+                  customerCode: true, // ✅ THÊM
+                },
+              },
               cashier: { select: { id: true, fullName: true } },
               details: {
                 include: {
                   consultedService: {
-                    include: {
-                      dentalService: { select: { name: true } },
+                    select: {
+                      id: true,
+                      consultedServiceName: true, // ✅ THÊM
+                      finalPrice: true, // ✅ THÊM
+                      dentalService: {
+                        select: {
+                          name: true,
+                        },
+                      },
                     },
                   },
                 },
