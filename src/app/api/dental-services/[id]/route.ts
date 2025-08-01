@@ -2,8 +2,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/services/prismaClient";
 
-export const dynamic = "force-dynamic";
-
 export async function PUT(request: NextRequest, { params }) {
   const body = await request.json();
   const updated = await prisma.dentalService.update({

@@ -5,7 +5,6 @@ import { prisma } from "@/services/prismaClient";
 import { Prisma } from "@prisma/client";
 import dayjs from "dayjs";
 
-export const dynamic = "force-dynamic";
 // Lấy danh sách lịch hẹn (theo ngày, bác sĩ, clinic nếu muốn)
 export async function GET(request: NextRequest) {
   try {

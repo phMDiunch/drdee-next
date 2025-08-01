@@ -3,8 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/services/prismaClient";
 import { Prisma } from "@prisma/client";
 
-export const dynamic = "force-dynamic";
-
 // Lấy danh sách nhân viên (có filter, search, phân trang)
 export async function GET(request: NextRequest) {
   try {

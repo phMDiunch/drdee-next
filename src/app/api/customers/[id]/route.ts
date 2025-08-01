@@ -3,8 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/services/prismaClient";
 import { Prisma } from "@prisma/client";
 
-export const dynamic = "force-dynamic";
-
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
