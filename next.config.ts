@@ -11,6 +11,9 @@ const nextConfig: NextConfig = {
     // !! Bỏ qua lỗi TypeScript trong quá trình build production !!
     ignoreBuildErrors: true,
   },
+  experimental: {
+    instrumentationHook: false,
+  },
 };
 
 export default nextConfig;
