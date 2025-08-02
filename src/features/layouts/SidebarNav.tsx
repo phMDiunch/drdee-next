@@ -44,7 +44,7 @@ const menuItems = [
       {
         key: "appointments-today",
         icon: <ClockCircleOutlined />,
-        label: <Link href="/appointments/today">Lịch hẹn hôm nay</Link>,
+        label: <Link href="/appointments/today">Lịch hẹn theo ngày</Link>, // ✅ SỬA LABEL
       },
     ],
   },

@@ -80,20 +80,19 @@ export const usePayment = (
   };
 
   const handleFinishPayment = async (values: any) => {
-    // ✅ CHỈ XỬ LÝ ADD, BỎ EDIT
     setSaving(true);
     try {
-      const payload = {
+      const processedValues = {
         ...values,
-        customerId: customer?.id,
-        clinicId: customer?.clinicId || employeeProfile?.clinicId,
+        customerId: customer?.id, // ✅ ĐẢM BẢO customerId được set
+        paymentDate: values.paymentDate.toISOString(),
         createdById: employeeProfile?.id,
       };
 
       const res = await fetch("/api/payment-vouchers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(processedValues),
       });
 
       if (res.ok) {

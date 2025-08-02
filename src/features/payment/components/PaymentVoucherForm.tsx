@@ -15,35 +15,56 @@ import {
   Tag,
   Alert,
 } from "antd";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DeleteOutlined, DollarOutlined } from "@ant-design/icons";
 import type { ConsultedService } from "@prisma/client";
 import { formatCurrency } from "@/utils/date";
 import { useAppStore } from "@/stores/useAppStore";
+import dayjs from "dayjs";
 
 const { TextArea } = Input;
 const { Title, Text } = Typography;
 
-type Props = {
-  form?: any;
+interface PaymentVoucherFormProps {
+  mode: "add" | "view";
+  initialData?: any;
   onFinish: (values: any) => void;
+  onCancel: () => void;
   loading?: boolean;
-  availableServices: ConsultedService[];
-  employees: any[];
-  customers: any[]; // Thêm prop customers
-};
+  availableServices?: any[];
+  employees?: any[];
+  customerId?: string; // ✅ THÊM PROP NÀY
+}
 
 export default function PaymentVoucherForm({
-  form,
+  mode,
+  initialData,
   onFinish,
+  onCancel,
   loading = false,
   availableServices = [],
   employees = [],
-  customers = [], // Thêm prop customers
-}: Props) {
-  const [formInstance] = Form.useForm(form);
+  customerId,
+}: PaymentVoucherFormProps) {
+  const [form] = Form.useForm();
   const [selectedServices, setSelectedServices] = useState<any[]>([]);
-  const { employeeProfile } = useAppStore();
+  const { employeeProfile, customers = [], fetchCustomers } = useAppStore(); // ✅ Add fallback
+
+  // ✅ THÊM: Fetch customers khi component mount
+  useEffect(() => {
+    if (customers.length === 0) {
+      fetchCustomers();
+    }
+  }, [customers.length, fetchCustomers]);
+
+  // ✅ THÊM useEffect để tự động set customerId
+  useEffect(() => {
+    if (mode === "add" && customerId && form) {
+      form.setFieldsValue({
+        customerId: customerId,
+      });
+    }
+  }, [mode, customerId, form]);
 
   const handleServiceSelect = (serviceId: string) => {
     const service = availableServices.find((s) => s.id === serviceId);
@@ -93,6 +114,26 @@ export default function PaymentVoucherForm({
     });
   };
 
+  // ✅ SAFE MAPPING với fallback
+  const customerOptions = (customers || []).map((customer) => ({
+    value: customer.id,
+    label: `${customer.fullName} - ${customer.phone}`,
+  }));
+
+  const serviceOptions = (availableServices || [])
+    .filter(
+      (s) =>
+        s.serviceStatus === "Đã chốt" &&
+        s.finalPrice > s.amountPaid &&
+        !selectedServices.some((sel) => sel.consultedServiceId === s.id)
+    )
+    .map((s) => ({
+      label: `${s.consultedServiceName} (Nợ: ${formatCurrency(
+        s.finalPrice - s.amountPaid
+      )})`,
+      value: s.id,
+    }));
+
   return (
     <div>
       {/* Header - Compact Info */}
@@ -106,7 +147,24 @@ export default function PaymentVoucherForm({
       />
 
       {/* Main Form */}
-      <Form form={formInstance} layout="vertical" onFinish={handleFinish}>
+      <Form
+        form={form}
+        layout="vertical"
+        onFinish={handleFinish}
+        initialValues={
+          mode === "add"
+            ? {
+                paymentDate: dayjs(),
+                customerId: customerId, // ✅ SET INITIAL VALUE
+              }
+            : {
+                ...initialData,
+                paymentDate: initialData?.paymentDate
+                  ? dayjs(initialData.paymentDate)
+                  : dayjs(),
+              }
+        }
+      >
         {/* Customer Selection - New Section */}
         <Card size="small" style={{ marginBottom: 16 }}>
           <Text strong style={{ display: "block", marginBottom: 8 }}>
@@ -114,22 +172,19 @@ export default function PaymentVoucherForm({
           </Text>
           <Form.Item
             name="customerId"
-            rules={[{ required: true, message: "Vui lòng chọn khách hàng!" }]}
+            label="Khách hàng"
+            rules={[{ required: true, message: "Vui lòng chọn khách hàng" }]}
           >
             <Select
-              placeholder="Chọn khách hàng..."
+              placeholder="Chọn khách hàng"
               showSearch
-              optionFilterProp="children"
-              // onSelect={handleCustomerSelect} // Hàm xử lý khi chọn khách hàng
               filterOption={(input, option) =>
                 (option?.label ?? "")
                   .toLowerCase()
                   .includes(input.toLowerCase())
               }
-              options={customers.map((customer) => ({
-                label: customer.fullName,
-                value: customer.id,
-              }))}
+              options={customerOptions} // ✅ Use safe options
+              disabled={mode === "view" || !!customerId}
             />
           </Form.Item>
         </Card>
@@ -149,21 +204,7 @@ export default function PaymentVoucherForm({
             filterOption={(input, option) =>
               (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
             }
-            options={availableServices
-              .filter(
-                (s) =>
-                  s.serviceStatus === "Đã chốt" &&
-                  s.finalPrice > s.amountPaid &&
-                  !selectedServices.some(
-                    (sel) => sel.consultedServiceId === s.id
-                  )
-              )
-              .map((s) => ({
-                label: `${s.consultedServiceName} (Nợ: ${formatCurrency(
-                  s.finalPrice - s.amountPaid
-                )})`,
-                value: s.id,
-              }))}
+            options={serviceOptions} // ✅ Use safe options
           />
         </Card>
 
@@ -255,10 +296,12 @@ export default function PaymentVoucherForm({
           <Col span={8}>
             <Card
               size="small"
-              bodyStyle={{
-                textAlign: "center",
-                backgroundColor: "#f0f9ff",
-                padding: 16,
+              styles={{
+                body: {
+                  textAlign: "center",
+                  backgroundColor: "#f0f9ff",
+                  padding: 16,
+                },
               }}
             >
               <DollarOutlined style={{ fontSize: 24, color: "#1890ff" }} />

@@ -268,6 +268,7 @@ export default function CustomerDetailPage({ customerId }: Props) {
           onView={paymentHook.handleViewPayment}
           onDelete={paymentHook.handleDeletePayment}
           hideCustomerColumn={true}
+          showHeader={true}
         />
       ),
     },
@@ -423,7 +424,7 @@ export default function CustomerDetailPage({ customerId }: Props) {
 
       <PaymentVoucherModal
         open={paymentHook.paymentModal.open}
-        mode={paymentHook.paymentModal.mode} // ✅ Chỉ "add" | "view"
+        mode={paymentHook.paymentModal.mode}
         data={paymentHook.paymentModal.data}
         onCancel={() =>
           paymentHook.setPaymentModal({ open: false, mode: "add" })
@@ -435,6 +436,7 @@ export default function CustomerDetailPage({ customerId }: Props) {
             s.serviceStatus === "Đã chốt" && s.finalPrice > (s.amountPaid || 0)
         )}
         employees={activeEmployees}
+        customerId={customerId} // ✅ THÊM PROP NÀY
       />
 
       {/* Customer Edit Modal */}

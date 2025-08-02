@@ -1,7 +1,12 @@
-// src/features/appointments/pages/TodayAppointmentsPage.tsx
+// src/features/appointments/pages/DailyAppointmentsPage.tsx // ✅ SỬA COMMENT
 "use client";
 import { useState, useEffect } from "react";
-import { Card, message } from "antd";
+import { Card, Button, Typography, Row, Col, DatePicker, Space } from "antd";
+import {
+  LeftOutlined,
+  RightOutlined,
+  CalendarOutlined,
+} from "@ant-design/icons";
 import { toast } from "react-toastify";
 import AppointmentTable from "../components/AppointmentTable";
 import AppointmentModal from "../components/AppointmentModal";
@@ -10,19 +15,22 @@ import type { Appointment } from "../type";
 import { formatDateTimeVN } from "@/utils/date";
 import dayjs from "dayjs";
 
+const { Title } = Typography;
+
 type AppointmentWithIncludes = Appointment & {
   customer: { id: string; fullName: string; phone: string };
   primaryDentist: { id: string; fullName: string };
   secondaryDentist?: { id: string; fullName: string } | null;
 };
 
-export default function TodayAppointmentsPage() {
+export default function DailyAppointmentsPage() {
+  const [selectedDate, setSelectedDate] = useState(dayjs()); // ✅ State cho ngày được chọn
   const [appointments, setAppointments] = useState<AppointmentWithIncludes[]>(
     []
   );
   const [loading, setLoading] = useState(false);
 
-  // ✅ THÊM STATES CHO MODAL VÀ DENTISTS
+  // Modal states
   const [modal, setModal] = useState<{
     open: boolean;
     mode: "add" | "edit";
@@ -32,19 +40,19 @@ export default function TodayAppointmentsPage() {
   const { employeeProfile, activeEmployees, fetchActiveEmployees } =
     useAppStore();
 
-  // ✅ THÊM - Lọc dentists và nurses
+  // Lọc dentists và nurses
   const dentistsAndNurses = activeEmployees.filter(
     (emp) => emp.title === "Bác sĩ" || emp.title === "Điều dưỡng"
   );
 
-  // Fetch lịch hẹn hôm nay
-  const fetchTodayAppointments = async () => {
+  // ✅ Fetch lịch hẹn theo ngày được chọn
+  const fetchAppointmentsByDate = async (date: dayjs.Dayjs) => {
     try {
       setLoading(true);
-      const today = dayjs().format("YYYY-MM-DD");
+      const dateStr = date.format("YYYY-MM-DD");
 
       const res = await fetch(
-        `/api/appointments/today?date=${today}&clinicId=${employeeProfile?.clinicId}`
+        `/api/appointments/today?date=${dateStr}&clinicId=${employeeProfile?.clinicId}`
       );
 
       if (!res.ok) {
@@ -54,7 +62,7 @@ export default function TodayAppointmentsPage() {
       const data = await res.json();
       setAppointments(data);
     } catch (error: any) {
-      console.error("Fetch today appointments error:", error);
+      console.error("Fetch appointments error:", error);
       toast.error(error.message);
     } finally {
       setLoading(false);
@@ -63,10 +71,44 @@ export default function TodayAppointmentsPage() {
 
   useEffect(() => {
     if (employeeProfile?.clinicId) {
-      fetchActiveEmployees(employeeProfile); // ✅ THÊM - Fetch dentists
-      fetchTodayAppointments();
+      fetchActiveEmployees(employeeProfile);
+      fetchAppointmentsByDate(selectedDate);
     }
-  }, [employeeProfile?.clinicId, fetchActiveEmployees]);
+  }, [employeeProfile?.clinicId, fetchActiveEmployees, selectedDate]);
+
+  // ✅ Điều hướng ngày
+  const goToPreviousDay = () => {
+    const prevDay = selectedDate.subtract(1, "day");
+    setSelectedDate(prevDay);
+  };
+
+  const goToNextDay = () => {
+    const nextDay = selectedDate.add(1, "day");
+    setSelectedDate(nextDay);
+  };
+
+  const goToToday = () => {
+    setSelectedDate(dayjs());
+  };
+
+  const handleDateChange = (date: dayjs.Dayjs | null) => {
+    if (date) {
+      setSelectedDate(date);
+    }
+  };
+
+  // ✅ Kiểm tra có phải hôm nay không
+  const isToday = selectedDate.isSame(dayjs(), "day");
+  const isYesterday = selectedDate.isSame(dayjs().subtract(1, "day"), "day");
+  const isTomorrow = selectedDate.isSame(dayjs().add(1, "day"), "day");
+
+  // ✅ Hiển thị label cho ngày
+  const getDateLabel = () => {
+    if (isToday) return "Hôm nay";
+    if (isYesterday) return "Hôm qua";
+    if (isTomorrow) return "Ngày mai";
+    return selectedDate.format("DD/MM/YYYY");
+  };
 
   // Handle Check-in
   const handleCheckIn = async (appointment: Appointment) => {
@@ -86,7 +128,6 @@ export default function TodayAppointmentsPage() {
 
       const updatedAppointment = await res.json();
 
-      // Cập nhật local state
       setAppointments((prev) =>
         prev.map((appt) =>
           appt.id === appointment.id ? updatedAppointment : appt
@@ -117,7 +158,6 @@ export default function TodayAppointmentsPage() {
 
       const updatedAppointment = await res.json();
 
-      // Cập nhật local state
       setAppointments((prev) =>
         prev.map((appt) =>
           appt.id === appointment.id ? updatedAppointment : appt
@@ -130,10 +170,9 @@ export default function TodayAppointmentsPage() {
     }
   };
 
-  // ✅ IMPLEMENT EDIT - Copy từ AppointmentListPage
+  // Handle Edit
   const handleEdit = async (appt: AppointmentWithIncludes) => {
     try {
-      // Fetch fresh data from API trước khi mở modal
       const res = await fetch(`/api/appointments/${appt.id}`);
 
       if (!res.ok) {
@@ -156,7 +195,6 @@ export default function TodayAppointmentsPage() {
       console.error("Failed to fetch fresh appointment data:", error);
       toast.error(error.message);
 
-      // Fallback to stale data nếu fetch thất bại
       setModal({
         open: true,
         mode: "edit",
@@ -170,7 +208,7 @@ export default function TodayAppointmentsPage() {
     }
   };
 
-  // ✅ IMPLEMENT DELETE - Copy từ AppointmentListPage
+  // Handle Delete
   const handleDelete = async (appt: AppointmentWithIncludes) => {
     const confirmed = window.confirm(
       `Bạn chắc chắn muốn xóa lịch hẹn của "${
@@ -193,15 +231,14 @@ export default function TodayAppointmentsPage() {
       const result = await res.json();
       toast.success(result.message || "Đã xóa lịch hẹn thành công!");
 
-      // Refresh data
-      fetchTodayAppointments();
+      fetchAppointmentsByDate(selectedDate);
     } catch (error: any) {
       console.error("Delete appointment error:", error);
       toast.error(error.message);
     }
   };
 
-  // ✅ IMPLEMENT MODAL SUBMIT - Copy từ AppointmentListPage
+  // Handle Modal Submit
   const handleFinish = async (values: any) => {
     setLoading(true);
     try {
@@ -240,7 +277,7 @@ export default function TodayAppointmentsPage() {
             : "Đã tạo lịch hẹn thành công!"
         );
         setModal({ open: false, mode: "add" });
-        fetchTodayAppointments(); // Refresh data
+        fetchAppointmentsByDate(selectedDate);
       } else {
         const { error } = await res.json();
         toast.error(error || "Lỗi không xác định");
@@ -252,23 +289,154 @@ export default function TodayAppointmentsPage() {
     }
   };
 
+  if (loading && appointments.length === 0) {
+    return (
+      <div style={{ padding: 24, textAlign: "center" }}>
+        <Card loading={true} />
+      </div>
+    );
+  }
+
   return (
     <div style={{ padding: 24 }}>
       <Card>
+        {/* ✅ Header với điều hướng ngày */}
+        <Row
+          justify="space-between"
+          align="middle"
+          style={{ marginBottom: 24 }}
+        >
+          <Col>
+            <Title level={4} style={{ margin: 0 }}>
+              📅 Lịch hẹn - {getDateLabel()}
+            </Title>
+            <Typography.Text type="secondary">
+              {selectedDate.format("dddd, DD/MM/YYYY")}
+            </Typography.Text>
+          </Col>
+
+          <Col>
+            <Row gutter={8} align="middle">
+              {/* Date Picker */}
+              <Col>
+                <DatePicker
+                  value={selectedDate}
+                  onChange={handleDateChange}
+                  format="DD/MM/YYYY"
+                  placeholder="Chọn ngày"
+                  suffixIcon={<CalendarOutlined />}
+                />
+              </Col>
+
+              {/* Navigation Buttons */}
+              <Col>
+                <Space.Compact>
+                  {" "}
+                  {/* ✅ THAY Button.Group bằng Space.Compact */}
+                  <Button
+                    icon={<LeftOutlined />}
+                    onClick={goToPreviousDay}
+                    title="Ngày trước"
+                  />
+                  <Button
+                    onClick={goToToday}
+                    type={isToday ? "primary" : "default"}
+                    title="Hôm nay"
+                  >
+                    Hôm nay
+                  </Button>
+                  <Button
+                    icon={<RightOutlined />}
+                    onClick={goToNextDay}
+                    title="Ngày sau"
+                  />
+                </Space.Compact>
+              </Col>
+            </Row>
+          </Col>
+        </Row>
+
+        {/* ✅ Thống kê nhanh */}
+        <Row gutter={16} style={{ marginBottom: 16 }}>
+          <Col span={6}>
+            <Card size="small" style={{ textAlign: "center" }}>
+              <Typography.Title
+                level={3}
+                style={{ margin: 0, color: "#1890ff" }}
+              >
+                {appointments.length}
+              </Typography.Title>
+              <Typography.Text type="secondary">Tổng lịch hẹn</Typography.Text>
+            </Card>
+          </Col>
+          <Col span={6}>
+            <Card size="small" style={{ textAlign: "center" }}>
+              <Typography.Title
+                level={3}
+                style={{ margin: 0, color: "#52c41a" }}
+              >
+                {appointments.filter((a) => a.checkInTime).length}
+              </Typography.Title>
+              <Typography.Text type="secondary">Đã check-in</Typography.Text>
+            </Card>
+          </Col>
+          <Col span={6}>
+            <Card size="small" style={{ textAlign: "center" }}>
+              <Typography.Title
+                level={3}
+                style={{ margin: 0, color: "#faad14" }}
+              >
+                {
+                  appointments.filter((a) => a.checkInTime && !a.checkOutTime)
+                    .length
+                }
+              </Typography.Title>
+              <Typography.Text type="secondary">Đang khám</Typography.Text>
+            </Card>
+          </Col>
+          <Col span={6}>
+            <Card size="small" style={{ textAlign: "center" }}>
+              <Typography.Title
+                level={3}
+                style={{ margin: 0, color: "#ff4d4f" }}
+              >
+                {
+                  appointments.filter(
+                    (a) =>
+                      !a.checkInTime &&
+                      dayjs(a.appointmentDateTime).isBefore(dayjs())
+                  ).length
+                }
+              </Typography.Title>
+              <Typography.Text type="secondary">Chưa đến</Typography.Text>
+            </Card>
+          </Col>
+        </Row>
+
+        {/* ✅ Bảng lịch hẹn */}
         <AppointmentTable
           data={appointments}
           loading={loading}
           onEdit={handleEdit}
           onDelete={handleDelete}
           showHeader={true}
-          title={`Lịch hẹn hôm nay (${dayjs().format("DD/MM/YYYY")})`}
+          title={`${appointments.length} lịch hẹn trong ngày`}
           showCheckInOut={true}
           onCheckIn={handleCheckIn}
           onCheckOut={handleCheckOut}
+          onAdd={() =>
+            setModal({
+              open: true,
+              mode: "add",
+              data: {
+                appointmentDateTime: selectedDate.hour(9).minute(0), // Default 9:00 AM
+              },
+            })
+          }
         />
       </Card>
 
-      {/* ✅ THÊM MODAL */}
+      {/* Modal */}
       <AppointmentModal
         open={modal.open}
         mode={modal.mode}

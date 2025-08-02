@@ -6,16 +6,17 @@ import PaymentVoucherDetail from "./PaymentVoucherDetail";
 
 const { Title } = Typography;
 
-type Props = {
+interface PaymentVoucherModalProps {
   open: boolean;
-  mode: "add" | "view"; // ✅ BỎ "edit"
+  mode: "add" | "view";
   data?: any;
   onCancel: () => void;
-  onFinish?: (values: any) => void;
+  onFinish: (values: any) => void;
   loading?: boolean;
   availableServices?: any[];
   employees?: any[];
-};
+  customerId?: string; // ✅ THÊM PROP NÀY
+}
 
 export default function PaymentVoucherModal({
   open,
@@ -26,7 +27,8 @@ export default function PaymentVoucherModal({
   loading = false,
   availableServices = [],
   employees = [],
-}: Props) {
+  customerId, // ✅ THÊM PROP NÀY
+}: PaymentVoucherModalProps) {
   const title = mode === "add" ? "Tạo phiếu thu mới" : "Chi tiết phiếu thu";
 
   return (
@@ -35,18 +37,21 @@ export default function PaymentVoucherModal({
       open={open}
       onCancel={onCancel}
       footer={null}
-      width={mode === "view" ? 800 : 1000}
+      width={800}
       destroyOnHidden
     >
       {mode === "view" ? (
         <PaymentVoucherDetail voucher={data} />
       ) : (
         <PaymentVoucherForm
-          // ✅ BỎ initialData prop vì không cần edit
-          onFinish={onFinish!}
+          mode={mode}
+          initialData={data}
+          onFinish={onFinish}
+          onCancel={onCancel}
           loading={loading}
           availableServices={availableServices}
           employees={employees}
+          customerId={customerId} // ✅ TRUYỀN PROP NÀY
         />
       )}
     </Modal>
