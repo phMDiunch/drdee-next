@@ -16,6 +16,7 @@ interface PaymentVoucherModalProps {
   availableServices?: any[];
   employees?: any[];
   customerId?: string; // ✅ THÊM PROP NÀY
+  currentCustomer?: { id: string; fullName: string; phone: string }; // ✅ THÊM CURRENT CUSTOMER
 }
 
 export default function PaymentVoucherModal({
@@ -28,6 +29,7 @@ export default function PaymentVoucherModal({
   availableServices = [],
   employees = [],
   customerId, // ✅ THÊM PROP NÀY
+  currentCustomer, // ✅ THÊM PROP MỚI
 }: PaymentVoucherModalProps) {
   const title = mode === "add" ? "Tạo phiếu thu mới" : "Chi tiết phiếu thu";
 
@@ -52,6 +54,7 @@ export default function PaymentVoucherModal({
           availableServices={availableServices}
           employees={employees}
           customerId={customerId} // ✅ TRUYỀN PROP NÀY
+          currentCustomer={currentCustomer} // ✅ TRUYỀN CURRENT CUSTOMER
         />
       )}
     </Modal>

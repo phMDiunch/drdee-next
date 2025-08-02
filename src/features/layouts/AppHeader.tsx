@@ -1,15 +1,15 @@
 // src/features/layouts/AppHeader.tsx
 "use client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Layout, Input, Badge, Avatar, Dropdown, Menu, Tooltip } from "antd";
+import { Layout, Badge, Avatar, Dropdown, Tooltip } from "antd";
 import {
   BellOutlined,
   UserOutlined,
   SettingOutlined,
   LogoutOutlined,
-  SearchOutlined,
   DownOutlined,
 } from "@ant-design/icons";
+import GlobalCustomerSearch from "@/components/GlobalCustomerSearch";
 
 const { Header } = Layout;
 
@@ -28,7 +28,7 @@ export default function AppHeader() {
       icon: <SettingOutlined />,
       label: "Cài đặt tài khoản",
     },
-    { type: "divider" },
+    { type: "divider" as const },
     {
       key: "logout",
       icon: <LogoutOutlined />,
@@ -69,13 +69,18 @@ export default function AppHeader() {
       >
         DR DEE
       </div>
-      {/* Phần 2: Search */}
-      <div style={{ flex: 1, padding: "0 24px" }}>
-        <Input
-          placeholder="Tìm kiếm..."
-          prefix={<SearchOutlined />}
-          allowClear
-          style={{ maxWidth: 400 }}
+      {/* Phần 2: Global Search */}
+      <div
+        style={{
+          flex: 1,
+          padding: "0 24px",
+          display: "flex",
+          alignItems: "center",
+        }}
+      >
+        <GlobalCustomerSearch
+          placeholder="Tìm kiếm khách hàng..."
+          style={{ maxWidth: 400, width: "100%" }}
         />
       </div>
       {/* Phần 3: Notification + Avatar */}

@@ -1,6 +1,6 @@
 // src/features/customers/pages/CustomerListPage.tsx
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Button, Col, Input, Row, Modal, Form, Select } from "antd";
 import { LoginOutlined } from "@ant-design/icons";
 import CustomerTable from "@/features/customers/components/CustomerTable";
@@ -41,43 +41,51 @@ export default function CustomerListPage() {
   // Computed
   const dentists = activeEmployees.filter((emp) => emp.title === "Bác sĩ");
 
-  // Fetch customers
-  const fetchCustomers = async (pg = page, ps = pageSize, s = search) => {
-    if (!employeeProfile?.clinicId) {
-      setCustomers([]);
-      setTotal(0);
-      return;
-    }
+  // Fetch customers - fixed function to prevent re-creation
+  const fetchCustomers = useCallback(
+    async (pg?: number, ps?: number, s?: string) => {
+      const currentPage = pg ?? page;
+      const currentPageSize = ps ?? pageSize;
+      const currentSearch = s ?? search;
 
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        page: pg.toString(),
-        pageSize: ps.toString(),
-        clinicId: employeeProfile.clinicId,
-        includeToday: "true",
-      });
+      if (!employeeProfile?.clinicId) {
+        setCustomers([]);
+        setTotal(0);
+        return;
+      }
 
-      if (s) params.set("search", s.trim());
+      setLoading(true);
+      try {
+        const params = new URLSearchParams({
+          page: currentPage.toString(),
+          pageSize: currentPageSize.toString(),
+          clinicId: employeeProfile.clinicId,
+          includeAppointments: "true", // Include today appointments for local search
+          todayOnly: currentSearch ? "false" : "true", // Only today's customers when not searching
+        });
 
-      const res = await fetch(`/api/customers?${params.toString()}`);
-      const json = await res.json();
+        if (currentSearch) params.set("search", currentSearch.trim());
 
-      setCustomers(json.customers);
-      setTotal(json.total);
-    } catch (err) {
-      toast.error("Không thể tải danh sách khách hàng");
-    } finally {
-      setLoading(false);
-    }
-  };
+        const res = await fetch(`/api/customers?${params.toString()}`);
+        const json = await res.json();
+
+        setCustomers(json.customers);
+        setTotal(json.total);
+      } catch (err) {
+        toast.error("Không thể tải danh sách khách hàng");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [page, pageSize, search, employeeProfile?.clinicId]
+  );
 
   // Effects
   useEffect(() => {
-    if (employeeProfile) {
+    if (employeeProfile?.clinicId) {
       fetchCustomers(page, pageSize, search);
     }
-  }, [page, pageSize, search, employeeProfile]);
+  }, [page, pageSize, search, employeeProfile?.clinicId, fetchCustomers]);
 
   // Handlers
   const handlePageChange = (p: number, ps: number) => {
@@ -199,12 +207,19 @@ export default function CustomerListPage() {
       {/* Header */}
       <Row align="middle" gutter={16} style={{ marginBottom: 16 }}>
         <Col flex={1}>
-          <h2 style={{ margin: 0 }}>Danh sách khách hàng</h2>
+          <h2 style={{ margin: 0 }}>
+            {search ? "Tìm kiếm khách hàng" : "Khách hàng mới hôm nay"}
+          </h2>
+          {!search && (
+            <p style={{ margin: "4px 0 0 0", color: "#666", fontSize: "14px" }}>
+              Danh sách khách hàng được tạo trong ngày hôm nay
+            </p>
+          )}
         </Col>
         <Col>
           <Input.Search
             allowClear
-            placeholder="Tìm kiếm khách hàng..."
+            placeholder="Tìm kiếm trong clinic..."
             style={{ width: 280 }}
             onSearch={(v) => {
               setPage(1);

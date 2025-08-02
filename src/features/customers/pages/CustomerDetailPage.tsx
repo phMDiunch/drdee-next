@@ -437,6 +437,15 @@ export default function CustomerDetailPage({ customerId }: Props) {
         )}
         employees={activeEmployees}
         customerId={customerId} // ✅ THÊM PROP NÀY
+        currentCustomer={
+          customer
+            ? {
+                id: customer.id,
+                fullName: customer.fullName,
+                phone: customer.phone || "", // ✅ HANDLE NULL PHONE
+              }
+            : undefined
+        } // ✅ TRUYỀN CURRENT CUSTOMER
       />
 
       {/* Customer Edit Modal */}

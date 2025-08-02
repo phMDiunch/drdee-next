@@ -5,6 +5,48 @@ import { prisma } from "@/services/prismaClient";
 import { Prisma } from "@prisma/client";
 import dayjs from "dayjs";
 
+type WhereCondition = {
+  OR?: Array<{
+    [key: string]: any;
+  }>;
+  clinicId?: string;
+  createdAt?: {
+    gte: Date;
+    lte: Date;
+  };
+};
+
+type IncludeCondition = {
+  primaryContact: {
+    select: {
+      customerCode: boolean;
+      fullName: boolean;
+      phone: boolean;
+    };
+  };
+  appointments?: {
+    where: {
+      appointmentDateTime: {
+        gte: Date;
+        lte: Date;
+      };
+    };
+    select: {
+      id: boolean;
+      appointmentDateTime: boolean;
+      status: boolean;
+      checkInTime: boolean;
+      checkOutTime: boolean;
+      primaryDentist: {
+        select: {
+          fullName: boolean;
+        };
+      };
+    };
+    take: number;
+  };
+};
+
 // Lấy danh sách customer
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -12,9 +54,14 @@ export async function GET(request: NextRequest) {
   const pageSize = Number(searchParams.get("pageSize") || "20");
   const search = searchParams.get("search")?.trim() || "";
   const clinicId = searchParams.get("clinicId") || "";
-  const includeToday = searchParams.get("includeToday") === "true"; // ✅ FLAG MỚI
+  const includeAppointments =
+    searchParams.get("includeAppointments") === "true"; // Include today appointments
+  const todayOnly = searchParams.get("todayOnly") === "true"; // Filter by today's created customers
+  const isGlobalSearch = searchParams.get("globalSearch") === "true"; // Global search flag
 
-  const where: any = {};
+  const where: WhereCondition = {};
+
+  // Search conditions
   if (search) {
     where.OR = [
       { searchKeywords: { has: search.toLowerCase() } },
@@ -24,10 +71,24 @@ export async function GET(request: NextRequest) {
       { customerCode: { contains: search, mode: "insensitive" } },
     ];
   }
-  if (clinicId) where.clinicId = clinicId;
+
+  // Clinic filter (skip for global search)
+  if (clinicId && !isGlobalSearch) {
+    where.clinicId = clinicId;
+  }
+
+  // Today's created customers filter
+  if (todayOnly) {
+    const startOfDay = dayjs().startOf("day").toDate();
+    const endOfDay = dayjs().endOf("day").toDate();
+    where.createdAt = {
+      gte: startOfDay,
+      lte: endOfDay,
+    };
+  }
 
   // ✅ INCLUDE LOGIC
-  const include: any = {
+  const include: IncludeCondition = {
     primaryContact: {
       select: {
         customerCode: true,
@@ -37,8 +98,8 @@ export async function GET(request: NextRequest) {
     },
   };
 
-  // ✅ NẾU CHECK-IN MODE → INCLUDE TODAY APPOINTMENTS
-  if (includeToday) {
+  // ✅ INCLUDE TODAY APPOINTMENTS (only if includeAppointments is true)
+  if (includeAppointments) {
     const startOfDay = dayjs().startOf("day").toDate();
     const endOfDay = dayjs().endOf("day").toDate();
 
@@ -65,20 +126,27 @@ export async function GET(request: NextRequest) {
     };
   }
 
+  // Determine take limit - for global search, use pageSize (default 10), for today only use 100
+  const takeLimit = isGlobalSearch ? pageSize : todayOnly ? 100 : pageSize;
+  const skipOffset = isGlobalSearch ? 0 : todayOnly ? 0 : (page - 1) * pageSize;
+
   const [customers, total] = await Promise.all([
     prisma.customer.findMany({
       where,
       orderBy: { createdAt: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
+      skip: skipOffset,
+      take: takeLimit,
       include,
     }),
-    prisma.customer.count({ where }),
+    // Only count for paginated results
+    isGlobalSearch || todayOnly
+      ? Promise.resolve(0)
+      : prisma.customer.count({ where }),
   ]);
 
-  // ✅ TRANSFORM DATA CHO CHECK-IN MODE
+  // ✅ TRANSFORM DATA FOR APPOINTMENT MODE
   const transformedCustomers = customers.map((customer) => {
-    if (includeToday && customer.appointments) {
+    if (includeAppointments && customer.appointments) {
       return {
         ...customer,
         todayAppointment: customer.appointments[0] || null,
@@ -88,7 +156,10 @@ export async function GET(request: NextRequest) {
     return customer;
   });
 
-  return NextResponse.json({ customers: transformedCustomers, total });
+  return NextResponse.json({
+    customers: transformedCustomers,
+    total: isGlobalSearch || todayOnly ? transformedCustomers.length : total,
+  });
 }
 
 // Hàm dùng chung để trả lỗi Prisma dạng đẹp tiếng Việt

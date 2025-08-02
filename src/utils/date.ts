@@ -53,12 +53,28 @@ export function parseDateFromISOString(dateStr?: string) {
 
 /**
  * Tính tuổi dựa vào ngày sinh
- * @param dob Ngày sinh (định dạng DD/MM/YYYY)
+ * @param dob Ngày sinh (hỗ trợ cả ISO string từ DB và định dạng DD/MM/YYYY)
  * @returns Tuổi
  */
-export const calculateAge = (dob: string): number => {
+export const calculateAge = (dob: string | Date): number => {
   const today = dayjs();
-  const birthDate = dayjs(dob, "DD/MM/YYYY");
+
+  // Tự động detect format - dayjs sẽ parse ISO string, còn DD/MM/YYYY cần chỉ định format
+  let birthDate: dayjs.Dayjs;
+
+  // Nếu là Date object
+  if (dob instanceof Date) {
+    birthDate = dayjs(dob);
+  }
+  // Nếu là string và có dạng DD/MM/YYYY (có chứa dấu /)
+  else if (typeof dob === "string" && dob.includes("/")) {
+    birthDate = dayjs(dob, "DD/MM/YYYY");
+  }
+  // Ngược lại assume là ISO string hoặc format khác mà dayjs tự parse được
+  else {
+    birthDate = dayjs(dob);
+  }
+
   return today.diff(birthDate, "year");
 };
 

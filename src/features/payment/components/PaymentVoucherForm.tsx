@@ -15,7 +15,7 @@ import {
   Tag,
   Alert,
 } from "antd";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { DeleteOutlined, DollarOutlined } from "@ant-design/icons";
 import type { ConsultedService } from "@prisma/client";
 import { formatCurrency } from "@/utils/date";
@@ -34,6 +34,7 @@ interface PaymentVoucherFormProps {
   availableServices?: any[];
   employees?: any[];
   customerId?: string; // ✅ THÊM PROP NÀY
+  currentCustomer?: { id: string; fullName: string; phone: string }; // ✅ THÊM CURRENT CUSTOMER
 }
 
 export default function PaymentVoucherForm({
@@ -45,6 +46,7 @@ export default function PaymentVoucherForm({
   availableServices = [],
   employees = [],
   customerId,
+  currentCustomer, // ✅ THÊM PROP MỚI
 }: PaymentVoucherFormProps) {
   const [form] = Form.useForm();
   const [selectedServices, setSelectedServices] = useState<any[]>([]);
@@ -59,12 +61,31 @@ export default function PaymentVoucherForm({
 
   // ✅ THÊM useEffect để tự động set customerId
   useEffect(() => {
-    if (mode === "add" && customerId && form) {
-      form.setFieldsValue({
-        customerId: customerId,
+    if (mode === "add" && customerId && form && customers.length > 0) {
+      // Kiểm tra xem customer có tồn tại trong danh sách không
+      const customerExists = customers.some(
+        (customer) => customer.id === customerId
+      );
+      if (customerExists) {
+        form.setFieldsValue({
+          customerId: customerId,
+        });
+      }
+    }
+  }, [mode, customerId, form, customers]);
+
+  // ✅ Debug log để kiểm tra
+  useEffect(() => {
+    if (customerId && customers.length > 0) {
+      const customer = customers.find((c) => c.id === customerId);
+      console.log("Debug PaymentForm:", {
+        customerId,
+        customerExists: !!customer,
+        customerName: customer?.fullName,
+        totalCustomers: customers.length,
       });
     }
-  }, [mode, customerId, form]);
+  }, [customerId, customers]);
 
   const handleServiceSelect = (serviceId: string) => {
     const service = availableServices.find((s) => s.id === serviceId);
@@ -102,20 +123,41 @@ export default function PaymentVoucherForm({
   const totalAmount = selectedServices.reduce((sum, s) => sum + s.amount, 0);
 
   const handleFinish = (values: any) => {
-    onFinish({
+    // ✅ DEBUG: Log data before sending
+    const processedData = {
       ...values,
-      cashierId: employeeProfile?.id,
+      // ✅ SỬA: Không cần set cashierId ở đây vì usePayment sẽ set
       totalAmount,
       details: selectedServices.map((service) => ({
         consultedServiceId: service.consultedServiceId,
         amount: service.amount,
         paymentMethod: service.paymentMethod,
       })),
+    };
+
+    console.log("PaymentForm - handleFinish data:", {
+      processedData,
+      selectedServices,
+      employeeProfile: employeeProfile?.id,
+      totalAmount,
     });
+
+    onFinish(processedData);
   };
 
-  // ✅ SAFE MAPPING với fallback
-  const customerOptions = (customers || []).map((customer) => ({
+  // ✅ SAFE MAPPING với fallback - combine store customers và currentCustomer
+  const allCustomers = useMemo(() => {
+    const storeCustomers = customers || [];
+    if (
+      currentCustomer &&
+      !storeCustomers.find((c) => c.id === currentCustomer.id)
+    ) {
+      return [currentCustomer, ...storeCustomers];
+    }
+    return storeCustomers;
+  }, [customers, currentCustomer]);
+
+  const customerOptions = allCustomers.map((customer) => ({
     value: customer.id,
     label: `${customer.fullName} - ${customer.phone}`,
   }));
@@ -165,6 +207,11 @@ export default function PaymentVoucherForm({
               }
         }
       >
+        {/* Hidden paymentDate field - auto set to current time */}
+        <Form.Item name="paymentDate" hidden>
+          <input type="hidden" />
+        </Form.Item>
+
         {/* Customer Selection - New Section */}
         <Card size="small" style={{ marginBottom: 16 }}>
           <Text strong style={{ display: "block", marginBottom: 8 }}>

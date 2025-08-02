@@ -85,15 +85,29 @@ export const usePayment = (
       const processedValues = {
         ...values,
         customerId: customer?.id, // ✅ ĐẢM BẢO customerId được set
-        paymentDate: values.paymentDate.toISOString(),
+        paymentDate: values.paymentDate
+          ? values.paymentDate.toISOString()
+          : new Date().toISOString(), // ✅ SỬA: Handle undefined paymentDate
         createdById: employeeProfile?.id,
+        updatedById: employeeProfile?.id, // ✅ THÊM updatedById
+        cashierId: employeeProfile?.id, // ✅ ĐẢM BẢO cashierId được set từ employeeProfile
       };
+
+      // ✅ DEBUG: Log data being sent to API
+      console.log("usePayment - handleFinishPayment:", {
+        processedValues,
+        customer: customer?.id,
+        employeeProfile: employeeProfile?.id,
+      });
 
       const res = await fetch("/api/payment-vouchers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(processedValues),
       });
+
+      // ✅ DEBUG: Log response
+      console.log("API Response:", { status: res.status, ok: res.ok });
 
       if (res.ok) {
         toast.success("Tạo phiếu thu thành công!");
@@ -110,9 +124,11 @@ export const usePayment = (
         }
       } else {
         const { error } = await res.json();
+        console.error("API Error:", error); // ✅ DEBUG: Log API error
         toast.error(error || "Tạo phiếu thu thất bại");
       }
     } catch (error: any) {
+      console.error("usePayment error:", error); // ✅ DEBUG: Log catch error
       toast.error("Có lỗi xảy ra");
     } finally {
       setSaving(false);
