@@ -111,12 +111,12 @@ export default function AppointmentTable({
 
   // ✅ HELPER FUNCTIONS - CẬP NHẬT THEO WORKFLOW MỚI
   const canCheckIn = (appointment: Appointment) => {
-    // ✅ Show check-in cho appointments hôm nay (bất kể status, trừ đã check-in)
+    // ✅ Show check-in cho appointments hôm nay && chưa có checkInTime
     const isToday = dayjs(appointment.appointmentDateTime).isSame(
       dayjs(),
       "day"
     );
-    return isToday && appointment.status !== "Đã đến";
+    return isToday && !appointment.checkInTime;
   };
 
   const canCheckOut = (appointment: Appointment) => {
