@@ -46,10 +46,8 @@ export default function DailyAppointmentsPage() {
 
   const { employeeProfile, activeEmployees } = useAppStore();
 
-  // Lọc dentists và nurses
-  const dentistsAndNurses = activeEmployees.filter(
-    (emp) => emp.title === "Bác sĩ" || emp.title === "Điều dưỡng"
-  );
+  // ✅ UPDATED: Sử dụng tất cả employees thay vì filter theo chức danh
+  const allEmployees = activeEmployees; // Không filter gì cả
 
   // ✅ Fetch lịch hẹn theo ngày được chọn
   const fetchAppointmentsByDate = useCallback(
@@ -515,7 +513,7 @@ export default function DailyAppointmentsPage() {
           onCheckOut={handleCheckOut}
           onConfirm={handleConfirm} // ✅ THÊM PROP MỚI
           onNoShow={handleNoShow} // ✅ THÊM PROP MỚI
-          employees={dentistsAndNurses} // ✅ TRUYỀN EMPLOYEES
+          employees={allEmployees} // ✅ TRUYỀN EMPLOYEES
           onAdd={() =>
             setModal({
               open: true,
@@ -536,7 +534,7 @@ export default function DailyAppointmentsPage() {
         onCancel={() => setModal({ open: false, mode: "add" })}
         onFinish={handleFinish}
         loading={loading}
-        dentists={dentistsAndNurses}
+        dentists={allEmployees}
       />
     </div>
   );

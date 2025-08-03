@@ -26,19 +26,12 @@ export default function ConsultedServiceForm({
   const [toothModalVisible, setToothModalVisible] = useState(false);
   const [selectedTeeth, setSelectedTeeth] = useState<string[]>([]);
 
-  // Lọc ra danh sách bác sĩ và sale
-  const doctors = employees.filter((e) => e.title === "Bác sĩ");
-  const sales = employees.filter(
-    (e) =>
-      e.title &&
-      (e.title.toLowerCase().includes("sale") ||
-        e.title === "Lễ tân" ||
-        e.title === "Tư vấn viên")
-  );
+  // ✅ UPDATED: Sử dụng tất cả employees thay vì filter theo chức danh
+  const allEmployees = employees; // Không filter gì cả
 
   // Thêm console.log để debug:
   console.log("All employees:", employees); // ✅ DEBUG
-  console.log("Filtered sales:", sales); // ✅ DEBUG
+  console.log("All employees (same as above):", allEmployees); // ✅ DEBUG
   console.log(
     "Available titles:",
     employees.map((e) => e.title)
@@ -200,7 +193,7 @@ export default function ConsultedServiceForm({
                 showSearch
                 allowClear
                 placeholder="Chọn bác sĩ tư vấn"
-                options={doctors.map((d) => ({
+                options={allEmployees.map((d) => ({
                   label: d.fullName,
                   value: d.id,
                 }))}
@@ -213,7 +206,10 @@ export default function ConsultedServiceForm({
                 showSearch
                 allowClear
                 placeholder="Chọn sale tư vấn"
-                options={sales.map((s) => ({ label: s.fullName, value: s.id }))}
+                options={allEmployees.map((s) => ({
+                  label: s.fullName,
+                  value: s.id,
+                }))}
               />
             </Form.Item>
           </Col>
@@ -224,7 +220,7 @@ export default function ConsultedServiceForm({
                 showSearch
                 allowClear
                 placeholder="Chọn bác sĩ điều trị"
-                options={doctors.map((d) => ({
+                options={allEmployees.map((d) => ({
                   label: d.fullName,
                   value: d.id,
                 }))}

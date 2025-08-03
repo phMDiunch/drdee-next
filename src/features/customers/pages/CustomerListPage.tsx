@@ -39,7 +39,8 @@ export default function CustomerListPage() {
   const [form] = Form.useForm();
 
   // Computed
-  const dentists = activeEmployees.filter((emp) => emp.title === "Bác sĩ");
+  // ✅ UPDATED: Sử dụng tất cả employees thay vì filter theo chức danh
+  const allEmployees = activeEmployees; // Không filter gì cả
 
   // Fetch customers - fixed function to prevent re-creation
   const fetchCustomers = useCallback(
@@ -316,9 +317,9 @@ export default function CustomerListPage() {
                 rules={[{ required: true, message: "Vui lòng chọn bác sĩ" }]}
               >
                 <Select placeholder="Chọn bác sĩ chính">
-                  {dentists.map((dentist) => (
-                    <Select.Option key={dentist.id} value={dentist.id}>
-                      {dentist.fullName}
+                  {allEmployees.map((employee) => (
+                    <Select.Option key={employee.id} value={employee.id}>
+                      {employee.fullName}
                     </Select.Option>
                   ))}
                 </Select>

@@ -30,11 +30,9 @@ export default function PaymentListPage() {
 
   const { employeeProfile, activeEmployees } = useAppStore();
 
-  // Lọc danh sách employees
+  // ✅ UPDATED: Sử dụng tất cả employees thay vì filter theo chức danh
   const employees = useMemo(() => {
-    return activeEmployees.filter(
-      (emp) => emp.title === "Thu ngân" || emp.title === "Lễ tân"
-    );
+    return activeEmployees; // Không filter gì cả
   }, [activeEmployees]);
 
   const fetchTablePayments = useCallback(async () => {

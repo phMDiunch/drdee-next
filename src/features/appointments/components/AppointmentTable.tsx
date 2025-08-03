@@ -150,17 +150,36 @@ export default function AppointmentTable({
       dataIndex: "customer",
       key: "customer",
       render: (
-        customer: { fullName: string; id?: string; customerCode?: string },
+        customer: {
+          fullName: string;
+          id?: string;
+          customerCode?: string;
+          phone?: string | null;
+        },
         record: AppointmentWithIncludes
       ) => {
         const customerId = customer?.id || record.customerId;
+        const phone = customer?.phone || record.customer?.phone;
+
+        const customerInfo = (
+          <div>
+            <div>{customer?.fullName || "-"}</div>
+            {phone && (
+              <div
+                style={{ fontSize: "12px", color: "#666", marginTop: "2px" }}
+              >
+                {phone}
+              </div>
+            )}
+          </div>
+        );
 
         return customerId ? (
           <Link href={`/customers/${customerId}`} style={{ color: "#1890ff" }}>
-            {customer?.fullName || "-"}
+            {customerInfo}
           </Link>
         ) : (
-          customer?.fullName || "-"
+          customerInfo
         );
       },
     },

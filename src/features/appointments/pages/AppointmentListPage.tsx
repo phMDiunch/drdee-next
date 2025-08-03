@@ -49,14 +49,12 @@ export default function AppointmentListPage() {
 
   const { employeeProfile, activeEmployees } = useAppStore();
 
-  // TỐI ƯU: Lọc danh sách Bác sĩ và Điều dưỡng từ state chung
-  const dentistsAndNurses = useMemo(() => {
-    return activeEmployees.filter(
-      (emp) => emp.title === "Bác sĩ" || emp.title === "Điều dưỡng"
-    );
+  // ✅ UPDATED: Sử dụng tất cả employees thay vì filter theo chức danh
+  const allEmployees = useMemo(() => {
+    return activeEmployees; // Không filter gì cả
   }, [activeEmployees]);
 
-  console.log("1. Dữ liệu 'dentistsAndNurses':", dentistsAndNurses);
+  console.log("1. Dữ liệu 'allEmployees':", allEmployees);
 
   const fetchTableAppointments = useCallback(async () => {
     if (!employeeProfile) return;
@@ -499,7 +497,7 @@ export default function AppointmentListPage() {
         onCancel={() => setModal({ ...modal, open: false })}
         onFinish={handleFinish}
         loading={tableLoading || loading}
-        dentists={dentistsAndNurses}
+        dentists={allEmployees}
       />
     </div>
   );

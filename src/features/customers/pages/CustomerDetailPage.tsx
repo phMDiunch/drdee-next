@@ -71,10 +71,9 @@ export default function CustomerDetailPage({ customerId }: Props) {
 
   // Remove fetchActiveEmployees useEffect since data is auto-loaded on login
 
-  const dentistsAndNurses = useMemo(() => {
-    return activeEmployees.filter(
-      (emp) => emp.title === "Bác sĩ" || emp.title === "Điều dưỡng"
-    );
+  // ✅ UPDATED: Sử dụng tất cả employees thay vì filter theo chức danh
+  const allEmployees = useMemo(() => {
+    return activeEmployees; // Không filter gì cả
   }, [activeEmployees]);
 
   const todayCheckinStatus = useMemo(() => {
@@ -410,7 +409,7 @@ export default function CustomerDetailPage({ customerId }: Props) {
         }
         onFinish={appointmentHook.handleFinishAppointment}
         loading={loading}
-        dentists={dentistsAndNurses}
+        dentists={allEmployees}
       />
 
       <PaymentVoucherModal
