@@ -24,6 +24,7 @@ export const CHECKIN_BLOCKED_STATUSES = [
 // ✅ THÊM: Status transitions allowed
 export const STATUS_TRANSITIONS: Record<string, string[]> = {
   "Chờ xác nhận": ["Đã xác nhận", "Đã hủy"],
+  "Chưa đến": ["Đã xác nhận", "Đã đến", "Đã hủy"], // ✅ THÊM: Cho phép từ "Chưa đến" chuyển sang các status khác
   "Đã xác nhận": ["Đã đến", "Không đến", "Đã hủy"], // Có thể chuyển sang không đến sau appointment time
   "Đã đến": [], // Không thể chuyển status sau khi đã check-in
   "Không đến": ["Đã đến"], // Có thể check-in muộn
