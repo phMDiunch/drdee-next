@@ -22,6 +22,7 @@ import { BRANCHES } from "@/constants";
 import { APPOINTMENT_STATUS_OPTIONS } from "../constants";
 import dayjs from "dayjs";
 import Link from "next/link";
+import { useMemo } from "react";
 
 const { Title } = Typography;
 
@@ -57,7 +58,6 @@ type Props = {
   onCheckIn?: (appt: AppointmentWithIncludes) => void | Promise<void>;
   onCheckOut?: (appt: AppointmentWithIncludes) => void | Promise<void>;
   showCheckInOut?: boolean; // Có hiển thị nút check-in/out không
-  employees?: Array<{ id: string; fullName: string; role: string }>;
   // ✅ PROPS MỚI CHO WORKFLOW
   onConfirm?: (appt: AppointmentWithIncludes) => void | Promise<void>;
   onNoShow?: (appt: AppointmentWithIncludes) => void | Promise<void>;
@@ -80,12 +80,34 @@ export default function AppointmentTable({
   onCheckIn,
   onCheckOut,
   showCheckInOut = false,
-  employees = [], // ✅ THÊM EMPLOYEES DEFAULT
   // ✅ PROPS MỚI CHO WORKFLOW
   onConfirm,
   onNoShow,
 }: Props) {
   console.log("AppointmentTable data:", data);
+
+  // ✅ Tự động tạo filter bác sĩ từ dữ liệu appointments
+  const doctorFilters = useMemo(() => {
+    const doctors = new Map<string, string>();
+    data.forEach((appointment) => {
+      if (appointment.primaryDentist) {
+        doctors.set(
+          appointment.primaryDentist.id,
+          appointment.primaryDentist.fullName
+        );
+      }
+      if (appointment.secondaryDentist) {
+        doctors.set(
+          appointment.secondaryDentist.id,
+          appointment.secondaryDentist.fullName
+        );
+      }
+    });
+    return Array.from(doctors.entries()).map(([id, name]) => ({
+      text: name,
+      value: id,
+    }));
+  }, [data]);
 
   // ✅ HELPER FUNCTIONS - CẬP NHẬT THEO WORKFLOW MỚI
   const canCheckIn = (appointment: Appointment) => {
@@ -210,12 +232,7 @@ export default function AppointmentTable({
       title: "Bác sĩ chính",
       dataIndex: "primaryDentist",
       key: "primaryDentist",
-      filters: employees
-        .filter((emp: { role: string }) => emp.role === "DOCTOR")
-        .map((emp: { id: string; fullName: string }) => ({
-          text: emp.fullName,
-          value: emp.id,
-        })),
+      filters: doctorFilters,
       onFilter: (value: boolean | Key, record: AppointmentWithIncludes) =>
         record.primaryDentistId === String(value),
       sorter: (a: AppointmentWithIncludes, b: AppointmentWithIncludes) =>
