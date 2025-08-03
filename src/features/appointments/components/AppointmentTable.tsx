@@ -1,14 +1,25 @@
 // src/features/appointments/components/AppointmentTable.tsx
 "use client";
-import { Table, Tag, Space, Button, Typography, Tooltip } from "antd";
-import { PlusOutlined, LoginOutlined, LogoutOutlined } from "@ant-design/icons";
+import {
+  Table,
+  Tag,
+  Space,
+  Button,
+  Typography,
+  Tooltip,
+  Popconfirm,
+} from "antd";
+import type { Key } from "antd/es/table/interface";
+import {
+  PlusOutlined,
+  LoginOutlined,
+  LogoutOutlined,
+  CheckOutlined,
+  CloseOutlined,
+} from "@ant-design/icons";
 import type { Appointment } from "../type";
 import { BRANCHES } from "@/constants";
-import { formatDateTimeVN } from "@/utils/date";
-import {
-  APPOINTMENT_STATUS_OPTIONS,
-  CHECKIN_ALLOWED_STATUSES,
-} from "../constants";
+import { APPOINTMENT_STATUS_OPTIONS } from "../constants";
 import dayjs from "dayjs";
 import Link from "next/link";
 
@@ -16,8 +27,16 @@ const { Title } = Typography;
 
 // Kiểu dữ liệu nhận vào giờ đã bao gồm object con
 type AppointmentWithIncludes = Appointment & {
-  customer: { fullName: string };
-  primaryDentist: { fullName: string };
+  customer: {
+    id: string;
+    customerCode: string | null;
+    fullName: string;
+    phone: string | null;
+    email: string | null;
+    address: string | null;
+  };
+  primaryDentist: { id: string; fullName: string };
+  secondaryDentist?: { id: string; fullName: string } | null;
 };
 
 type Props = {
@@ -26,18 +45,22 @@ type Props = {
   total?: number; // Optional cho customer detail page
   page?: number; // Optional cho customer detail page
   pageSize?: number; // Optional cho customer detail page
-  onEdit: (appt: Appointment) => void;
-  onDelete: (appt: Appointment) => void;
+  onEdit: (appt: AppointmentWithIncludes) => void;
+  onDelete: (appt: AppointmentWithIncludes) => void;
   onPageChange?: (page: number, pageSize: number) => void; // Optional
   hideCustomerColumn?: boolean;
   // Thêm props như ConsultedServiceTable
   onAdd?: () => void;
   showHeader?: boolean; // Có hiển thị header và nút Add không
   title?: string; // Title tùy chỉnh
-  // ✅ THÊM PROPS MỚI
-  onCheckIn?: (appt: Appointment) => void;
-  onCheckOut?: (appt: Appointment) => void;
+  // ✅ PROPS CŨ
+  onCheckIn?: (appt: AppointmentWithIncludes) => void | Promise<void>;
+  onCheckOut?: (appt: AppointmentWithIncludes) => void | Promise<void>;
   showCheckInOut?: boolean; // Có hiển thị nút check-in/out không
+  employees?: Array<{ id: string; fullName: string; role: string }>;
+  // ✅ PROPS MỚI CHO WORKFLOW
+  onConfirm?: (appt: AppointmentWithIncludes) => void | Promise<void>;
+  onNoShow?: (appt: AppointmentWithIncludes) => void | Promise<void>;
 };
 
 export default function AppointmentTable({
@@ -53,38 +76,82 @@ export default function AppointmentTable({
   onAdd,
   showHeader = false, // Default false để không ảnh hưởng existing code
   title = "Danh sách lịch hẹn",
-  // ✅ PROPS MỚI
+  // ✅ PROPS CŨ
   onCheckIn,
   onCheckOut,
   showCheckInOut = false,
+  employees = [], // ✅ THÊM EMPLOYEES DEFAULT
+  // ✅ PROPS MỚI CHO WORKFLOW
+  onConfirm,
+  onNoShow,
 }: Props) {
   console.log("AppointmentTable data:", data);
 
-  // ✅ HELPER FUNCTIONS
+  // ✅ HELPER FUNCTIONS - CẬP NHẬT THEO WORKFLOW MỚI
   const canCheckIn = (appointment: Appointment) => {
+    // ✅ Show check-in cho appointments hôm nay (bất kể status, trừ đã check-in)
     const isToday = dayjs(appointment.appointmentDateTime).isSame(
       dayjs(),
       "day"
     );
-    return (
-      isToday &&
-      CHECKIN_ALLOWED_STATUSES.includes(appointment.status) &&
-      !appointment.checkInTime
-    );
+    return isToday && appointment.status !== "Đã đến";
   };
 
   const canCheckOut = (appointment: Appointment) => {
-    return appointment.checkInTime && !appointment.checkOutTime;
+    // ✅ Show check-out khi: Ngày hôm nay && có checkInTime && chưa có checkOutTime
+    const isToday = dayjs(appointment.appointmentDateTime).isSame(
+      dayjs(),
+      "day"
+    );
+    return isToday && appointment.checkInTime && !appointment.checkOutTime;
+  };
+
+  // ✅ THÊM: Helper functions cho workflow mới
+  const canConfirm = (appointment: Appointment) => {
+    // ✅ Show confirm khi: Status "Chờ xác nhận" && ngày mai trở đi
+    const isFuture = dayjs(appointment.appointmentDateTime).isAfter(
+      dayjs(),
+      "day"
+    );
+    return appointment.status === "Chờ xác nhận" && isFuture;
+  };
+
+  const canMarkNoShow = (appointment: Appointment) => {
+    // ✅ Show "Không đến" khi:
+    // - Ngày hôm nay && sau 5PM && status "Đã xác nhận"
+    // - HOẶC ngày quá khứ && status "Đã xác nhận" (manual cleanup)
+    const isToday = dayjs(appointment.appointmentDateTime).isSame(
+      dayjs(),
+      "day"
+    );
+    const isPast = dayjs(appointment.appointmentDateTime).isBefore(
+      dayjs(),
+      "day"
+    );
+    const isAfter5PM = dayjs().hour() >= 17;
+
+    return (
+      appointment.status === "Đã xác nhận" &&
+      ((isToday && isAfter5PM) || isPast)
+    );
   };
 
   const columns = [
+    // ✅ THÊM CỘT MÃ KHÁCH HÀNG
+    {
+      title: "Mã KH",
+      dataIndex: ["customer", "customerCode"],
+      key: "customerCode",
+      width: 100,
+      render: (customerCode: string | null) => customerCode || "-",
+    },
     {
       title: "Khách hàng",
       dataIndex: "customer",
       key: "customer",
       render: (
-        customer: { fullName: string; id?: string },
-        record: Appointment
+        customer: { fullName: string; id?: string; customerCode?: string },
+        record: AppointmentWithIncludes
       ) => {
         const customerId = customer?.id || record.customerId;
 
@@ -101,19 +168,33 @@ export default function AppointmentTable({
       title: "Thời gian hẹn",
       dataIndex: "appointmentDateTime",
       key: "appointmentDateTime",
-      render: (v: string) => (v ? formatDateTimeVN(v, "HH:mm DD/MM/YYYY") : ""),
+      sorter: (a: AppointmentWithIncludes, b: AppointmentWithIncludes) =>
+        dayjs(a.appointmentDateTime).unix() -
+        dayjs(b.appointmentDateTime).unix(),
+      defaultSortOrder: "ascend" as const,
+      render: (v: string | Date) =>
+        v ? dayjs(v).format("HH:mm DD/MM/YYYY") : "",
     },
 
     {
       title: "Thời lượng",
       dataIndex: "duration",
       key: "duration",
+      width: 100,
       render: (duration: number) => `${duration} phút`,
     },
     {
       title: "Bác sĩ chính",
       dataIndex: "primaryDentist",
       key: "primaryDentist",
+      filters: employees
+        .filter((emp: { role: string }) => emp.role === "DOCTOR")
+        .map((emp: { id: string; fullName: string }) => ({
+          text: emp.fullName,
+          value: emp.id,
+        })),
+      onFilter: (value: boolean | Key, record: AppointmentWithIncludes) =>
+        record.primaryDentistId === String(value),
       render: (dentist: { fullName: string }) => dentist?.fullName || "-",
     },
     {
@@ -133,6 +214,12 @@ export default function AppointmentTable({
       title: "Trạng thái",
       dataIndex: "status",
       key: "status",
+      filters: APPOINTMENT_STATUS_OPTIONS.map((status) => ({
+        text: status.label,
+        value: status.value,
+      })),
+      onFilter: (value: boolean | Key, record: AppointmentWithIncludes) =>
+        record.status === String(value),
       render: (v: string) => {
         const status = APPOINTMENT_STATUS_OPTIONS.find(
           (opt) => opt.value === v
@@ -147,15 +234,15 @@ export default function AppointmentTable({
             title: "Check-in",
             dataIndex: "checkInTime",
             key: "checkInTime",
-            render: (v: string) =>
-              v ? formatDateTimeVN(v, "HH:mm DD/MM") : "-",
+            render: (v: string | Date) =>
+              v ? dayjs(v).format("HH:mm DD/MM") : "-",
           },
           {
             title: "Check-out",
             dataIndex: "checkOutTime",
             key: "checkOutTime",
-            render: (v: string) =>
-              v ? formatDateTimeVN(v, "HH:mm DD/MM") : "-",
+            render: (v: string | Date) =>
+              v ? dayjs(v).format("HH:mm DD/MM") : "-",
           },
         ]
       : []),
@@ -171,7 +258,7 @@ export default function AppointmentTable({
     {
       title: "Thao tác",
       key: "action",
-      render: (_: any, record: Appointment) => {
+      render: (_: unknown, record: AppointmentWithIncludes) => {
         // ✅ KIỂM TRA LỊCH TRONG QUÁ KHỨ
         const isPastAppointment = dayjs(record.appointmentDateTime).isBefore(
           dayjs(),
@@ -192,30 +279,72 @@ export default function AppointmentTable({
 
         return (
           <Space>
-            {/* Check-in/out buttons */}
-            {showCheckInOut && onCheckIn && canCheckIn(record) && (
-              <Tooltip title="Check-in khách hàng">
-                <Button
-                  size="small"
-                  type="primary"
-                  icon={<LoginOutlined />}
-                  onClick={() => onCheckIn(record)}
-                >
-                  Check-in
-                </Button>
-              </Tooltip>
+            {/* ✅ BUTTON XÁC NHẬN - Show khi status = "Chờ xác nhận" */}
+            {onConfirm && canConfirm(record) && (
+              <Popconfirm
+                title="Xác nhận lịch hẹn"
+                description={`Xác nhận lịch hẹn cho khách hàng ${record.customer?.fullName}?`}
+                onConfirm={() => onConfirm(record)}
+                okText="Xác nhận"
+                cancelText="Hủy"
+              >
+                <Tooltip title="Xác nhận lịch hẹn với khách hàng">
+                  <Button size="small" type="primary" icon={<CheckOutlined />}>
+                    Xác nhận
+                  </Button>
+                </Tooltip>
+              </Popconfirm>
             )}
 
+            {/* ✅ BUTTON CHECK-IN - Chỉ show khi status = "Đã xác nhận" && chưa check-in */}
+            {showCheckInOut && onCheckIn && canCheckIn(record) && (
+              <Popconfirm
+                title="Xác nhận check-in"
+                description={`Xác nhận check-in cho khách hàng ${record.customer?.fullName}?`}
+                onConfirm={() => onCheckIn(record)}
+                okText="Xác nhận"
+                cancelText="Hủy"
+              >
+                <Tooltip title="Check-in khách hàng">
+                  <Button size="small" type="primary" icon={<LoginOutlined />}>
+                    Check-in
+                  </Button>
+                </Tooltip>
+              </Popconfirm>
+            )}
+
+            {/* ✅ BUTTON CHECK-OUT - Show khi đã check-in && chưa check-out */}
             {showCheckInOut && onCheckOut && canCheckOut(record) && (
-              <Tooltip title="Check-out khách hàng">
-                <Button
-                  size="small"
-                  icon={<LogoutOutlined />}
-                  onClick={() => onCheckOut(record)}
-                >
-                  Check-out
-                </Button>
-              </Tooltip>
+              <Popconfirm
+                title="Xác nhận check-out"
+                description={`Xác nhận check-out cho khách hàng ${record.customer?.fullName}?`}
+                onConfirm={() => onCheckOut(record)}
+                okText="Xác nhận"
+                cancelText="Hủy"
+              >
+                <Tooltip title="Check-out khách hàng">
+                  <Button size="small" icon={<LogoutOutlined />}>
+                    Check-out
+                  </Button>
+                </Tooltip>
+              </Popconfirm>
+            )}
+
+            {/* ✅ BUTTON KHÔNG ĐẾN - Show khi đã xác nhận && qua giờ hẹn && chưa check-in */}
+            {onNoShow && canMarkNoShow(record) && (
+              <Popconfirm
+                title="Đánh dấu không đến"
+                description={`Xác nhận khách hàng ${record.customer?.fullName} không đến khám?`}
+                onConfirm={() => onNoShow(record)}
+                okText="Xác nhận"
+                cancelText="Hủy"
+              >
+                <Tooltip title="Đánh dấu khách hàng không đến">
+                  <Button size="small" danger icon={<CloseOutlined />}>
+                    Không đến
+                  </Button>
+                </Tooltip>
+              </Popconfirm>
             )}
 
             {/* ✅ DISABLE SỬA/XÓA CHO LỊCH QUÁ KHỨ */}

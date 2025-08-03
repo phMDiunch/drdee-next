@@ -16,7 +16,14 @@ import { formatDateTimeVN } from "@/utils/date";
 const { Title } = Typography;
 
 type AppointmentWithIncludes = Appointment & {
-  customer: { id: string; fullName: string; phone: string };
+  customer: {
+    id: string;
+    customerCode: string | null;
+    fullName: string;
+    phone: string | null;
+    email: string | null;
+    address: string | null;
+  };
   primaryDentist: { id: string; fullName: string };
   secondaryDentist?: { id: string; fullName: string } | null;
 };
@@ -40,8 +47,7 @@ export default function AppointmentListPage() {
   const [tableTotal, setTableTotal] = useState(0);
   const [tableSearch, setTableSearch] = useState("");
 
-  const { employeeProfile, activeEmployees, fetchActiveEmployees } =
-    useAppStore();
+  const { employeeProfile, activeEmployees } = useAppStore();
 
   // TỐI ƯU: Lọc danh sách Bác sĩ và Điều dưỡng từ state chung
   const dentistsAndNurses = useMemo(() => {
@@ -128,15 +134,12 @@ export default function AppointmentListPage() {
     [employeeProfile]
   );
 
-  // TỐI ƯU: Gộp 2 useEffect thành 1
+  // TỐI ƯU: Gộ useEffect - chỉ cần load table appointments khi cần
   useEffect(() => {
-    if (employeeProfile) {
-      fetchActiveEmployees(employeeProfile);
-      if (view === "table") {
-        fetchTableAppointments();
-      }
+    if (employeeProfile && view === "table") {
+      fetchTableAppointments();
     }
-  }, [fetchActiveEmployees, view, fetchTableAppointments, employeeProfile]);
+  }, [view, fetchTableAppointments, employeeProfile]);
 
   const refetchData = () => {
     if (view === "table") {
@@ -165,7 +168,9 @@ export default function AppointmentListPage() {
       };
       if (!isEdit) {
         payload.createdById = employeeProfile?.id;
-        payload.clinicId = employeeProfile?.clinicId;
+        if (employeeProfile?.clinicId) {
+          payload.clinicId = employeeProfile.clinicId;
+        }
       }
       const res = await fetch(url, {
         method,
@@ -222,9 +227,7 @@ export default function AppointmentListPage() {
         mode: "edit",
         data: {
           ...appt,
-          appointmentDateTime: appt.appointmentDateTime
-            ? dayjs(appt.appointmentDateTime)
-            : undefined,
+          appointmentDateTime: appt.appointmentDateTime || undefined,
         },
       });
     }
@@ -253,6 +256,86 @@ export default function AppointmentListPage() {
     } catch (error: any) {
       console.error("Delete appointment error:", error);
       toast.error(error.message);
+    }
+  };
+
+  // ✅ HANDLER FUNCTIONS CHO WORKFLOW MỚI
+  const handleConfirm = async (appointment: AppointmentWithIncludes) => {
+    try {
+      setTableLoading(true);
+      const res = await fetch(`/api/appointments/${appointment.id}/confirm`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          updatedById: employeeProfile?.id,
+        }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Xác nhận thất bại");
+      }
+
+      toast.success(
+        `Đã xác nhận lịch hẹn cho ${appointment.customer.fullName}`
+      );
+      refetchData();
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setTableLoading(false);
+    }
+  };
+
+  const handleNewCheckIn = async (appointment: AppointmentWithIncludes) => {
+    try {
+      setTableLoading(true);
+      const res = await fetch(`/api/appointments/${appointment.id}/check-in`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          updatedById: employeeProfile?.id,
+        }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Check-in thất bại");
+      }
+
+      toast.success(`Đã check-in cho ${appointment.customer.fullName}`);
+      refetchData();
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setTableLoading(false);
+    }
+  };
+
+  const handleNoShow = async (appointment: AppointmentWithIncludes) => {
+    try {
+      setTableLoading(true);
+      const res = await fetch(`/api/appointments/${appointment.id}/no-show`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          updatedById: employeeProfile?.id,
+        }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Đánh dấu không đến thất bại");
+      }
+
+      toast.success(
+        `Đã đánh dấu không đến cho ${appointment.customer.fullName}`
+      );
+      refetchData();
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setTableLoading(false);
     }
   };
 
@@ -303,6 +386,10 @@ export default function AppointmentListPage() {
           showHeader={true}
           onAdd={() => setModal({ open: true, mode: "add", data: {} })}
           title="Quản lý lịch hẹn"
+          showCheckInOut={true}
+          onConfirm={handleConfirm}
+          onCheckIn={handleNewCheckIn}
+          onNoShow={handleNoShow}
         />
       ) : (
         <div>
@@ -335,14 +422,13 @@ export default function AppointmentListPage() {
                 setModal({
                   open: true,
                   mode: "add",
-                  data: { appointmentDateTime: dayjs(slot.start) },
+                  data: { appointmentDateTime: new Date(slot.start) },
                 })
               }
               onEdit={handleEdit}
               onChangeTime={async ({
                 id,
                 start,
-                end,
                 appointmentDateTime,
                 duration,
               }) => {

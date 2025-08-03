@@ -28,8 +28,7 @@ export default function PaymentListPage() {
   const [tableTotal, setTableTotal] = useState(0);
   const [tableSearch, setTableSearch] = useState("");
 
-  const { employeeProfile, activeEmployees, fetchActiveEmployees } =
-    useAppStore();
+  const { employeeProfile, activeEmployees } = useAppStore();
 
   // Lọc danh sách employees
   const employees = useMemo(() => {
@@ -62,10 +61,9 @@ export default function PaymentListPage() {
 
   useEffect(() => {
     if (employeeProfile) {
-      fetchActiveEmployees(employeeProfile);
       fetchTablePayments();
     }
-  }, [fetchActiveEmployees, fetchTablePayments, employeeProfile]);
+  }, [fetchTablePayments, employeeProfile]);
 
   const refetchData = () => {
     fetchTablePayments();

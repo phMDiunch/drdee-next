@@ -1,6 +1,6 @@
 // src/features/appointments/pages/DailyAppointmentsPage.tsx // ✅ SỬA COMMENT
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, Button, Typography, Row, Col, DatePicker, Space } from "antd";
 import {
   LeftOutlined,
@@ -18,7 +18,14 @@ import dayjs from "dayjs";
 const { Title } = Typography;
 
 type AppointmentWithIncludes = Appointment & {
-  customer: { id: string; fullName: string; phone: string };
+  customer: {
+    id: string;
+    customerCode: string | null;
+    fullName: string;
+    phone: string | null;
+    email: string | null;
+    address: string | null;
+  };
   primaryDentist: { id: string; fullName: string };
   secondaryDentist?: { id: string; fullName: string } | null;
 };
@@ -37,8 +44,7 @@ export default function DailyAppointmentsPage() {
     data?: Partial<AppointmentWithIncludes>;
   }>({ open: false, mode: "add" });
 
-  const { employeeProfile, activeEmployees, fetchActiveEmployees } =
-    useAppStore();
+  const { employeeProfile, activeEmployees } = useAppStore();
 
   // Lọc dentists và nurses
   const dentistsAndNurses = activeEmployees.filter(
@@ -46,35 +52,39 @@ export default function DailyAppointmentsPage() {
   );
 
   // ✅ Fetch lịch hẹn theo ngày được chọn
-  const fetchAppointmentsByDate = async (date: dayjs.Dayjs) => {
-    try {
-      setLoading(true);
-      const dateStr = date.format("YYYY-MM-DD");
+  const fetchAppointmentsByDate = useCallback(
+    async (date: dayjs.Dayjs) => {
+      try {
+        setLoading(true);
+        const dateStr = date.format("YYYY-MM-DD");
 
-      const res = await fetch(
-        `/api/appointments/today?date=${dateStr}&clinicId=${employeeProfile?.clinicId}`
-      );
+        const res = await fetch(
+          `/api/appointments/today?date=${dateStr}&clinicId=${employeeProfile?.clinicId}`
+        );
 
-      if (!res.ok) {
-        throw new Error("Không thể tải danh sách lịch hẹn");
+        if (!res.ok) {
+          throw new Error("Không thể tải danh sách lịch hẹn");
+        }
+
+        const data = await res.json();
+        setAppointments(data);
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        console.error("Fetch appointments error:", error);
+        toast.error(errorMessage);
+      } finally {
+        setLoading(false);
       }
-
-      const data = await res.json();
-      setAppointments(data);
-    } catch (error: any) {
-      console.error("Fetch appointments error:", error);
-      toast.error(error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [employeeProfile?.clinicId]
+  );
 
   useEffect(() => {
     if (employeeProfile?.clinicId) {
-      fetchActiveEmployees(employeeProfile);
       fetchAppointmentsByDate(selectedDate);
     }
-  }, [employeeProfile?.clinicId, fetchActiveEmployees, selectedDate]);
+  }, [employeeProfile?.clinicId, selectedDate, fetchAppointmentsByDate]);
 
   // ✅ Điều hướng ngày
   const goToPreviousDay = () => {
@@ -110,8 +120,76 @@ export default function DailyAppointmentsPage() {
     return selectedDate.format("DD/MM/YYYY");
   };
 
+  // ✅ Handle Confirm - Xác nhận lịch hẹn
+  const handleConfirm = async (appointment: AppointmentWithIncludes) => {
+    try {
+      const res = await fetch(`/api/appointments/${appointment.id}/confirm`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          updatedById: employeeProfile?.id,
+        }),
+      });
+
+      if (!res.ok) {
+        const { error } = await res.json();
+        throw new Error(error || "Xác nhận lịch hẹn thất bại");
+      }
+
+      const updatedAppointment = await res.json();
+
+      setAppointments((prev) =>
+        prev.map((appt) =>
+          appt.id === appointment.id ? updatedAppointment : appt
+        )
+      );
+
+      toast.success(
+        `Đã xác nhận lịch hẹn cho ${appointment.customer?.fullName}!`
+      );
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      toast.error(errorMessage);
+    }
+  };
+
+  // ✅ Handle No Show - Đánh dấu không đến
+  const handleNoShow = async (appointment: AppointmentWithIncludes) => {
+    try {
+      const res = await fetch(`/api/appointments/${appointment.id}/no-show`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          updatedById: employeeProfile?.id,
+        }),
+      });
+
+      if (!res.ok) {
+        const { error } = await res.json();
+        throw new Error(error || "Đánh dấu không đến thất bại");
+      }
+
+      const updatedAppointment = await res.json();
+
+      setAppointments((prev) =>
+        prev.map((appt) =>
+          appt.id === appointment.id ? updatedAppointment : appt
+        )
+      );
+
+      toast.success(
+        `Đã đánh dấu không đến cho ${appointment.customer?.fullName}!`
+      );
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      toast.error(errorMessage);
+    }
+  };
+
   // Handle Check-in
-  const handleCheckIn = async (appointment: Appointment) => {
+  const handleCheckIn = async (appointment: AppointmentWithIncludes) => {
     try {
       const res = await fetch(`/api/appointments/${appointment.id}/checkin`, {
         method: "PATCH",
@@ -135,13 +213,15 @@ export default function DailyAppointmentsPage() {
       );
 
       toast.success(`Đã check-in cho ${appointment.customer?.fullName}!`);
-    } catch (error: any) {
-      toast.error(error.message);
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      toast.error(errorMessage);
     }
   };
 
   // Handle Check-out
-  const handleCheckOut = async (appointment: Appointment) => {
+  const handleCheckOut = async (appointment: AppointmentWithIncludes) => {
     try {
       const res = await fetch(`/api/appointments/${appointment.id}/checkout`, {
         method: "PATCH",
@@ -165,8 +245,10 @@ export default function DailyAppointmentsPage() {
       );
 
       toast.success(`Đã check-out cho ${appointment.customer?.fullName}!`);
-    } catch (error: any) {
-      toast.error(error.message);
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      toast.error(errorMessage);
     }
   };
 
@@ -191,9 +273,11 @@ export default function DailyAppointmentsPage() {
             : undefined,
         },
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
       console.error("Failed to fetch fresh appointment data:", error);
-      toast.error(error.message);
+      toast.error(errorMessage);
 
       setModal({
         open: true,
@@ -201,7 +285,7 @@ export default function DailyAppointmentsPage() {
         data: {
           ...appt,
           appointmentDateTime: appt.appointmentDateTime
-            ? dayjs(appt.appointmentDateTime)
+            ? dayjs(appt.appointmentDateTime).toDate()
             : undefined,
         },
       });
@@ -232,20 +316,25 @@ export default function DailyAppointmentsPage() {
       toast.success(result.message || "Đã xóa lịch hẹn thành công!");
 
       fetchAppointmentsByDate(selectedDate);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
       console.error("Delete appointment error:", error);
-      toast.error(error.message);
+      toast.error(errorMessage);
     }
   };
 
   // Handle Modal Submit
-  const handleFinish = async (values: any) => {
+  const handleFinish = async (values: Record<string, unknown>) => {
     setLoading(true);
     try {
-      if (values.appointmentDateTime?.$d) {
-        values.appointmentDateTime = dayjs(
-          values.appointmentDateTime
-        ).toISOString();
+      if (
+        values.appointmentDateTime &&
+        typeof values.appointmentDateTime === "object" &&
+        "$d" in values.appointmentDateTime
+      ) {
+        const dateValue = values.appointmentDateTime as { $d: Date };
+        values.appointmentDateTime = dayjs(dateValue.$d).toISOString();
       }
 
       const isEdit = modal.mode === "edit";
@@ -261,7 +350,7 @@ export default function DailyAppointmentsPage() {
 
       if (!isEdit) {
         payload.createdById = employeeProfile?.id;
-        payload.clinicId = employeeProfile?.clinicId;
+        payload.clinicId = employeeProfile?.clinicId || "";
       }
 
       const res = await fetch(url, {
@@ -282,7 +371,7 @@ export default function DailyAppointmentsPage() {
         const { error } = await res.json();
         toast.error(error || "Lỗi không xác định");
       }
-    } catch (error: any) {
+    } catch {
       toast.error("Có lỗi xảy ra");
     } finally {
       setLoading(false);
@@ -424,12 +513,15 @@ export default function DailyAppointmentsPage() {
           showCheckInOut={true}
           onCheckIn={handleCheckIn}
           onCheckOut={handleCheckOut}
+          onConfirm={handleConfirm} // ✅ THÊM PROP MỚI
+          onNoShow={handleNoShow} // ✅ THÊM PROP MỚI
+          employees={dentistsAndNurses} // ✅ TRUYỀN EMPLOYEES
           onAdd={() =>
             setModal({
               open: true,
               mode: "add",
               data: {
-                appointmentDateTime: selectedDate.hour(9).minute(0), // Default 9:00 AM
+                appointmentDateTime: selectedDate.hour(9).minute(0).toDate(), // ✅ CONVERT TO DATE
               },
             })
           }

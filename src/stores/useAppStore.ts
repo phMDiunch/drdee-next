@@ -18,7 +18,9 @@ type AppState = {
 
   // Shared Data
   activeEmployees: Employee[];
+  isLoadingEmployees: boolean; // ✅ ADD loading state for employees
   dentalServices: DentalService[];
+  isLoadingDentalServices: boolean; // ✅ ADD loading state for dental services
   customers: Customer[]; // ✅ THÊM
   fetchActiveEmployees: (
     employee?: Employee | null,
@@ -33,7 +35,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   employeeProfile: null,
   isLoadingProfile: true,
   activeEmployees: [],
+  isLoadingEmployees: false, // ✅ ADD default value
   dentalServices: [],
+  isLoadingDentalServices: false, // ✅ ADD default value for dental services
   customers: [], // ✅ THÊM DEFAULT VALUE
 
   // --- ACTIONS ---
@@ -65,18 +69,35 @@ export const useAppStore = create<AppState>((set, get) => ({
       return;
     }
 
+    set({ isLoadingEmployees: true }); // ✅ SET loading state
     try {
+      // ✅ SIMPLIFIED API call - no permission params needed
       const params = new URLSearchParams({
         pageSize: "500",
-        requestingUserId: employee.id,
-        requestingUserRole: employee.role,
-        requestingUserClinicId: employee.clinicId || "",
+        employmentStatus: "Đang làm việc,Thử việc",
       });
       const res = await fetch(`/api/employees?${params.toString()}`);
+
+      if (!res.ok) {
+        throw new Error("Failed to fetch employees");
+      }
+
       const data = await res.json();
-      set({ activeEmployees: data.employees || [] });
+      set({
+        activeEmployees: data.employees || [],
+        isLoadingEmployees: false,
+      });
     } catch (error) {
       console.error("Failed to fetch active employees:", error);
+      // ✅ IMPORT toast at top of file needed
+      if (typeof window !== "undefined") {
+        const { toast } = await import("react-toastify");
+        toast.error("Không thể tải danh sách nhân viên");
+      }
+      set({
+        activeEmployees: [],
+        isLoadingEmployees: false,
+      });
     }
   },
 
@@ -84,12 +105,29 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!force && get().dentalServices.length > 0) {
       return;
     }
+
+    set({ isLoadingDentalServices: true }); // ✅ SET loading state
     try {
       const res = await fetch("/api/dental-services");
+      if (!res.ok) {
+        throw new Error("Failed to fetch dental services");
+      }
       const services = await res.json();
-      set({ dentalServices: services });
+      set({
+        dentalServices: services,
+        isLoadingDentalServices: false,
+      });
     } catch (error) {
       console.error("Failed to fetch dental services:", error);
+      // ✅ SHOW error toast
+      if (typeof window !== "undefined") {
+        const { toast } = await import("react-toastify");
+        toast.error("Không thể tải danh sách dịch vụ nha khoa");
+      }
+      set({
+        dentalServices: [],
+        isLoadingDentalServices: false,
+      });
     }
   },
 

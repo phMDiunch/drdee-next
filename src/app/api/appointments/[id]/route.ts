@@ -58,6 +58,65 @@ export async function PUT(
       );
     }
 
+    // ✅ VALIDATION: Kiểm tra edit restrictions cho today's appointments
+    const isToday = dayjs(currentAppointment.appointmentDateTime).isSame(
+      dayjs(),
+      "day"
+    );
+
+    if (isToday) {
+      // ✅ So sánh values thay vì chỉ check field existence
+      const restrictedChanges = [];
+
+      // Kiểm tra thay đổi customerId
+      if (
+        data.customerId &&
+        data.customerId !== currentAppointment.customerId
+      ) {
+        restrictedChanges.push("customerId");
+      }
+
+      // Kiểm tra thay đổi appointmentDateTime
+      if (
+        data.appointmentDateTime &&
+        !dayjs(data.appointmentDateTime).isSame(
+          dayjs(currentAppointment.appointmentDateTime),
+          "minute"
+        )
+      ) {
+        restrictedChanges.push("appointmentDateTime");
+      }
+
+      // Kiểm tra thay đổi duration
+      if (
+        data.duration !== undefined &&
+        data.duration !== currentAppointment.duration
+      ) {
+        restrictedChanges.push("duration");
+      }
+
+      // Kiểm tra thay đổi clinicId
+      if (data.clinicId && data.clinicId !== currentAppointment.clinicId) {
+        restrictedChanges.push("clinicId");
+      }
+
+      // Kiểm tra thay đổi status (trừ khi được phép)
+      if (data.status && data.status !== currentAppointment.status) {
+        restrictedChanges.push("status");
+      }
+
+      if (restrictedChanges.length > 0) {
+        return NextResponse.json(
+          {
+            error: `Lịch hẹn hôm nay chỉ được sửa bác sĩ và ghi chú. Không được sửa: ${restrictedChanges.join(
+              ", "
+            )}`,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     // ✅ VALIDATION 1: Không được sửa lịch trong quá khứ
     const currentAppointmentTime = dayjs(
       currentAppointment.appointmentDateTime
@@ -110,10 +169,24 @@ export async function PUT(
       }
     }
 
+    // ✅ RESCHEDULE LOGIC: Nếu thay đổi appointmentDateTime → Reset status về "Chờ xác nhận"
+    const updateData = { ...data };
+    if (
+      data.appointmentDateTime &&
+      !dayjs(data.appointmentDateTime).isSame(
+        currentAppointment.appointmentDateTime
+      )
+    ) {
+      // Chỉ reset status nếu appointment chưa check-in
+      if (!currentAppointment.checkInTime) {
+        updateData.status = "Chờ xác nhận";
+      }
+    }
+
     const updated = await prisma.appointment.update({
       where: { id },
       data: {
-        ...data,
+        ...updateData,
         updatedAt: new Date(),
       },
       include: {

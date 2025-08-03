@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     const page = Number(searchParams.get("page") || "1");
     const pageSize = Number(searchParams.get("pageSize") || "100");
 
-    // Lấy thông tin của người dùng đang thực hiện request
+    // Lấy thông tin của người dùng đang thực hiện request (LEGACY - keep for backward compatibility)
     const requestingUserId = searchParams.get("requestingUserId");
     const requestingUserRole = searchParams.get("requestingUserRole");
     const requestingUserClinicId = searchParams.get("requestingUserClinicId");
@@ -24,23 +24,22 @@ export async function GET(request: NextRequest) {
 
     const where: Prisma.EmployeeWhereInput = {};
 
-    // --- LOGIC PHÂN QUYỀN MỚI ---
-    if (requestingUserRole === "employee") {
-      // 1. Employee chỉ thấy chính mình
-      where.id = requestingUserId || undefined;
-    } else if (requestingUserRole === "manager") {
-      // 2. Manager thấy tất cả nhân viên trong cùng chi nhánh
+    // --- SIMPLIFIED LOGIC: All users can view active employees ---
+    // Legacy permission logic removed for auto-loading employees on login
+    // Only admin/manager restrictions will be applied in UI for edit/delete operations
+
+    // Apply clinic filter if specified (for admin filtering)
+    if (requestingUserRole === "admin" && clinicIdFromFilter) {
+      where.clinicId = clinicIdFromFilter;
+    } else if (requestingUserRole === "manager" && requestingUserClinicId) {
+      // Manager still filtered by their clinic for admin panel usage
       where.clinicId = requestingUserClinicId;
-    } else if (requestingUserRole === "admin") {
-      // 3. Admin có thể lọc theo chi nhánh tùy chọn
-      if (clinicIdFromFilter) {
-        where.clinicId = clinicIdFromFilter;
-      }
-    } else {
-      // Nếu không có vai trò hợp lệ, không trả về gì để bảo mật
-      return NextResponse.json({ employees: [], total: 0 });
+    } else if (requestingUserRole === "employee" && requestingUserId) {
+      // Employee still filtered to themselves for admin panel usage
+      where.id = requestingUserId;
     }
-    // --- KẾT THÚC LOGIC PHÂN QUYỀN ---
+    // If no role specified (auto-load case), no additional filtering
+    // --- END SIMPLIFIED LOGIC ---
 
     if (search) {
       where.OR = [

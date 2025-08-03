@@ -28,17 +28,13 @@ export default function ConsultedServiceModal({
   const [form] = Form.useForm();
 
   // Lấy dữ liệu cần thiết từ store
-  const {
-    dentalServices,
-    fetchDentalServices,
-    activeEmployees,
-    fetchActiveEmployees,
-  } = useAppStore();
+  const { dentalServices, activeEmployees } = useAppStore();
 
   useEffect(() => {
     if (open) {
-      fetchDentalServices();
-      fetchActiveEmployees();
+      // ✅ REMOVE fetchDentalServices() - data is auto-loaded on login
+      // Dental services are already available from AuthContext auto-loading
+
       // Nếu là chế độ sửa, điền dữ liệu vào form
       if (mode === "edit" && initialData) {
         form.setFieldsValue(initialData);
@@ -46,14 +42,7 @@ export default function ConsultedServiceModal({
         form.resetFields();
       }
     }
-  }, [
-    open,
-    mode,
-    initialData,
-    form,
-    fetchDentalServices,
-    fetchActiveEmployees,
-  ]);
+  }, [open, mode, initialData, form]);
 
   // const handleOk = () => {
   //   form.submit();

@@ -1,6 +1,6 @@
 // src/features/dental-service/pages/DentalServiceListPage.tsx
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button, Modal as AntdModal, Form } from "antd";
 import type { DentalService } from "../type";
 import DentalServiceTable from "../components/DentalServiceTable";
@@ -18,9 +18,11 @@ export default function DentalServiceListPage() {
   // Lấy state và action từ Zustand
   const services = useAppStore((state) => state.dentalServices);
   const fetchDentalServices = useAppStore((state) => state.fetchDentalServices);
+  const isLoadingDentalServices = useAppStore(
+    (state) => state.isLoadingDentalServices
+  );
   const employeeProfile = useAppStore((state) => state.employeeProfile);
 
-  const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState<ModalState>({
     open: false,
     mode: "add",
@@ -29,15 +31,8 @@ export default function DentalServiceListPage() {
   const [saving, setSaving] = useState(false);
   const [form] = Form.useForm();
 
-  // Tải danh sách dịch vụ vào store khi component được mount
-  useEffect(() => {
-    const loadServices = async () => {
-      setLoading(true);
-      await fetchDentalServices();
-      setLoading(false);
-    };
-    loadServices();
-  }, [fetchDentalServices]);
+  // ✅ REMOVE useEffect - data is auto-loaded on login
+  // Services are already loaded via AuthContext, no need to fetch again
 
   const handleSave = async (values: Partial<DentalService>) => {
     if (!employeeProfile) {
@@ -78,7 +73,7 @@ export default function DentalServiceListPage() {
         const { error } = await res.json();
         toast.error(error || "Lỗi không xác định");
       }
-    } catch (err) {
+    } catch {
       toast.error("Có lỗi xảy ra");
     }
     setSaving(false);
@@ -128,7 +123,7 @@ export default function DentalServiceListPage() {
       </div>
       <DentalServiceTable
         data={services} // <--- Dữ liệu lấy từ store
-        loading={loading}
+        loading={isLoadingDentalServices} // <--- Use loading state from store
         onEdit={handleEdit}
         onDelete={handleDelete}
       />

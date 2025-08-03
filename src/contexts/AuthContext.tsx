@@ -18,7 +18,7 @@ type AuthUser = {
 
 type AuthContextType = {
   user: AuthUser | null;
-  loading: boolean; // Chỉ loading trạng thái của Supabase
+  loading: boolean; // Will include both profile + employees loading
   login: (email: string, password: string) => Promise<{ error?: string }>;
   logout: () => Promise<void>;
 };
@@ -36,6 +36,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const clearEmployeeProfile = useAppStore(
     (state) => state.clearEmployeeProfile
   );
+  const fetchActiveEmployees = useAppStore(
+    (state) => state.fetchActiveEmployees
+  );
+  const fetchDentalServices = useAppStore((state) => state.fetchDentalServices);
+  const isLoadingEmployees = useAppStore((state) => state.isLoadingEmployees);
+  const isLoadingProfile = useAppStore((state) => state.isLoadingProfile);
+  const isLoadingDentalServices = useAppStore(
+    (state) => state.isLoadingDentalServices
+  );
+
+  // ✅ COMBINED loading state: include profile, employees, and dental services
+  const combinedLoading =
+    loading ||
+    isLoadingProfile ||
+    isLoadingEmployees ||
+    isLoadingDentalServices;
 
   useEffect(() => {
     const getSession = async () => {
@@ -45,6 +61,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (session?.user) {
         setUser({ id: session.user.id, email: session.user.email! });
         await fetchEmployeeProfile(session.user.id); // <--- Lấy profile
+
+        // ✅ AUTO-LOAD employees and dental services after profile loaded (sequential)
+        const currentProfile = useAppStore.getState().employeeProfile;
+        if (currentProfile) {
+          await fetchActiveEmployees(currentProfile);
+          await fetchDentalServices(); // ✅ ADD dental services auto-load
+        }
       } else {
         clearEmployeeProfile(); // <--- Xóa profile nếu không có session
       }
@@ -58,6 +81,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (session?.user) {
           setUser({ id: session.user.id, email: session.user.email! });
           await fetchEmployeeProfile(session.user.id); // <--- Lấy profile
+
+          // ✅ AUTO-LOAD employees and dental services after profile loaded (sequential)
+          const currentProfile = useAppStore.getState().employeeProfile;
+          if (currentProfile) {
+            await fetchActiveEmployees(currentProfile);
+            await fetchDentalServices(); // ✅ ADD dental services auto-load
+          }
         } else {
           setUser(null);
           clearEmployeeProfile(); // <--- Xóa profile khi logout
@@ -69,10 +99,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       listener.subscription.unsubscribe();
     };
-  }, [fetchEmployeeProfile, clearEmployeeProfile]);
+  }, [
+    fetchEmployeeProfile,
+    clearEmployeeProfile,
+    fetchActiveEmployees,
+    fetchDentalServices,
+  ]);
 
   const login = async (email: string, password: string) => {
-    const { error, data } = await supabase.auth.signInWithPassword({
+    const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -89,7 +124,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider
+      value={{ user, loading: combinedLoading, login, logout }}
+    >
       {children}
     </AuthContext.Provider>
   );

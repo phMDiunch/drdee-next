@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ✅ VALIDATION 2: Kiểm tra khách hàng đã có lịch trong ngày chưa
+    // ✅ VALIDATION 2: Kiểm tra khách hàng đã có lịch trong ngày chưa (MỘT KHÁCH MỘT LỊCH/NGÀY)
     const startOfDay = appointmentDate.startOf("day").toDate();
     const endOfDay = appointmentDate.endOf("day").toDate();
 
@@ -119,6 +119,10 @@ export async function POST(request: NextRequest) {
         appointmentDateTime: {
           gte: startOfDay,
           lte: endOfDay,
+        },
+        // ✅ LOẠI TRỪ CÁC LỊCH ĐÃ HỦY
+        status: {
+          not: "Đã hủy",
         },
       },
       include: {
@@ -135,16 +139,31 @@ export async function POST(request: NextRequest) {
             "DD/MM/YYYY"
           )} lúc ${dayjs(existingAppointment.appointmentDateTime).format(
             "HH:mm"
-          )}!`,
+          )}! Một khách hàng chỉ được có một lịch hẹn trong một ngày.`,
         },
         { status: 400 }
       );
     }
 
+    // ✅ ĐẢM BẢO STATUS MẶC ĐỊNH LÀ "CHỜ XÁC NHẬN"
+    const appointmentData = {
+      ...data,
+      status: data.status || "Chờ xác nhận", // Mặc định là "Chờ xác nhận"
+    };
+
     const created = await prisma.appointment.create({
-      data,
+      data: appointmentData,
       include: {
-        customer: { select: { id: true, fullName: true, phone: true } },
+        customer: {
+          select: {
+            id: true,
+            customerCode: true,
+            fullName: true,
+            phone: true,
+            email: true,
+            address: true,
+          },
+        },
         primaryDentist: { select: { id: true, fullName: true } },
         secondaryDentist: { select: { id: true, fullName: true } },
       },

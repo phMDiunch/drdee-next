@@ -67,18 +67,9 @@ export default function CustomerDetailPage({ customerId }: Props) {
   const [isSavingCustomer, setIsSavingCustomer] = useState(false);
 
   // Store
-  const {
-    employeeProfile,
-    dentalServices,
-    activeEmployees,
-    fetchActiveEmployees,
-  } = useAppStore();
+  const { employeeProfile, dentalServices, activeEmployees } = useAppStore();
 
-  useEffect(() => {
-    if (employeeProfile?.clinicId && activeEmployees.length === 0) {
-      fetchActiveEmployees(employeeProfile);
-    }
-  }, [employeeProfile?.clinicId, fetchActiveEmployees, activeEmployees.length]);
+  // Remove fetchActiveEmployees useEffect since data is auto-loaded on login
 
   const dentistsAndNurses = useMemo(() => {
     return activeEmployees.filter(

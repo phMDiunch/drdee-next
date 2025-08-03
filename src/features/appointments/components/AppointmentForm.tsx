@@ -46,6 +46,12 @@ export default function AppointmentForm({
 
   console.log("3. Dữ liệu 'dentists' nhận được tại Form:", dentists);
 
+  // ✅ LOGIC DISABLE EDIT CHO TODAY'S APPOINTMENTS
+  const isEditingTodayAppointment =
+    mode === "edit" &&
+    initialValues.appointmentDateTime &&
+    dayjs(initialValues.appointmentDateTime).isSame(dayjs(), "day");
+
   const [customerOptions, setCustomerOptions] = useState<any[]>(() => {
     if (mode === "edit" && initialValues.customer) {
       const customer = initialValues.customer;
@@ -216,7 +222,8 @@ export default function AppointmentForm({
               options={customerOptions}
               disabled={
                 (mode === "add" && initialValues.customerId) ||
-                (mode === "add" && initialValues.customer)
+                (mode === "add" && initialValues.customer) ||
+                isEditingTodayAppointment // ✅ DISABLED cho today's appointments
               }
             />
           </Form.Item>
@@ -239,6 +246,7 @@ export default function AppointmentForm({
               disabledDate={disabledDate}
               disabledTime={disabledTime}
               onChange={handleDateChange}
+              disabled={isEditingTodayAppointment} // ✅ DISABLED cho today's appointments
             />
           </Form.Item>
         </Col>

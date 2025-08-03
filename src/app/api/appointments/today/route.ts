@@ -40,8 +40,11 @@ export async function GET(request: NextRequest) {
         customer: {
           select: {
             id: true,
+            customerCode: true,
             fullName: true,
             phone: true,
+            email: true,
+            address: true,
           },
         },
         primaryDentist: {

@@ -1,7 +1,7 @@
-// src/app/api/appointments/[id]/checkin/route.ts
+// src/app/api/appointments/[id]/check-in/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/services/prismaClient";
-import { CHECKIN_ALLOWED_STATUSES } from "@/features/appointments/constants";
+import { STATUS_TRANSITIONS } from "@/features/appointments/constants";
 
 export async function PATCH(
   request: NextRequest,
@@ -14,7 +14,7 @@ export async function PATCH(
     // Kiểm tra appointment có tồn tại không
     const existingAppointment = await prisma.appointment.findUnique({
       where: { id },
-      include: { customer: true },
+      include: { customer: { select: { fullName: true } } },
     });
 
     if (!existingAppointment) {
@@ -24,30 +24,25 @@ export async function PATCH(
       );
     }
 
-    // Kiểm tra đã check-in chưa
-    if (existingAppointment.checkInTime) {
-      return NextResponse.json(
-        { error: "Khách hàng đã check-in rồi" },
-        { status: 400 }
-      );
-    }
+    // ✅ VALIDATION: Kiểm tra status transition có hợp lệ không
+    const currentStatus = existingAppointment.status;
+    const allowedTransitions =
+      STATUS_TRANSITIONS[currentStatus as keyof typeof STATUS_TRANSITIONS];
 
-    // ✅ VALIDATION: Kiểm tra status có cho phép check-in không (CHỈ ĐÃ XÁC NHẬN)
-    if (!CHECKIN_ALLOWED_STATUSES.includes(existingAppointment.status)) {
+    if (!allowedTransitions?.includes("Đã đến")) {
       return NextResponse.json(
         {
-          error: `Không thể check-in với trạng thái "${existingAppointment.status}". Vui lòng xác nhận lịch hẹn trước khi check-in.`,
+          error: `Không thể check-in lịch hẹn có trạng thái "${currentStatus}"`,
         },
         { status: 400 }
       );
     }
 
-    // Cập nhật check-in
+    // Cập nhật status thành "Đã đến"
     const updatedAppointment = await prisma.appointment.update({
       where: { id },
       data: {
-        checkInTime: new Date(),
-        status: "Đã đến", // ✅ Tự động đổi status
+        status: "Đã đến",
         updatedById,
         updatedAt: new Date(),
       },
@@ -55,8 +50,11 @@ export async function PATCH(
         customer: {
           select: {
             id: true,
+            customerCode: true,
             fullName: true,
             phone: true,
+            email: true,
+            address: true,
           },
         },
         primaryDentist: {
@@ -75,11 +73,17 @@ export async function PATCH(
     });
 
     console.log(
-      `✅ Check-in successful for customer: ${existingAppointment.customer.fullName}`
+      `✅ Checked-in appointment for customer: ${existingAppointment.customer.fullName}`
     );
-    return NextResponse.json(updatedAppointment);
-  } catch (error: any) {
-    console.error("Check-in error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+
+    return NextResponse.json({
+      ...updatedAppointment,
+      message: `Đã check-in cho ${existingAppointment.customer.fullName}`,
+    });
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    console.error("Check-in appointment error:", error);
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
