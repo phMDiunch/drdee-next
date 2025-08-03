@@ -108,12 +108,16 @@ export default function AppointmentTable({
 
   // ✅ THÊM: Helper functions cho workflow mới
   const canConfirm = (appointment: Appointment) => {
-    // ✅ Show confirm khi: Status "Chờ xác nhận" && ngày mai trở đi
+    // ✅ Show confirm khi: Status "Chờ xác nhận" hoặc "Chưa đến" && ngày mai trở đi
     const isFuture = dayjs(appointment.appointmentDateTime).isAfter(
       dayjs(),
       "day"
     );
-    return appointment.status === "Chờ xác nhận" && isFuture;
+    return (
+      (appointment.status === "Chờ xác nhận" ||
+        appointment.status === "Chưa đến") &&
+      isFuture
+    );
   };
 
   const canMarkNoShow = (appointment: Appointment) => {
@@ -214,12 +218,20 @@ export default function AppointmentTable({
         })),
       onFilter: (value: boolean | Key, record: AppointmentWithIncludes) =>
         record.primaryDentistId === String(value),
+      sorter: (a: AppointmentWithIncludes, b: AppointmentWithIncludes) =>
+        (a.primaryDentist?.fullName || "").localeCompare(
+          b.primaryDentist?.fullName || ""
+        ),
       render: (dentist: { fullName: string }) => dentist?.fullName || "-",
     },
     {
       title: "Bác sĩ phụ",
       dataIndex: "secondaryDentist",
       key: "secondaryDentist",
+      sorter: (a: AppointmentWithIncludes, b: AppointmentWithIncludes) =>
+        (a.secondaryDentist?.fullName || "").localeCompare(
+          b.secondaryDentist?.fullName || ""
+        ),
       render: (dentist: { fullName: string } | null) =>
         dentist?.fullName || "-",
     },
@@ -239,6 +251,19 @@ export default function AppointmentTable({
       })),
       onFilter: (value: boolean | Key, record: AppointmentWithIncludes) =>
         record.status === String(value),
+      sorter: (a: AppointmentWithIncludes, b: AppointmentWithIncludes) => {
+        // Sắp xếp theo thứ tự ưu tiên của trạng thái
+        const statusOrder = [
+          "Chờ xác nhận",
+          "Đã xác nhận",
+          "Đã đến",
+          "Không đến",
+          "Đã hủy",
+        ];
+        const aIndex = statusOrder.indexOf(a.status);
+        const bIndex = statusOrder.indexOf(b.status);
+        return aIndex - bIndex;
+      },
       render: (v: string) => {
         const status = APPOINTMENT_STATUS_OPTIONS.find(
           (opt) => opt.value === v
