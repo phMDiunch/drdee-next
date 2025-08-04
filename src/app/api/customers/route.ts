@@ -55,8 +55,9 @@ export async function GET(request: NextRequest) {
   const search = searchParams.get("search")?.trim() || "";
   const clinicId = searchParams.get("clinicId") || "";
   const includeAppointments =
-    searchParams.get("includeAppointments") === "true"; // Include today appointments
-  const todayOnly = searchParams.get("todayOnly") === "true"; // Filter by today's created customers
+    searchParams.get("includeAppointments") === "true"; // Include appointments for selected date
+  const dateFilter = searchParams.get("date"); // ✅ NEW: Specific date filter (YYYY-MM-DD)
+  const todayOnly = searchParams.get("todayOnly") === "true"; // Legacy: Filter by today's created customers
   const isGlobalSearch = searchParams.get("globalSearch") === "true"; // Global search flag
 
   const where: WhereCondition = {};
@@ -77,8 +78,18 @@ export async function GET(request: NextRequest) {
     where.clinicId = clinicId;
   }
 
-  // Today's created customers filter
-  if (todayOnly) {
+  // ✅ UPDATED: Date filter logic - prioritize specific date over todayOnly
+  if (dateFilter) {
+    // Use specific date
+    const targetDate = dayjs(dateFilter);
+    const startOfDay = targetDate.startOf("day").toDate();
+    const endOfDay = targetDate.endOf("day").toDate();
+    where.createdAt = {
+      gte: startOfDay,
+      lte: endOfDay,
+    };
+  } else if (todayOnly) {
+    // Fallback to today for backward compatibility
     const startOfDay = dayjs().startOf("day").toDate();
     const endOfDay = dayjs().endOf("day").toDate();
     where.createdAt = {
@@ -98,10 +109,20 @@ export async function GET(request: NextRequest) {
     },
   };
 
-  // ✅ INCLUDE TODAY APPOINTMENTS (only if includeAppointments is true)
+  // ✅ UPDATED: Include appointments for selected date (not just today)
   if (includeAppointments) {
-    const startOfDay = dayjs().startOf("day").toDate();
-    const endOfDay = dayjs().endOf("day").toDate();
+    let appointmentDate;
+
+    if (dateFilter) {
+      // Use specific date for appointments
+      appointmentDate = dayjs(dateFilter);
+    } else {
+      // Fallback to today
+      appointmentDate = dayjs();
+    }
+
+    const startOfDay = appointmentDate.startOf("day").toDate();
+    const endOfDay = appointmentDate.endOf("day").toDate();
 
     include.appointments = {
       where: {
@@ -126,9 +147,14 @@ export async function GET(request: NextRequest) {
     };
   }
 
-  // Determine take limit - for global search, use pageSize (default 10), for today only use 100
-  const takeLimit = isGlobalSearch ? pageSize : todayOnly ? 100 : pageSize;
-  const skipOffset = isGlobalSearch ? 0 : todayOnly ? 0 : (page - 1) * pageSize;
+  // Determine take limit and pagination
+  const hasDateFilter = dateFilter || todayOnly;
+  const takeLimit = isGlobalSearch ? pageSize : hasDateFilter ? 100 : pageSize;
+  const skipOffset = isGlobalSearch
+    ? 0
+    : hasDateFilter
+    ? 0
+    : (page - 1) * pageSize;
 
   const [customers, total] = await Promise.all([
     prisma.customer.findMany({
@@ -139,7 +165,7 @@ export async function GET(request: NextRequest) {
       include,
     }),
     // Only count for paginated results
-    isGlobalSearch || todayOnly
+    isGlobalSearch || hasDateFilter
       ? Promise.resolve(0)
       : prisma.customer.count({ where }),
   ]);
@@ -158,7 +184,8 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     customers: transformedCustomers,
-    total: isGlobalSearch || todayOnly ? transformedCustomers.length : total,
+    total:
+      isGlobalSearch || hasDateFilter ? transformedCustomers.length : total,
   });
 }
 

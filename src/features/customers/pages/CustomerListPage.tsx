@@ -1,8 +1,23 @@
 // src/features/customers/pages/CustomerListPage.tsx
 "use client";
 import { useEffect, useState, useCallback } from "react";
-import { Button, Col, Input, Row, Modal, Form, Select } from "antd";
-import { LoginOutlined } from "@ant-design/icons";
+import {
+  Button,
+  Col,
+  Input,
+  Row,
+  Modal,
+  Form,
+  Select,
+  DatePicker,
+  Space,
+} from "antd";
+import {
+  LoginOutlined,
+  CalendarOutlined,
+  LeftOutlined,
+  RightOutlined,
+} from "@ant-design/icons";
 import CustomerTable from "@/features/customers/components/CustomerTable";
 import CustomerModal from "@/features/customers/components/CustomerModal";
 import { Customer } from "@/features/customers/type";
@@ -12,6 +27,9 @@ import { toast } from "react-toastify";
 import { useAppStore } from "@/stores/useAppStore";
 
 export default function CustomerListPage() {
+  // Date state - NEW
+  const [selectedDate, setSelectedDate] = useState(dayjs());
+
   // States
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(false);
@@ -42,12 +60,13 @@ export default function CustomerListPage() {
   // ✅ UPDATED: Sử dụng tất cả employees thay vì filter theo chức danh
   const allEmployees = activeEmployees; // Không filter gì cả
 
-  // Fetch customers - fixed function to prevent re-creation
+  // Fetch customers - updated to use selectedDate
   const fetchCustomers = useCallback(
-    async (pg?: number, ps?: number, s?: string) => {
+    async (pg?: number, ps?: number, s?: string, date?: dayjs.Dayjs) => {
       const currentPage = pg ?? page;
       const currentPageSize = ps ?? pageSize;
       const currentSearch = s ?? search;
+      const currentDate = date ?? selectedDate;
 
       if (!employeeProfile?.clinicId) {
         setCustomers([]);
@@ -61,8 +80,8 @@ export default function CustomerListPage() {
           page: currentPage.toString(),
           pageSize: currentPageSize.toString(),
           clinicId: employeeProfile.clinicId,
-          includeAppointments: "true", // Include today appointments for local search
-          todayOnly: currentSearch ? "false" : "true", // Only today's customers when not searching
+          includeAppointments: "true",
+          date: currentDate.format("YYYY-MM-DD"), // ✅ NEW: Filter by date instead of todayOnly
         });
 
         if (currentSearch) params.set("search", currentSearch.trim());
@@ -78,15 +97,43 @@ export default function CustomerListPage() {
         setLoading(false);
       }
     },
-    [page, pageSize, search, employeeProfile?.clinicId]
+    [page, pageSize, search, selectedDate, employeeProfile?.clinicId]
   );
+
+  // ✅ NEW: Date navigation handlers
+  const goToPreviousDay = () => {
+    const prevDay = selectedDate.subtract(1, "day");
+    setSelectedDate(prevDay);
+  };
+
+  const goToNextDay = () => {
+    const nextDay = selectedDate.add(1, "day");
+    setSelectedDate(nextDay);
+  };
+
+  const handleDateChange = (date: dayjs.Dayjs | null) => {
+    if (date) {
+      setSelectedDate(date);
+    }
+  };
+
+  const goToToday = () => {
+    setSelectedDate(dayjs());
+  };
 
   // Effects
   useEffect(() => {
     if (employeeProfile?.clinicId) {
       fetchCustomers(page, pageSize, search);
     }
-  }, [page, pageSize, search, employeeProfile?.clinicId, fetchCustomers]);
+  }, [
+    page,
+    pageSize,
+    search,
+    selectedDate,
+    employeeProfile?.clinicId,
+    fetchCustomers,
+  ]);
 
   // Handlers
   const handlePageChange = (p: number, ps: number) => {
@@ -209,14 +256,52 @@ export default function CustomerListPage() {
       <Row align="middle" gutter={16} style={{ marginBottom: 16 }}>
         <Col flex={1}>
           <h2 style={{ margin: 0 }}>
-            {search ? "Tìm kiếm khách hàng" : "Khách hàng mới hôm nay"}
+            {search
+              ? "Tìm kiếm khách hàng"
+              : `Khách hàng mới ${selectedDate.format("DD/MM/YYYY")}`}
           </h2>
           {!search && (
             <p style={{ margin: "4px 0 0 0", color: "#666", fontSize: "14px" }}>
-              Danh sách khách hàng được tạo trong ngày hôm nay
+              Danh sách khách hàng được tạo trong ngày{" "}
+              {selectedDate.format("DD/MM/YYYY")}
             </p>
           )}
         </Col>
+
+        {/* ✅ NEW: Date Navigation */}
+        {!search && (
+          <Col>
+            <Space size="small">
+              <Button
+                icon={<LeftOutlined />}
+                onClick={goToPreviousDay}
+                title="Ngày trước"
+              />
+              <Button
+                onClick={goToToday}
+                title="Hôm nay"
+                type={
+                  selectedDate.isSame(dayjs(), "day") ? "primary" : "default"
+                }
+              >
+                Today
+              </Button>
+              <Button
+                icon={<RightOutlined />}
+                onClick={goToNextDay}
+                title="Ngày sau"
+              />
+              <DatePicker
+                value={selectedDate}
+                onChange={handleDateChange}
+                format="DD/MM/YYYY"
+                allowClear={false}
+                style={{ width: 130 }}
+              />
+            </Space>
+          </Col>
+        )}
+
         <Col>
           <Input.Search
             allowClear

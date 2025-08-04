@@ -72,6 +72,13 @@ export async function POST(
         data: {
           checkInTime: new Date(),
           status: "Đã đến", // ✅ Chuyển thành "Đã đến"
+          // ✅ NEW: Chỉ update notes nếu appointment chưa có notes
+          ...(existingAppointment.notes
+            ? {} // Giữ nguyên notes cũ
+            : {
+                notes:
+                  notes || `Check-in lúc ${dayjs().format("HH:mm DD/MM/YYYY")}`,
+              }),
           updatedById,
           updatedAt: new Date(),
         },
