@@ -211,9 +211,17 @@ export default function PaymentVoucherForm({
   const totalAmount = selectedServices.reduce((sum, s) => sum + s.amount, 0);
 
   const handleFinish = (values: any) => {
-    // ✅ DEBUG: Log data before sending
+    // ✅ SỬA: Filter chỉ lấy các field hợp lệ, loại bỏ amount_${serviceId}
+    const validFields = Object.keys(values).filter(
+      (key) => !key.startsWith("amount_")
+    );
+    const cleanValues = validFields.reduce((obj, key) => {
+      obj[key] = values[key];
+      return obj;
+    }, {} as any);
+
     const processedData = {
-      ...values,
+      ...cleanValues,
       // ✅ SỬA: Không cần set cashierId ở đây vì usePayment sẽ set
       totalAmount,
       details: selectedServices.map((service) => ({
