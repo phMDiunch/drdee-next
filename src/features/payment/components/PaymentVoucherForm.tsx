@@ -10,11 +10,11 @@ import {
   Input,
   Card,
   Typography,
-  List,
   Alert,
+  Table,
 } from "antd";
 import { useState, useEffect, useMemo } from "react";
-import { DeleteOutlined, DollarOutlined } from "@ant-design/icons";
+import { DollarOutlined } from "@ant-design/icons";
 import { formatCurrency } from "@/utils/date";
 import { useAppStore } from "@/stores/useAppStore";
 import { PAYMENT_METHODS } from "../constants";
@@ -48,7 +48,34 @@ export default function PaymentVoucherForm({
 }: PaymentVoucherFormProps) {
   const [form] = Form.useForm();
   const [selectedServices, setSelectedServices] = useState<any[]>([]);
+  const [outstandingServices, setOutstandingServices] = useState<any[]>([]);
+  const [loadingOutstanding, setLoadingOutstanding] = useState(false);
   const { employeeProfile, customers = [], fetchCustomers } = useAppStore(); // ✅ Add fallback
+
+  // ✅ Fetch outstanding services when customer is selected
+  const fetchOutstandingServices = async (customerId: string) => {
+    if (!customerId) return;
+
+    setLoadingOutstanding(true);
+    try {
+      const response = await fetch(
+        `/api/customers/${customerId}/outstanding-services`
+      );
+      const data = await response.json();
+
+      if (data.success) {
+        setOutstandingServices(data.data || []);
+      } else {
+        console.error("Failed to fetch outstanding services:", data.error);
+        setOutstandingServices([]);
+      }
+    } catch (error) {
+      console.error("Error fetching outstanding services:", error);
+      setOutstandingServices([]);
+    } finally {
+      setLoadingOutstanding(false);
+    }
+  };
 
   // ✅ THÊM: Fetch customers khi component mount
   useEffect(() => {
@@ -56,6 +83,13 @@ export default function PaymentVoucherForm({
       fetchCustomers();
     }
   }, [customers.length, fetchCustomers]);
+
+  // ✅ Fetch outstanding services khi customerId thay đổi
+  useEffect(() => {
+    if (customerId) {
+      fetchOutstandingServices(customerId);
+    }
+  }, [customerId]);
 
   // ✅ THÊM useEffect để tự động set customerId
   useEffect(() => {
@@ -68,6 +102,8 @@ export default function PaymentVoucherForm({
         form.setFieldsValue({
           customerId: customerId,
         });
+        // Fetch outstanding services for this customer
+        fetchOutstandingServices(customerId);
       }
     }
   }, [mode, customerId, form, customers]);
@@ -101,21 +137,75 @@ export default function PaymentVoucherForm({
     setSelectedServices((prev) => [...prev, newService]);
   };
 
-  const removeService = (index: number) => {
-    const newServices = selectedServices.filter((_, i) => i !== index);
-    setSelectedServices(newServices);
+  // ✅ Handler for outstanding services
+  const handleOutstandingServiceSelect = (service: any) => {
+    const newService = {
+      consultedServiceId: service.id,
+      serviceName: service.consultedServiceName,
+      remainingDebt: service.outstanding,
+      amount: service.outstanding, // Default to full outstanding amount
+      paymentMethod: PAYMENT_METHODS[0].value,
+    };
+
+    setSelectedServices((prev) => [...prev, newService]);
   };
 
-  const updateServiceAmount = (index: number, amount: number) => {
-    const newServices = [...selectedServices];
-    newServices[index].amount = amount;
-    setSelectedServices(newServices);
+  // ✅ Handler to remove outstanding service from selection
+  const handleRemoveOutstandingService = (serviceId: string) => {
+    setSelectedServices((prev) =>
+      prev.filter((service) => service.consultedServiceId !== serviceId)
+    );
   };
 
-  const updatePaymentMethod = (index: number, method: string) => {
-    const newServices = [...selectedServices];
-    newServices[index].paymentMethod = method;
-    setSelectedServices(newServices);
+  // ✅ New handlers for table-based form
+  const handleServiceToggle = (service: any, checked: boolean) => {
+    if (checked) {
+      // Add service to selection with default values
+      const newService = {
+        consultedServiceId: service.id,
+        serviceName: service.consultedServiceName,
+        remainingDebt: service.outstanding,
+        amount: 0, // ✅ Default to 0 instead of full outstanding amount
+        paymentMethod: PAYMENT_METHODS[0].value,
+      };
+      setSelectedServices((prev) => [...prev, newService]);
+
+      // Set form field value
+      form.setFieldValue(`amount_${service.id}`, 0);
+    } else {
+      // Remove service from selection
+      handleRemoveOutstandingService(service.id);
+
+      // Clear form field value
+      form.setFieldValue(`amount_${service.id}`, undefined);
+    }
+  };
+
+  const handleAmountChange = (serviceId: string, amount: number) => {
+    // Update selectedServices state
+    setSelectedServices((prev) =>
+      prev.map((service) =>
+        service.consultedServiceId === serviceId
+          ? { ...service, amount }
+          : service
+      )
+    );
+
+    // Update form field value
+    form.setFieldValue(`amount_${serviceId}`, amount);
+  };
+
+  const handlePaymentMethodChange = (
+    serviceId: string,
+    paymentMethod: string
+  ) => {
+    setSelectedServices((prev) =>
+      prev.map((service) =>
+        service.consultedServiceId === serviceId
+          ? { ...service, paymentMethod }
+          : service
+      )
+    );
   };
 
   const totalAmount = selectedServices.reduce((sum, s) => sum + s.amount, 0);
@@ -159,20 +249,6 @@ export default function PaymentVoucherForm({
     value: customer.id,
     label: `${customer.fullName} - ${customer.phone}`,
   }));
-
-  const serviceOptions = (availableServices || [])
-    .filter(
-      (s) =>
-        s.serviceStatus === "Đã chốt" &&
-        s.finalPrice > s.amountPaid &&
-        !selectedServices.some((sel) => sel.consultedServiceId === s.id)
-    )
-    .map((s) => ({
-      label: `${s.consultedServiceName} (Nợ: ${formatCurrency(
-        s.finalPrice - s.amountPaid
-      )})`,
-      value: s.id,
-    }));
 
   return (
     <div>
@@ -230,104 +306,202 @@ export default function PaymentVoucherForm({
               }
               options={customerOptions} // ✅ Use safe options
               disabled={mode === "view" || !!customerId}
+              onChange={(value) => {
+                if (value) {
+                  fetchOutstandingServices(value);
+                  // Clear selected services when customer changes
+                  setSelectedServices([]);
+                }
+              }}
             />
           </Form.Item>
         </Card>
 
-        {/* Service Selection - Simplified */}
+        {/* Outstanding Services - Table Format with Form Controls */}
         <Card size="small" style={{ marginBottom: 16 }}>
-          <Text strong style={{ display: "block", marginBottom: 8 }}>
-            Chọn dịch vụ cần thu tiền:
-          </Text>
-          <Select
-            placeholder="Tìm dịch vụ..."
-            size="large"
-            style={{ width: "100%" }}
-            showSearch
-            value=""
-            onSelect={handleServiceSelect}
-            filterOption={(input, option) =>
-              (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
-            }
-            options={serviceOptions} // ✅ Use safe options
-          />
-        </Card>
-
-        {/* Selected Services - Clean List */}
-        {selectedServices.length > 0 && (
-          <Card
-            size="small"
-            title={`Đã chọn ${selectedServices.length} dịch vụ`}
-            style={{ marginBottom: 16 }}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 8,
+            }}
           >
-            <List
-              dataSource={selectedServices}
-              renderItem={(service, index) => (
-                <List.Item
-                  key={service.consultedServiceId}
-                  style={{
-                    backgroundColor: "#fafafa",
-                    marginBottom: 8,
-                    padding: 12,
-                    borderRadius: 6,
-                  }}
-                >
-                  <Row style={{ width: "100%" }} gutter={8} align="middle">
-                    {/* Service Name */}
-                    <Col span={8}>
-                      <Text strong>{service.serviceName}</Text>
-                      <br />
-                      <Text type="secondary" style={{ fontSize: 12 }}>
-                        Còn nợ: {formatCurrency(service.remainingDebt)}
-                      </Text>
-                    </Col>
+            <Text strong>Dịch vụ cần thu tiền:</Text>
+            <Text type="secondary">
+              {outstandingServices.length > 0
+                ? `${outstandingServices.length} dịch vụ còn nợ`
+                : "Không có dịch vụ nào còn nợ"}
+            </Text>
+          </div>
 
-                    {/* Amount Input */}
-                    <Col span={6}>
-                      <InputNumber
-                        value={service.amount}
-                        min={0}
-                        max={service.remainingDebt}
-                        style={{ width: "100%" }}
-                        placeholder="Số tiền"
-                        formatter={(value) =>
-                          `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+          {loadingOutstanding ? (
+            <div
+              style={{ textAlign: "center", padding: "20px", color: "#999" }}
+            >
+              Đang tải dịch vụ...
+            </div>
+          ) : outstandingServices.length === 0 ? (
+            <div
+              style={{
+                textAlign: "center",
+                padding: "20px",
+                color: "#999",
+                backgroundColor: "#fafafa",
+                borderRadius: "8px",
+              }}
+            >
+              Khách hàng này không có dịch vụ nào còn nợ
+            </div>
+          ) : (
+            <Table
+              size="small"
+              dataSource={outstandingServices}
+              rowKey="id"
+              pagination={false}
+              bordered
+              scroll={{ x: true }}
+              columns={[
+                {
+                  title: "Chọn",
+                  dataIndex: "selected",
+                  width: 60,
+                  align: "center" as const,
+                  render: (_, service) => {
+                    const isSelected = selectedServices.some(
+                      (s) => s.consultedServiceId === service.id
+                    );
+                    return (
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={(e) =>
+                          handleServiceToggle(service, e.target.checked)
                         }
-                        parser={(value) => value!.replace(/\$\s?|(,*)/g, "")}
-                        onChange={(value) =>
-                          updateServiceAmount(index, value || 0)
-                        }
+                        style={{ transform: "scale(1.2)" }}
                       />
-                    </Col>
+                    );
+                  },
+                },
+                {
+                  title: "Dịch vụ",
+                  dataIndex: "consultedServiceName",
+                  ellipsis: true,
+                  render: (name, service) => (
+                    <div>
+                      <div style={{ fontWeight: 500 }}>{name}</div>
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        Tổng: {formatCurrency(service.finalPrice)} • Đã thu:{" "}
+                        {formatCurrency(service.totalPaid)}
+                      </Text>
+                    </div>
+                  ),
+                },
+                {
+                  title: "Còn nợ",
+                  dataIndex: "outstanding",
+                  width: 120,
+                  align: "right" as const,
+                  render: (amount) => (
+                    <Text type="danger" strong style={{ fontSize: 14 }}>
+                      {formatCurrency(amount)}
+                    </Text>
+                  ),
+                },
+                {
+                  title: "Số tiền thu",
+                  dataIndex: "amount",
+                  width: 140,
+                  render: (_, service) => {
+                    const selectedService = selectedServices.find(
+                      (s) => s.consultedServiceId === service.id
+                    );
+                    const isSelected = selectedServices.some(
+                      (s) => s.consultedServiceId === service.id
+                    );
+                    const amount = selectedService?.amount || 0;
 
-                    {/* Payment Method */}
-                    <Col span={6}>
+                    return (
+                      <Form.Item
+                        name={`amount_${service.id}`}
+                        style={{ margin: 0 }}
+                        rules={
+                          isSelected
+                            ? [
+                                {
+                                  required: true,
+                                  message: "Vui lòng nhập số tiền",
+                                },
+                                {
+                                  type: "number",
+                                  min: 1,
+                                  message: "Số tiền phải lớn hơn 0",
+                                },
+                                {
+                                  type: "number",
+                                  max: service.outstanding,
+                                  message: `Số tiền không được vượt quá ${formatCurrency(
+                                    service.outstanding
+                                  )}`,
+                                },
+                              ]
+                            : []
+                        }
+                      >
+                        <InputNumber
+                          value={amount}
+                          min={0}
+                          max={service.outstanding}
+                          style={{ width: "100%" }}
+                          placeholder="Nhập số tiền"
+                          disabled={!isSelected}
+                          formatter={(value) =>
+                            `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+                          }
+                          parser={(value) => value!.replace(/\$\s?|(,*)/g, "")}
+                          onChange={(value) =>
+                            handleAmountChange(service.id, value || 0)
+                          }
+                        />
+                      </Form.Item>
+                    );
+                  },
+                },
+                {
+                  title: "Phương thức",
+                  dataIndex: "paymentMethod",
+                  width: 140,
+                  render: (_, service) => {
+                    const selectedService = selectedServices.find(
+                      (s) => s.consultedServiceId === service.id
+                    );
+                    return (
                       <Select
-                        value={service.paymentMethod}
+                        value={
+                          selectedService?.paymentMethod ||
+                          PAYMENT_METHODS[0].value
+                        }
                         style={{ width: "100%" }}
-                        onChange={(value) => updatePaymentMethod(index, value)}
+                        disabled={
+                          !selectedServices.some(
+                            (s) => s.consultedServiceId === service.id
+                          )
+                        }
+                        onChange={(value) =>
+                          handlePaymentMethodChange(service.id, value)
+                        }
                         options={PAYMENT_METHODS.map((method) => ({
                           label: method.label,
                           value: method.value,
                         }))}
                       />
-                    </Col>
-
-                    {/* Delete Button */}
-                    <Col span={4} style={{ textAlign: "right" }}>
-                      <Button
-                        type="text"
-                        danger
-                        icon={<DeleteOutlined />}
-                        onClick={() => removeService(index)}
-                      />
-                    </Col>
-                  </Row>
-                </List.Item>
-              )}
+                    );
+                  },
+                },
+              ]}
             />
-          </Card>
-        )}
+          )}
+        </Card>
 
         {/* Total & Notes */}
         <Row gutter={16}>

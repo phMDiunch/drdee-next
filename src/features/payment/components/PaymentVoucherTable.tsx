@@ -7,6 +7,7 @@ import {
   PrinterOutlined,
 } from "@ant-design/icons";
 import { useState } from "react";
+import Link from "next/link";
 import type { PaymentVoucherWithDetails } from "../type";
 import { formatCurrency, formatDateTimeVN } from "@/utils/date";
 import { useAppStore } from "@/stores/useAppStore";
@@ -166,7 +167,11 @@ export default function PaymentVoucherTable({
             key: "customerName",
             render: (text: string, record: PaymentVoucherWithDetails) => (
               <div>
-                <div>{text}</div>
+                <Link href={`/customers/${record.customer?.id}`}>
+                  <div style={{ color: "#1677ff", cursor: "pointer" }}>
+                    {text}
+                  </div>
+                </Link>
                 {record.customer?.customerCode && (
                   <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                     {record.customer.customerCode}

@@ -1,6 +1,6 @@
 // src/app/payments/page.tsx
-import PaymentListPage from "@/features/payment/pages/PaymentListPage";
+import PaymentDailyPage from "@/features/payment/pages/PaymentDailyPage";
 
 export default function PaymentsPage() {
-  return <PaymentListPage />;
+  return <PaymentDailyPage />;
 }
