@@ -1,4 +1,68 @@
 // src/features/customers/constants.ts
+
+/**
+ * Định nghĩa các loại hành vi cho ô "Ghi chú nguồn" trên form khách hàng.
+ * - 'none': Ẩn ô ghi chú.
+ * - 'text_input': Ô nhập liệu dạng văn bản, không bắt buộc.
+ * - 'text_input_required': Ô nhập liệu dạng văn bản, bắt buộc nhập.
+ * - 'employee_search': Ô tìm kiếm và chọn từ danh sách nhân viên.
+ * - 'customer_search': Ô tìm kiếm và chọn từ danh sách khách hàng.
+ */
+type NoteType =
+  | "none"
+  | "text_input"
+  | "text_input_optional"
+  | "text_input_required"
+  | "employee_search"
+  | "customer_search";
+
+export interface CustomerSource {
+  value: string; // Giá trị lưu vào database
+  label: string; // Nhãn hiển thị cho người dùng
+  noteType: NoteType; // "Chỉ thị" cho UI
+}
+
+// DANH SÁCH NGUỒN KHÁCH HÀNG
+export const CUSTOMER_SOURCES: CustomerSource[] = [
+  // Nhóm Giới thiệu
+  {
+    value: "Nhân viênl",
+    label: "Nhân viên giới thiệu",
+    noteType: "employee_search",
+  },
+  {
+    value: "Khách cũ",
+    label: "Khách cũ giới thiệu",
+    noteType: "customer_search",
+  },
+  {
+    value: "Nhân viên",
+    label: "Hismile",
+    noteType: "text_input",
+  },
+
+  // Nhóm Online
+  { value: "Facebook", label: "Facebook", noteType: "text_input_optional" },
+  { value: "Zalo", label: "Zalo", noteType: "text_input_optional" },
+  { value: "Tiktok", label: "Tiktok", noteType: "text_input_optional" },
+  { value: "Youtube", label: "Youtube", noteType: "text_input_optional" },
+  { value: "Google Search", label: "Tìm kiếm Google", noteType: "none" },
+  { value: "Google Maps", label: "Google Maps", noteType: "none" },
+  { value: "Website", label: "Website Dr Dee", noteType: "none" },
+
+  // Nhóm Offline & Sự kiện
+  { value: "Voucher", label: "Voucher / Tờ rơi", noteType: "text_input" },
+  { value: "Event", label: "Sự kiện / Hội thảo", noteType: "text_input" },
+  {
+    value: "Khách vãng lai",
+    label: "Khách vãng lai (Đi ngang qua)",
+    noteType: "none",
+  },
+
+  // Nguồn khác
+  { value: "Khác", label: "Nguồn khác", noteType: "text_input_required" },
+];
+
 export const CUSTOMER_STATUS = [
   { label: "Mới", value: "new", color: "green" },
   { label: "Đang điều trị", value: "in_treatment", color: "blue" },
@@ -6,11 +70,17 @@ export const CUSTOMER_STATUS = [
   { label: "Huỷ", value: "cancelled", color: "red" },
 ];
 
-export const CHANNELS = [
-  { label: "Facebook", value: "facebook" },
-  { label: "Zalo", value: "zalo" },
-  { label: "Tiktok", value: "tiktok" },
-  { label: "Khác", value: "other" },
+// DANH SÁCH CÁC DỊCH VỤ QUAN TÂM
+export const SERVICES_OF_INTEREST = [
+  { label: "Implant", value: "Implant" },
+  { label: "Răng sứ", value: "Răng sứ" },
+  { label: "Niềng răng", value: "Niềng răng" },
+  { label: "Mặt lưỡi", value: "Mặt lưỡi" },
+  { label: "Invisalign", value: "Invisalign" },
+  { label: "Tẩy trắng răng", value: "Tẩy trắng răng" },
+  { label: "Nhổ răng khôn", value: "Nhổ răng khôn" },
+  { label: "Cười hở lợi", value: "Cười hở lợi" },
+  { label: "Khác", value: "Khác" },
 ];
 
 export const OCCUPATIONS = [
@@ -86,5 +156,5 @@ export const OCCUPATIONS = [
   "Thợ hàn",
   "Thợ mộc",
   "Thợ hồ",
-  "Tài xế công nghệ (Grab, Gojek...)"
+  "Tài xế công nghệ (Grab, Gojek...)",
 ];

@@ -1,11 +1,36 @@
 // src/features/customers/components/CustomerForm.tsx
 "use client";
-import { Form, Input, DatePicker, Select, Row, Col, Button, Spin } from "antd";
+import {
+  Form,
+  Input,
+  DatePicker,
+  Select,
+  Row,
+  Col,
+  Button,
+  Spin,
+  Radio,
+} from "antd";
 import { useState, useCallback, useEffect } from "react";
 import debounce from "lodash/debounce";
 import type { Customer } from "../type";
 import { BRANCHES, GENDER_OPTIONS } from "@/constants";
+import {
+  CUSTOMER_SOURCES,
+  CustomerSource,
+  SERVICES_OF_INTEREST,
+} from "../constants";
 import { useAppStore } from "@/stores/useAppStore";
+import administrativeUnits from "@/data/vietnamAdministrativeUnits.json";
+
+type District = {
+  name: string;
+};
+
+type Province = {
+  name: string;
+  districts: District[];
+};
 
 type Props = {
   form?: any;
@@ -26,9 +51,31 @@ export default function CustomerForm({
 }: Props) {
   const [form] = Form.useForm(formProp);
   const employee = useAppStore((state) => state.employeeProfile);
+  const activeEmployees = useAppStore((state) => state.activeEmployees);
 
   const [searching, setSearching] = useState(false);
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
+
+  // --- State cho Tỉnh/Thành và Quận/Huyện ---
+  const [provinces, setProvinces] = useState<Province[]>([]);
+  const [districts, setDistricts] = useState<District[]>([]);
+  const [selectedProvince, setSelectedProvince] = useState<string | undefined>(
+    initialValues.city
+  );
+  // ------
+
+  const [selectedSource, setSelectedSource] = useState<CustomerSource | null>(
+    null
+  );
+
+  // Hàm xử lý khi người dùng chọn một nguồn khách hàng
+  const handleSourceChange = (sourceValue: string) => {
+    const source =
+      CUSTOMER_SOURCES.find((s) => s.value === sourceValue) || null;
+    setSelectedSource(source);
+    // Xóa giá trị cũ của ô ghi chú nguồn để tránh nhầm lẫn
+    form.setFieldsValue({ sourceNotes: undefined });
+  };
 
   // --- THAY ĐỔI LỚN: Khởi tạo state từ prop `customers` ---
   const [customerOptions, setCustomerOptions] = useState<any[]>(() => {
@@ -54,6 +101,36 @@ export default function CustomerForm({
     }
     return initialOptions;
   });
+
+  // --- Load dữ liệu và xử lý logic cho dropdown ---
+  useEffect(() => {
+    // Load danh sách tỉnh/thành từ file JSON
+    setProvinces(administrativeUnits);
+
+    // Nếu là mode "edit" và đã có thông tin tỉnh/thành, load sẵn danh sách quận/huyện
+    if (initialValues.city) {
+      const provinceData = administrativeUnits.find(
+        (p) => p.name === initialValues.city
+      );
+      if (provinceData) {
+        setDistricts(provinceData.districts);
+      }
+    }
+  }, [initialValues.city]);
+
+  const handleProvinceChange = (provinceName: string) => {
+    const provinceData = provinces.find((p) => p.name === provinceName);
+    if (provinceData) {
+      setDistricts(provinceData.districts);
+      setSelectedProvince(provinceName);
+      // Reset trường quận/huyện mỗi khi thay đổi tỉnh/thành
+      form.setFieldsValue({ district: undefined });
+    } else {
+      setDistricts([]);
+      setSelectedProvince(undefined);
+      form.setFieldsValue({ district: undefined });
+    }
+  };
 
   const fetchCustomers = async (searchValue: string) => {
     if (!searchValue) {
@@ -121,7 +198,7 @@ export default function CustomerForm({
       autoComplete="off"
     >
       <Row gutter={16}>
-        <Col span={12}>
+        <Col span={8}>
           <Form.Item
             label="Họ tên"
             name="fullName"
@@ -130,8 +207,35 @@ export default function CustomerForm({
             <Input />
           </Form.Item>
         </Col>
-
-        <Col span={12}>
+        <Col span={8}>
+          <Form.Item
+            label="Ngày sinh"
+            name="dob"
+            rules={[{ required: true, message: "Nhập ngày sinh" }]}
+          >
+            <DatePicker
+              format="DD/MM/YYYY"
+              style={{ width: "100%" }}
+              allowClear
+            />
+          </Form.Item>
+        </Col>
+        <Col span={8}>
+          <Form.Item
+            label="Giới tính"
+            name="gender"
+            rules={[{ required: true, message: "Chọn giới tính" }]}
+          >
+            <Radio.Group>
+              {GENDER_OPTIONS.map((option) => (
+                <Radio key={option.value} value={option.value}>
+                  {option.label}
+                </Radio>
+              ))}
+            </Radio.Group>
+          </Form.Item>
+        </Col>
+        <Col span={8}>
           <Form.Item
             label="Số điện thoại"
             name="phone"
@@ -153,7 +257,7 @@ export default function CustomerForm({
           </Form.Item>
         </Col>
 
-        <Col span={12}>
+        <Col span={8}>
           <Form.Item
             label="Người liên hệ chính"
             name="primaryContactId"
@@ -178,7 +282,7 @@ export default function CustomerForm({
           </Form.Item>
         </Col>
 
-        <Col span={12}>
+        <Col span={8}>
           <Form.Item
             noStyle
             shouldUpdate={(prevValues, currentValues) =>
@@ -199,26 +303,65 @@ export default function CustomerForm({
           </Form.Item>
         </Col>
 
-        <Col span={12}>
+        <Col span={8}>
+          <Form.Item
+            label="Địa chỉ"
+            name="address"
+            rules={[{ required: true, message: "Nhập địa chỉ" }]}
+          >
+            <Input />
+          </Form.Item>
+        </Col>
+        <Col span={8}>
+          <Form.Item
+            label="Tỉnh/Thành phố"
+            name="city"
+            rules={[
+              { required: true, message: "Vui lòng chọn Tỉnh/Thành phố" },
+            ]}
+          >
+            <Select
+              showSearch
+              placeholder="Chọn Tỉnh/Thành phố"
+              onChange={handleProvinceChange}
+              filterOption={(input, option) =>
+                (option?.label ?? "")
+                  .toLowerCase()
+                  .includes(input.toLowerCase())
+              }
+              options={provinces.map((p) => ({ label: p.name, value: p.name }))}
+            />
+          </Form.Item>
+        </Col>
+        <Col span={8}>
+          <Form.Item label="Quận/Huyện" name="district">
+            <Select
+              showSearch
+              placeholder="Chọn Quận/Huyện"
+              disabled={!selectedProvince} // Disable khi chưa chọn tỉnh thành
+              filterOption={(input, option) =>
+                (option?.label ?? "")
+                  .toLowerCase()
+                  .includes(input.toLowerCase())
+              }
+              options={districts.map((d) => ({ label: d.name, value: d.name }))}
+            />
+          </Form.Item>
+        </Col>
+
+        <Col span={8}>
           <Form.Item label="Email" name="email">
             <Input />
           </Form.Item>
         </Col>
-        <Col span={12}>
-          <Form.Item label="Ngày sinh" name="dob">
-            <DatePicker
-              format="DD/MM/YYYY"
-              style={{ width: "100%" }}
-              allowClear
-            />
+
+        <Col span={8}>
+          <Form.Item label="Nghề nghiệp" name="occupation">
+            <Input />
           </Form.Item>
         </Col>
-        <Col span={12}>
-          <Form.Item label="Giới tính" name="gender">
-            <Select options={GENDER_OPTIONS} allowClear />
-          </Form.Item>
-        </Col>
-        <Col span={12}>
+
+        <Col span={8}>
           <Form.Item label="Chi nhánh" name="clinicId">
             <Select
               options={BRANCHES.map((b) => ({
@@ -230,44 +373,97 @@ export default function CustomerForm({
             />
           </Form.Item>
         </Col>
-        <Col span={12}>
-          <Form.Item label="Địa chỉ" name="address">
-            <Input />
-          </Form.Item>
-        </Col>
-        <Col span={12}>
-          <Form.Item label="Tỉnh/Thành phố" name="city">
-            <Input />
-          </Form.Item>
-        </Col>
-        <Col span={12}>
-          <Form.Item label="Quận/Huyện" name="district">
-            <Input />
-          </Form.Item>
-        </Col>
-        <Col span={12}>
-          <Form.Item label="Nghề nghiệp" name="occupation">
-            <Input />
-          </Form.Item>
-        </Col>
-        <Col span={12}>
-          <Form.Item label="Nguồn khách" name="source">
-            <Input />
-          </Form.Item>
-        </Col>
-        <Col span={12}>
-          <Form.Item label="Ghi chú nguồn" name="sourceNotes">
-            <Input />
-          </Form.Item>
-        </Col>
-        <Col span={12}>
-          <Form.Item label="Dịch vụ quan tâm" name="servicesOfInterest">
+        <Col span={8}>
+          <Form.Item
+            label="Dịch vụ quan tâm"
+            name="servicesOfInterest"
+            rules={[
+              { required: true, message: "Vui lòng chọn dịch vụ quan tâm" },
+            ]}
+          >
             <Select
-              mode="tags"
               allowClear
               placeholder="Nhập hoặc chọn dịch vụ"
+              options={SERVICES_OF_INTEREST}
+              filterOption={(input, option) =>
+                (option?.label ?? "")
+                  .toLowerCase()
+                  .includes(input.toLowerCase())
+              }
             />
           </Form.Item>
+        </Col>
+        <Col span={8}>
+          <Form.Item
+            label="Nguồn khách hàng"
+            name="source"
+            rules={[
+              { required: true, message: "Vui lòng chọn nguồn khách hàng" },
+            ]}
+          >
+            <Select
+              placeholder="Chọn nguồn khách hàng"
+              onChange={handleSourceChange}
+              allowClear
+              showSearch
+              filterOption={(input, option) =>
+                (option?.label ?? "")
+                  .toLowerCase()
+                  .includes(input.toLowerCase())
+              }
+            >
+              {CUSTOMER_SOURCES.map((source) => (
+                <Select.Option
+                  key={source.value}
+                  value={source.value}
+                  label={source.label}
+                >
+                  {source.label}
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+        </Col>
+        <Col span={8}>
+          {selectedSource && selectedSource.noteType !== "none" && (
+            <Form.Item
+              label="Ghi chú nguồn"
+              name="sourceNotes"
+              rules={[
+                {
+                  required: selectedSource.noteType === "text_input_required",
+                  message: "Vui lòng nhập ghi chú",
+                },
+              ]}
+            >
+              {selectedSource.noteType === "employee_search" ? (
+                <Select
+                  showSearch
+                  placeholder="Tìm và chọn nhân viên giới thiệu"
+                  options={activeEmployees.map((e) => ({
+                    label: e.fullName,
+                    value: e.id,
+                  }))}
+                  filterOption={(input, option) =>
+                    (option?.label ?? "")
+                      .toLowerCase()
+                      .includes(input.toLowerCase())
+                  }
+                />
+              ) : selectedSource.noteType === "customer_search" ? (
+                <Select
+                  showSearch
+                  placeholder="Tìm khách hàng giới thiệu..."
+                  onSearch={debouncedFetchCustomers}
+                  filterOption={false}
+                  options={customerOptions}
+                  notFoundContent={searching ? <Spin size="small" /> : null}
+                />
+              ) : (
+                <Input placeholder="Nhập ghi chú chi tiết..." />
+              )}
+            </Form.Item>
+          )}
         </Col>
       </Row>
 
