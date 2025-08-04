@@ -1,10 +1,16 @@
 // src/features/payment/components/PaymentVoucherTable.tsx
 "use client";
-import { Table, Button, Space, Tag, Typography, Descriptions } from "antd";
-import { EyeOutlined, PlusOutlined, DeleteOutlined } from "@ant-design/icons";
+import { Table, Button, Space, Tag, Typography } from "antd";
+import {
+  PlusOutlined,
+  DeleteOutlined,
+  PrinterOutlined,
+} from "@ant-design/icons";
+import { useState } from "react";
 import type { PaymentVoucherWithDetails } from "../type";
 import { formatCurrency, formatDateTimeVN } from "@/utils/date";
 import { useAppStore } from "@/stores/useAppStore";
+import PrintModal from "./PrintModal";
 
 const { Title } = Typography;
 
@@ -38,6 +44,19 @@ export default function PaymentVoucherTable({
   hideCustomerColumn = false,
 }: Props) {
   const { employeeProfile } = useAppStore();
+
+  // Print modal state
+  const [printModal, setPrintModal] = useState({
+    open: false,
+    voucher: null as PaymentVoucherWithDetails | null,
+  });
+
+  const handlePrint = (voucher: PaymentVoucherWithDetails) => {
+    setPrintModal({
+      open: true,
+      voucher: voucher,
+    });
+  };
 
   // ✅ THÊM: Render expandable row content
   const expandedRowRender = (record: PaymentVoucherWithDetails) => {
@@ -138,21 +157,25 @@ export default function PaymentVoucherTable({
         </Typography.Text>
       ),
     },
-    !hideCustomerColumn && {
-      title: "Khách hàng",
-      dataIndex: ["customer", "fullName"],
-      key: "customerName",
-      render: (text: string, record: PaymentVoucherWithDetails) => (
-        <div>
-          <div>{text}</div>
-          {record.customer?.customerCode && (
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              {record.customer.customerCode}
-            </Typography.Text>
-          )}
-        </div>
-      ),
-    },
+    ...(hideCustomerColumn
+      ? []
+      : [
+          {
+            title: "Khách hàng",
+            dataIndex: ["customer", "fullName"],
+            key: "customerName",
+            render: (text: string, record: PaymentVoucherWithDetails) => (
+              <div>
+                <div>{text}</div>
+                {record.customer?.customerCode && (
+                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                    {record.customer.customerCode}
+                  </Typography.Text>
+                )}
+              </div>
+            ),
+          },
+        ]),
     {
       title: "Ngày thu",
       dataIndex: "paymentDate",
@@ -189,11 +212,11 @@ export default function PaymentVoucherTable({
         <Space>
           <Button
             size="small"
-            icon={<EyeOutlined />}
-            onClick={() => onView(record)}
-            title="Xem chi tiết"
+            icon={<PrinterOutlined />}
+            onClick={() => handlePrint(record)}
+            title="In phiếu thu"
           >
-            Xem
+            In
           </Button>
 
           {employeeProfile?.role === "admin" && (
@@ -256,7 +279,7 @@ export default function PaymentVoucherTable({
         expandable={{
           expandedRowRender,
           rowExpandable: (record) =>
-            record.details && record.details.length > 0,
+            Boolean(record.details && record.details.length > 0),
           expandRowByClick: false,
           expandIcon: ({ expanded, onExpand, record }) =>
             record.details && record.details.length > 0 ? (
@@ -273,6 +296,13 @@ export default function PaymentVoucherTable({
               </Button>
             ) : null,
         }}
+      />
+
+      {/* Print Modal */}
+      <PrintModal
+        open={printModal.open}
+        voucher={printModal.voucher}
+        onCancel={() => setPrintModal({ open: false, voucher: null })}
       />
     </div>
   );

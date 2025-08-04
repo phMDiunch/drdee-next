@@ -10,16 +10,14 @@ import {
   Input,
   Card,
   Typography,
-  Space,
   List,
-  Tag,
   Alert,
 } from "antd";
 import { useState, useEffect, useMemo } from "react";
 import { DeleteOutlined, DollarOutlined } from "@ant-design/icons";
-import type { ConsultedService } from "@prisma/client";
 import { formatCurrency } from "@/utils/date";
 import { useAppStore } from "@/stores/useAppStore";
+import { PAYMENT_METHODS } from "../constants";
 import dayjs from "dayjs";
 
 const { TextArea } = Input;
@@ -97,7 +95,7 @@ export default function PaymentVoucherForm({
       serviceName: service.consultedServiceName,
       remainingDebt: remainingDebt,
       amount: remainingDebt,
-      paymentMethod: "Tiền mặt",
+      paymentMethod: PAYMENT_METHODS[0].value, // Default to first payment method
     };
 
     setSelectedServices((prev) => [...prev, newService]);
@@ -308,11 +306,10 @@ export default function PaymentVoucherForm({
                         value={service.paymentMethod}
                         style={{ width: "100%" }}
                         onChange={(value) => updatePaymentMethod(index, value)}
-                        options={[
-                          { label: "Tiền mặt", value: "Tiền mặt" },
-                          { label: "Chuyển khoản", value: "Chuyển khoản" },
-                          { label: "Quẹt thẻ", value: "Quẹt thẻ" },
-                        ]}
+                        options={PAYMENT_METHODS.map((method) => ({
+                          label: method.label,
+                          value: method.value,
+                        }))}
                       />
                     </Col>
 

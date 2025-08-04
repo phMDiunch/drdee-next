@@ -3,7 +3,7 @@
 import { Button, Space, Table, Tag } from "antd";
 import type { Employee } from "../type";
 import { BRANCHES } from "@/constants";
-import { EMPLOYMENT_STATUS_OPTIONS, TITLES } from "../constants";
+import { EMPLOYMENT_STATUS_OPTIONS, TITLES, ROLE_OPTIONS } from "../constants";
 import { formatDateVN } from "@/utils/date"; // Thay đổi nhỏ: chỉ cần ngày
 import EmployeeStatusSwitcher from "./EmployeeStatusSwitcher";
 
@@ -57,6 +57,15 @@ export default function EmployeeTable({
           (item) => item.value === v
         );
         return status ? <Tag color={status.color}>{status.label}</Tag> : v;
+      },
+    },
+    {
+      title: "vai trò",
+      dataIndex: "role",
+      key: "role",
+      render: (v: string) => {
+        const role = ROLE_OPTIONS.find((item) => item.value === v);
+        return role ? <Tag color="blue">{role.label}</Tag> : v;
       },
     },
     {

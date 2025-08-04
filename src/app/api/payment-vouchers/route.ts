@@ -9,6 +9,8 @@ export async function GET(request: NextRequest) {
     const pageSize = parseInt(searchParams.get("pageSize") || "20");
     const search = searchParams.get("search")?.trim() || "";
     const clinicId = searchParams.get("clinicId");
+    const startDate = searchParams.get("startDate");
+    const endDate = searchParams.get("endDate");
 
     const skip = (page - 1) * pageSize;
 
@@ -27,6 +29,14 @@ export async function GET(request: NextRequest) {
           customer: { customerCode: { contains: search, mode: "insensitive" } },
         },
       ];
+    }
+
+    // Add date range filter
+    if (startDate && endDate) {
+      where.paymentDate = {
+        gte: new Date(startDate),
+        lte: new Date(endDate),
+      };
     }
 
     // Get total count

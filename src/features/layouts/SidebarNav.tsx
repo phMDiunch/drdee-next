@@ -48,11 +48,23 @@ const menuItems = [
       },
     ],
   },
-  // ✅ THÊM: Menu Payment
+  // ✅ THÊM: Menu Payment with submenu
   {
     key: "payments",
     icon: <DollarOutlined />,
-    label: <Link href="/payments">Phiếu thu</Link>,
+    label: "Phiếu thu",
+    children: [
+      {
+        key: "payments-list",
+        icon: <DollarOutlined />,
+        label: <Link href="/payments">Danh sách phiếu thu</Link>,
+      },
+      {
+        key: "payments-daily",
+        icon: <CalendarOutlined />,
+        label: <Link href="/payments/daily">Thanh toán theo ngày</Link>,
+      },
+    ],
   },
   {
     key: "settings",
@@ -88,9 +100,10 @@ export default function SidebarNav() {
     selectedKey = "appointments-today";
   } else if (pathname.startsWith("/appointments")) {
     selectedKey = "appointments-list";
+  } else if (pathname.startsWith("/payments/daily")) {
+    selectedKey = "payments-daily";
   } else if (pathname.startsWith("/payments")) {
-    // ✅ THÊM
-    selectedKey = "payments";
+    selectedKey = "payments-list";
   } else if (pathname.startsWith("/dental-services")) {
     selectedKey = "dental-services";
   }
