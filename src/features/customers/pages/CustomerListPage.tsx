@@ -202,8 +202,16 @@ export default function CustomerListPage() {
         values.dob = dayjs(values.dob).toISOString();
       }
 
+      const services = values.servicesOfInterest;
+      const servicesAsArray = Array.isArray(services)
+        ? services
+        : services
+        ? [services]
+        : [];
+
       const processedValues = {
         ...values,
+        servicesOfInterest: servicesAsArray,
         primaryContactId: values.primaryContactId || null,
         relationshipToPrimary: values.primaryContactId
           ? values.relationshipToPrimary
