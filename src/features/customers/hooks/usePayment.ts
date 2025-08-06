@@ -3,6 +3,7 @@ import { useState } from "react";
 import { toast } from "react-toastify";
 import { useAppStore } from "@/stores/useAppStore";
 import type { Customer } from "../type";
+import { nowVN } from "@/utils/date";
 
 export const usePayment = (
   customer: Customer | null,
@@ -87,7 +88,7 @@ export const usePayment = (
         customerId: customer?.id, // ✅ ĐẢM BẢO customerId được set
         paymentDate: values.paymentDate
           ? values.paymentDate.toISOString()
-          : new Date().toISOString(), // ✅ SỬA: Handle undefined paymentDate
+          : nowVN(), // ✅ SỬA: Handle undefined paymentDate
         createdById: employeeProfile?.id,
         updatedById: employeeProfile?.id, // ✅ THÊM updatedById
         cashierId: employeeProfile?.id, // ✅ ĐẢM BẢO cashierId được set từ employeeProfile

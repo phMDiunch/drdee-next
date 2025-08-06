@@ -6,26 +6,34 @@ import EmployeeTable from "@/features/employees/components/EmployeeTable";
 import EmployeeModal from "@/features/employees/components/EmployeeModal";
 import EmployeeTableFilter from "../components/EmployeeTableFilter";
 import type { Employee } from "@/features/employees/type";
-import dayjs from "dayjs";
 import { toast } from "react-toastify";
-import { toISOStringUTC, parseDateFromISOString } from "@/utils/date";
+import { toISOStringVN } from "@/utils/date";
 import { useAppStore } from "@/stores/useAppStore";
+import dayjs from "dayjs";
 
 // Filter state type
 type Filters = {
   search?: string;
-  clinicId?: string;
-  title?: string;
+  gender?: string;
   employmentStatus?: string;
+  role?: string;
+  title?: string;
+  clinicId?: string;
 };
 
-export default function EmployeeList() {
+// Form data type for modal (with dayjs objects for DatePicker)
+type EmployeeFormData = Omit<Employee, "dob" | "nationalIdIssueDate"> & {
+  dob?: dayjs.Dayjs;
+  nationalIdIssueDate?: dayjs.Dayjs;
+};
+
+export default function EmployeeListPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState<{
     open: boolean;
     mode: "add" | "edit";
-    data?: Employee;
+    data?: EmployeeFormData;
   }>({ open: false, mode: "add" });
 
   // State cho filter và phân trang
@@ -89,9 +97,9 @@ export default function EmployeeList() {
   // Thêm mới hoặc sửa nhân viên
   const handleFinish = async (values: any) => {
     try {
-      if (values.dob?.$d) values.dob = dayjs(values.dob).toISOString();
+      if (values.dob?.$d) values.dob = toISOStringVN(values.dob);
       if (values.nationalIdIssueDate?.$d)
-        values.nationalIdIssueDate = toISOStringUTC(values.nationalIdIssueDate);
+        values.nationalIdIssueDate = toISOStringVN(values.nationalIdIssueDate);
 
       if (modal.mode === "add") {
         const res = await fetch("/api/employees", {
@@ -136,7 +144,7 @@ export default function EmployeeList() {
         ...emp,
         dob: emp.dob ? dayjs(emp.dob) : undefined,
         nationalIdIssueDate: emp.nationalIdIssueDate
-          ? parseDateFromISOString(emp.nationalIdIssueDate)
+          ? dayjs(emp.nationalIdIssueDate)
           : undefined,
       },
     });

@@ -11,10 +11,12 @@ const VN_TZ = "Asia/Ho_Chi_Minh";
  * Format hiển thị ngày giờ cho user (DD/MM/YYYY HH:mm:ss) ở VN
  */
 export function formatDateTimeVN(
-  date: string | Date | undefined | null
+  date: string | Date | undefined | null,
+  format: string = "DD/MM/YYYY HH:mm:ss"
 ): string {
   if (!date) return "";
-  return dayjs(date).tz(VN_TZ).format("DD/MM/YYYY HH:mm:ss");
+  // Parse date và đảm bảo hiển thị theo timezone VN
+  return dayjs(date).tz(VN_TZ).format(format);
 }
 
 /**
@@ -26,21 +28,32 @@ export function formatDateVN(date: string | Date | undefined | null): string {
 }
 
 /**
- * Convert ngày giờ nhập từ DatePicker (dayjs obj hoặc Date) sang ISO string UTC (lưu DB)
+ * Convert ngày giờ nhập từ DatePicker (dayjs obj hoặc Date) sang ISO string với timezone VN (lưu DB)
  */
-export function toISOStringUTC(input: any): string | undefined {
+export function toISOStringVN(
+  input: dayjs.Dayjs | Date | string | undefined
+): string | undefined {
   if (!input) return undefined;
   // Nếu là dayjs object
   if (dayjs.isDayjs(input)) {
-    return input.tz(VN_TZ).toDate().toISOString();
+    return input.tz(VN_TZ).format();
   }
   // Nếu là Date
   if (input instanceof Date) {
-    return dayjs(input).tz(VN_TZ).toDate().toISOString();
+    return dayjs(input).tz(VN_TZ).format();
   }
-  // Nếu là string đã đúng format thì trả về luôn
-  if (typeof input === "string") return input;
+  // Nếu là string, parse và convert về VN timezone
+  if (typeof input === "string") {
+    return dayjs(input).tz(VN_TZ).format();
+  }
   return undefined;
+}
+
+/**
+ * Tạo timestamp hiện tại với timezone VN (dùng cho database)
+ */
+export function nowVN(): string {
+  return dayjs().tz(VN_TZ).format();
 }
 
 /**

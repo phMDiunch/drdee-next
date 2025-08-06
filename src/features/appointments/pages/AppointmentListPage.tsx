@@ -11,7 +11,7 @@ import dayjs from "dayjs";
 import { toast } from "react-toastify";
 import { useAppStore } from "@/stores/useAppStore";
 import { APPOINTMENT_STATUS_OPTIONS } from "@/features/appointments/constants";
-import { formatDateTimeVN } from "@/utils/date";
+import { formatDateTimeVN, toISOStringVN } from "@/utils/date";
 
 const { Title } = Typography;
 
@@ -151,9 +151,7 @@ export default function AppointmentListPage() {
     setLoading(true);
     try {
       if (values.appointmentDateTime?.$d) {
-        values.appointmentDateTime = dayjs(
-          values.appointmentDateTime
-        ).toISOString();
+        values.appointmentDateTime = toISOStringVN(values.appointmentDateTime);
       }
       const isEdit = modal.mode === "edit";
       const url = isEdit
@@ -432,7 +430,9 @@ export default function AppointmentListPage() {
               }) => {
                 try {
                   const updateData: any = {
-                    appointmentDateTime: appointmentDateTime || start,
+                    appointmentDateTime: toISOStringVN(
+                      appointmentDateTime || start
+                    ),
                     updatedById: employeeProfile?.id,
                   };
 

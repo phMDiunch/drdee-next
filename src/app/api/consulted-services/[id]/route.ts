@@ -1,6 +1,7 @@
 // src/app/api/consulted-services/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/services/prismaClient";
+import { nowVN } from "@/utils/date";
 
 // ✅ GET single consulted service
 export async function GET(
@@ -99,7 +100,7 @@ export async function PUT(
       where: { id },
       data: {
         ...data,
-        updatedAt: new Date(),
+        updatedAt: nowVN(),
       },
       include: {
         customer: { select: { id: true, fullName: true } },
@@ -163,13 +164,14 @@ export async function PATCH(
     }
 
     // Cập nhật service
+    const now = nowVN();
     const updatedService = await prisma.consultedService.update({
       where: { id },
       data: {
         serviceStatus: "Đã chốt",
-        serviceConfirmDate: new Date(),
+        serviceConfirmDate: now,
         updatedById: body.updatedById,
-        updatedAt: new Date(),
+        updatedAt: now,
       },
     });
 

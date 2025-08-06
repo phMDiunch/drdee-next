@@ -1,6 +1,14 @@
 // src/app/api/customers/search/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/services/prismaClient";
+import dayjs from "dayjs";
+import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+const VN_TZ = "Asia/Ho_Chi_Minh";
 
 export async function GET(request: NextRequest) {
   try {
@@ -41,8 +49,8 @@ export async function GET(request: NextRequest) {
         appointments: {
           where: {
             appointmentDateTime: {
-              gte: new Date(new Date().setHours(0, 0, 0, 0)),
-              lte: new Date(new Date().setHours(23, 59, 59, 999)),
+              gte: dayjs().tz(VN_TZ).startOf("day").format(),
+              lte: dayjs().tz(VN_TZ).endOf("day").format(),
             },
           },
           select: {

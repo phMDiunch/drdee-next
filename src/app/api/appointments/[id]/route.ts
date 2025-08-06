@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/services/prismaClient";
 import dayjs from "dayjs";
+import { nowVN } from "@/utils/date";
 
 // GET single appointment
 export async function GET(
@@ -141,8 +142,8 @@ export async function PUT(
       }
 
       // Kiểm tra xem khách hàng đã có lịch khác trong ngày mới chưa (trừ lịch hiện tại)
-      const startOfDay = newAppointmentDate.startOf("day").toDate();
-      const endOfDay = newAppointmentDate.endOf("day").toDate();
+      const startOfDay = newAppointmentDate.startOf("day").format();
+      const endOfDay = newAppointmentDate.endOf("day").format();
 
       const conflictAppointment = await prisma.appointment.findFirst({
         where: {
@@ -187,7 +188,7 @@ export async function PUT(
       where: { id },
       data: {
         ...updateData,
-        updatedAt: new Date(),
+        updatedAt: nowVN(),
       },
       include: {
         customer: { select: { id: true, fullName: true, phone: true } },

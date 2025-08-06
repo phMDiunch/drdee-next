@@ -2,6 +2,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/services/prismaClient";
 import dayjs from "dayjs";
+import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+const VN_TZ = "Asia/Ho_Chi_Minh";
 
 export const dynamic = "force-dynamic";
 
@@ -18,9 +25,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Tạo start và end của ngày
-    const startOfDay = dayjs(date).startOf("day").toISOString();
-    const endOfDay = dayjs(date).endOf("day").toISOString();
+    // Tạo start và end của ngày với timezone VN
+    const startOfDay = dayjs(date).tz(VN_TZ).startOf("day").format();
+    const endOfDay = dayjs(date).tz(VN_TZ).endOf("day").format();
 
     const whereCondition: any = {
       appointmentDateTime: {

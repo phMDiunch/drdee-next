@@ -8,10 +8,17 @@ import ContactInfoSection from "./form-sections/ContactInfoSection";
 import LegalInfoSection from "./form-sections/LegalInfoSection";
 import BankInfoSection from "./form-sections/BankInfoSection";
 import WorkInfoSection from "./form-sections/WorkInfoSection";
+import dayjs from "dayjs";
+
+// Form data type for modal (with dayjs objects for DatePicker)
+type EmployeeFormData = Omit<Employee, "dob" | "nationalIdIssueDate"> & {
+  dob?: dayjs.Dayjs;
+  nationalIdIssueDate?: dayjs.Dayjs;
+};
 
 type EmployeeFormProps = {
   form: any;
-  initialValues?: Partial<Employee>;
+  initialValues?: Partial<EmployeeFormData>;
   onFinish: (values: Partial<Employee>) => void;
   loading?: boolean;
 };

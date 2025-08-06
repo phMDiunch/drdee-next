@@ -3,13 +3,20 @@
 import { Modal, Typography } from "antd";
 import type { Employee } from "../type";
 import EmployeeForm from "./EmployeeForm";
+import dayjs from "dayjs";
 
 const { Title } = Typography;
+
+// Form data type for modal (with dayjs objects for DatePicker)
+type EmployeeFormData = Omit<Employee, "dob" | "nationalIdIssueDate"> & {
+  dob?: dayjs.Dayjs;
+  nationalIdIssueDate?: dayjs.Dayjs;
+};
 
 type Props = {
   open: boolean;
   mode: "add" | "edit";
-  data?: Partial<Employee>;
+  data?: Partial<EmployeeFormData>;
   onCancel: () => void;
   onFinish: (values: any) => void;
   loading?: boolean;

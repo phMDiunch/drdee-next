@@ -1,6 +1,15 @@
 // src/app/api/payment-vouchers/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/services/prismaClient";
+import { nowVN } from "@/utils/date";
+import dayjs from "dayjs";
+import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+const VN_TZ = "Asia/Ho_Chi_Minh";
 
 export async function GET(request: NextRequest) {
   try {
@@ -33,9 +42,12 @@ export async function GET(request: NextRequest) {
 
     // Add date range filter
     if (startDate && endDate) {
+      const startDayjs = dayjs(startDate).tz(VN_TZ);
+      const endDayjs = dayjs(endDate).tz(VN_TZ);
+
       where.paymentDate = {
-        gte: new Date(startDate),
-        lte: new Date(endDate),
+        gte: startDayjs.startOf("day").format(),
+        lte: endDayjs.endOf("day").format(),
       };
     }
 
@@ -167,7 +179,7 @@ export async function POST(request: NextRequest) {
         data: {
           ...voucherData,
           paymentNumber,
-          paymentDate: new Date(),
+          paymentDate: nowVN(),
         },
       });
 

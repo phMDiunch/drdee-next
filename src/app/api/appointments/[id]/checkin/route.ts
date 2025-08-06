@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/services/prismaClient";
 import { CHECKIN_ALLOWED_STATUSES } from "@/features/appointments/constants";
+import { nowVN } from "@/utils/date";
 
 export async function PATCH(
   request: NextRequest,
@@ -43,13 +44,14 @@ export async function PATCH(
     }
 
     // Cập nhật check-in
+    const now = nowVN();
     const updatedAppointment = await prisma.appointment.update({
       where: { id },
       data: {
-        checkInTime: new Date(),
+        checkInTime: now,
         status: "Đã đến", // ✅ Tự động đổi status
         updatedById,
-        updatedAt: new Date(),
+        updatedAt: nowVN(),
       },
       include: {
         customer: {
@@ -78,8 +80,10 @@ export async function PATCH(
       `✅ Check-in successful for customer: ${existingAppointment.customer.fullName}`
     );
     return NextResponse.json(updatedAppointment);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Check-in error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

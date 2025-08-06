@@ -4,6 +4,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/services/prismaClient";
 import { Prisma } from "@prisma/client";
 import dayjs from "dayjs";
+import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
+import { nowVN } from "@/utils/date";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+const VN_TZ = "Asia/Ho_Chi_Minh";
 
 type WhereCondition = {
   OR?: Array<{
@@ -82,16 +90,16 @@ export async function GET(request: NextRequest) {
   if (dateFilter) {
     // Use specific date
     const targetDate = dayjs(dateFilter);
-    const startOfDay = targetDate.startOf("day").toDate();
-    const endOfDay = targetDate.endOf("day").toDate();
+    const startOfDay = targetDate.tz(VN_TZ).startOf("day").format();
+    const endOfDay = targetDate.tz(VN_TZ).endOf("day").format();
     where.createdAt = {
       gte: startOfDay,
       lte: endOfDay,
     };
   } else if (todayOnly) {
     // Fallback to today for backward compatibility
-    const startOfDay = dayjs().startOf("day").toDate();
-    const endOfDay = dayjs().endOf("day").toDate();
+    const startOfDay = dayjs().tz(VN_TZ).startOf("day").format();
+    const endOfDay = dayjs().tz(VN_TZ).endOf("day").format();
     where.createdAt = {
       gte: startOfDay,
       lte: endOfDay,
@@ -121,8 +129,8 @@ export async function GET(request: NextRequest) {
       appointmentDate = dayjs();
     }
 
-    const startOfDay = appointmentDate.startOf("day").toDate();
-    const endOfDay = appointmentDate.endOf("day").toDate();
+    const startOfDay = appointmentDate.tz(VN_TZ).startOf("day").format();
+    const endOfDay = appointmentDate.tz(VN_TZ).endOf("day").format();
 
     include.appointments = {
       where: {
@@ -222,7 +230,7 @@ export async function POST(request: NextRequest) {
     data.fullName_lowercase = data.fullName?.toLowerCase().trim() || "";
 
     // 2. Sinh customerCode (logic này vẫn giữ nguyên)
-    const now = new Date();
+    const now = new Date(); // Dùng cho logic sinh mã, không cần VN timezone
     const year = now.getFullYear() % 100;
     const month = String(now.getMonth() + 1).padStart(2, "0");
     const prefixMap: Record<string, string> = {

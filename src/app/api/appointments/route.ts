@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/services/prismaClient";
 import { Prisma } from "@prisma/client";
 import dayjs from "dayjs";
+import { toISOStringVN } from "@/utils/date";
 
 // Lấy danh sách lịch hẹn (theo ngày, bác sĩ, clinic nếu muốn)
 export async function GET(request: NextRequest) {
@@ -29,8 +30,8 @@ export async function GET(request: NextRequest) {
     // Logic cho Calendar View (lọc theo ngày)
     if (from && to) {
       where.appointmentDateTime = {
-        gte: new Date(from),
-        lte: new Date(to),
+        gte: from,
+        lte: to,
       };
     }
 
@@ -110,8 +111,8 @@ export async function POST(request: NextRequest) {
     }
 
     // ✅ VALIDATION 2: Kiểm tra khách hàng đã có lịch trong ngày chưa (MỘT KHÁCH MỘT LỊCH/NGÀY)
-    const startOfDay = appointmentDate.startOf("day").toDate();
-    const endOfDay = appointmentDate.endOf("day").toDate();
+    const startOfDay = appointmentDate.startOf("day").format();
+    const endOfDay = appointmentDate.endOf("day").format();
 
     const existingAppointment = await prisma.appointment.findFirst({
       where: {

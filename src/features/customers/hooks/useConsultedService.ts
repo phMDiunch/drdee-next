@@ -3,6 +3,7 @@ import { useState } from "react";
 import { toast } from "react-toastify";
 import { useAppStore } from "@/stores/useAppStore";
 import type { ConsultedServiceWithDetails } from "@/features/consulted-service/type";
+import { nowVN } from "@/utils/date";
 
 export function useConsultedService(customer: any, setCustomer: any) {
   const [modalState, setModalState] = useState<{
@@ -149,7 +150,7 @@ export function useConsultedService(customer: any, setCustomer: any) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           serviceStatus: "Đã chốt",
-          serviceConfirmDate: new Date().toISOString(),
+          serviceConfirmDate: nowVN(),
           updatedById: employeeProfile?.id,
         }),
       });

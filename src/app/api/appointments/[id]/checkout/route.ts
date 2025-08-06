@@ -1,6 +1,7 @@
 // src/app/api/appointments/[id]/checkout/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/services/prismaClient";
+import { nowVN } from "@/utils/date";
 
 export const dynamic = "force-dynamic";
 
@@ -42,12 +43,13 @@ export async function PATCH(
     }
 
     // Cập nhật check-out
+    const now = nowVN();
     const updatedAppointment = await prisma.appointment.update({
       where: { id },
       data: {
-        checkOutTime: new Date(),
+        checkOutTime: now,
         updatedById,
-        updatedAt: new Date(),
+        updatedAt: now,
       },
       include: {
         customer: {
@@ -76,8 +78,10 @@ export async function PATCH(
       `✅ Check-out successful for customer: ${existingAppointment.customer.fullName}`
     );
     return NextResponse.json(updatedAppointment);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Check-out error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

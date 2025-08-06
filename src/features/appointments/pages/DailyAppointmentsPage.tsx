@@ -12,7 +12,7 @@ import AppointmentTable from "../components/AppointmentTable";
 import AppointmentModal from "../components/AppointmentModal";
 import { useAppStore } from "@/stores/useAppStore";
 import type { Appointment } from "../type";
-import { formatDateTimeVN } from "@/utils/date";
+import { formatDateTimeVN, toISOStringVN } from "@/utils/date";
 import dayjs from "dayjs";
 
 const { Title } = Typography;
@@ -332,7 +332,7 @@ export default function DailyAppointmentsPage() {
         "$d" in values.appointmentDateTime
       ) {
         const dateValue = values.appointmentDateTime as { $d: Date };
-        values.appointmentDateTime = dayjs(dateValue.$d).toISOString();
+        values.appointmentDateTime = toISOStringVN(dateValue.$d);
       }
 
       const isEdit = modal.mode === "edit";

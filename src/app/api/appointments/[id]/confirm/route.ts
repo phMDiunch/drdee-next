@@ -1,6 +1,7 @@
 // src/app/api/appointments/[id]/confirm/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/services/prismaClient";
+import { nowVN } from "@/utils/date";
 import { STATUS_TRANSITIONS } from "@/features/appointments/constants";
 
 export async function PATCH(
@@ -44,7 +45,7 @@ export async function PATCH(
       data: {
         status: "Đã xác nhận",
         updatedById,
-        updatedAt: new Date(),
+        updatedAt: nowVN(),
       },
       include: {
         customer: {

@@ -2,6 +2,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/services/prismaClient";
 import dayjs from "dayjs";
+import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+const VN_TZ = "Asia/Ho_Chi_Minh";
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,8 +25,8 @@ export async function GET(request: NextRequest) {
     }
 
     const selectedDate = dayjs(date);
-    const startOfDay = selectedDate.startOf("day").toDate();
-    const endOfDay = selectedDate.endOf("day").toDate();
+    const startOfDay = selectedDate.tz(VN_TZ).startOf("day").format();
+    const endOfDay = selectedDate.tz(VN_TZ).endOf("day").format();
 
     const whereClause: any = {
       customerId,

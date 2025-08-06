@@ -1,6 +1,7 @@
 // src/app/api/payment-vouchers/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/services/prismaClient";
+import { nowVN } from "@/utils/date";
 
 export async function DELETE(
   request: NextRequest,
@@ -97,7 +98,7 @@ export async function PUT(
         where: { id },
         data: {
           ...voucherData,
-          updatedAt: new Date(),
+          updatedAt: nowVN(),
         },
       });
 

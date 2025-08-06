@@ -2,6 +2,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/services/prismaClient";
 import dayjs from "dayjs";
+import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
+import { nowVN, formatDateTimeVN } from "@/utils/date";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+const VN_TZ = "Asia/Ho_Chi_Minh";
 
 export async function POST(
   request: NextRequest,
@@ -26,8 +34,8 @@ export async function POST(
 
     // Kiểm tra đã có lịch hẹn hôm nay chưa
     const today = dayjs();
-    const startOfDay = today.startOf("day").toDate();
-    const endOfDay = today.endOf("day").toDate();
+    const startOfDay = today.tz(VN_TZ).startOf("day").format();
+    const endOfDay = today.tz(VN_TZ).endOf("day").format();
 
     const existingAppointment = await prisma.appointment.findFirst({
       where: {
@@ -67,20 +75,25 @@ export async function POST(
         );
       }
 
+      const now = nowVN();
       appointment = await prisma.appointment.update({
         where: { id: existingAppointment.id },
         data: {
-          checkInTime: new Date(),
+          checkInTime: now,
           status: "Đã đến", // ✅ Chuyển thành "Đã đến"
           // ✅ NEW: Chỉ update notes nếu appointment chưa có notes
           ...(existingAppointment.notes
             ? {} // Giữ nguyên notes cũ
             : {
                 notes:
-                  notes || `Check-in lúc ${dayjs().format("HH:mm DD/MM/YYYY")}`,
+                  notes ||
+                  `Check-in lúc ${formatDateTimeVN(
+                    new Date(),
+                    "HH:mm DD/MM/YYYY"
+                  )}`,
               }),
           updatedById,
-          updatedAt: new Date(),
+          updatedAt: now,
         },
         include: {
           customer: { select: { id: true, fullName: true, phone: true } },
@@ -98,7 +111,7 @@ export async function POST(
         );
       }
 
-      const now = new Date();
+      const now = nowVN();
 
       appointment = await prisma.appointment.create({
         data: {
@@ -107,7 +120,8 @@ export async function POST(
           duration: 30, // ✅ Mặc định 30 phút
           notes:
             notes ||
-            `Lịch phát sinh - Check-in lúc ${dayjs().format(
+            `Lịch phát sinh - Check-in lúc ${formatDateTimeVN(
+              new Date(),
               "HH:mm DD/MM/YYYY"
             )}`,
           primaryDentistId,
@@ -133,8 +147,10 @@ export async function POST(
         ? "Check-in thành công!"
         : "Tạo lịch mới và check-in thành công!",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Customer check-in error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
