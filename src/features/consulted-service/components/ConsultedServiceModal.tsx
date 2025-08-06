@@ -2,6 +2,7 @@
 "use client";
 import { Modal, Typography, Form } from "antd";
 import ConsultedServiceForm from "./ConsultedServiceForm";
+import ConsultedServiceView from "./ConsultedServiceView";
 import { useAppStore } from "@/stores/useAppStore";
 import { useEffect } from "react";
 import type { ConsultedServiceWithDetails } from "../type";
@@ -10,10 +11,10 @@ const { Title } = Typography;
 
 type Props = {
   open: boolean;
-  mode: "add" | "edit";
+  mode: "add" | "edit" | "view"; // ✅ NEW: Add "view" mode
   initialData?: Partial<ConsultedServiceWithDetails>;
   onCancel: () => void;
-  onFinish: (values: any) => void;
+  onFinish: (values: Record<string, unknown>) => void; // ✅ FIX: Replace any with Record<string, unknown>
   loading?: boolean;
 };
 
@@ -38,11 +39,26 @@ export default function ConsultedServiceModal({
       // Nếu là chế độ sửa, điền dữ liệu vào form
       if (mode === "edit" && initialData) {
         form.setFieldsValue(initialData);
-      } else {
+      } else if (mode === "add") {
         form.resetFields();
       }
+      // View mode không cần form logic
     }
   }, [open, mode, initialData, form]);
+
+  // ✅ NEW: Dynamic title based on mode
+  const getTitle = () => {
+    switch (mode) {
+      case "add":
+        return "Thêm dịch vụ tư vấn";
+      case "edit":
+        return "Sửa dịch vụ tư vấn";
+      case "view":
+        return "Chi tiết dịch vụ tư vấn";
+      default:
+        return "Dịch vụ tư vấn";
+    }
+  };
 
   // const handleOk = () => {
   //   form.submit();
@@ -52,7 +68,7 @@ export default function ConsultedServiceModal({
     <Modal
       title={
         <Title level={4} style={{ margin: 0 }}>
-          {mode === "edit" ? "Sửa dịch vụ tư vấn" : "Thêm dịch vụ tư vấn"}
+          {getTitle()}
         </Title>
       }
       open={open}
@@ -63,13 +79,19 @@ export default function ConsultedServiceModal({
       destroyOnHidden
       width={800}
     >
-      <ConsultedServiceForm
-        form={form}
-        onFinish={onFinish}
-        loading={loading}
-        dentalServices={dentalServices}
-        employees={activeEmployees}
-      />
+      {mode === "view" ? (
+        <ConsultedServiceView
+          service={initialData as ConsultedServiceWithDetails}
+        />
+      ) : (
+        <ConsultedServiceForm
+          form={form}
+          onFinish={onFinish}
+          loading={loading}
+          dentalServices={dentalServices}
+          employees={activeEmployees}
+        />
+      )}
     </Modal>
   );
 }

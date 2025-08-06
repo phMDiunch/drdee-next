@@ -242,6 +242,7 @@ export default function CustomerDetailPage({ customerId }: Props) {
             onEdit={consultedServiceHook.handleEditService}
             onDelete={consultedServiceHook.handleDeleteService}
             onConfirm={consultedServiceHook.handleConfirmService}
+            onView={consultedServiceHook.handleViewService} // ✅ NEW: Add view handler
             disableAdd={!todayCheckinStatus.hasCheckedIn}
           />
         </div>

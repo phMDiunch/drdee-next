@@ -2,6 +2,70 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/services/prismaClient";
 
+// ✅ GET single consulted service
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+
+    const consultedService = await prisma.consultedService.findUnique({
+      where: { id },
+      include: {
+        customer: {
+          select: {
+            id: true,
+            customerCode: true,
+            fullName: true,
+            phone: true,
+          },
+        },
+        dentalService: {
+          select: {
+            id: true,
+            name: true,
+            unit: true,
+          },
+        },
+        consultingDoctor: {
+          select: {
+            id: true,
+            fullName: true,
+          },
+        },
+        treatingDoctor: {
+          select: {
+            id: true,
+            fullName: true,
+          },
+        },
+        consultingSale: {
+          select: {
+            id: true,
+            fullName: true,
+          },
+        },
+      },
+    });
+
+    if (!consultedService) {
+      return NextResponse.json(
+        { error: "Không tìm thấy dịch vụ tư vấn" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(consultedService);
+  } catch (error: unknown) {
+    console.error("Error fetching consulted service:", error);
+    return NextResponse.json(
+      { error: "Lỗi server khi tải dịch vụ tư vấn" },
+      { status: 500 }
+    );
+  }
+}
+
 // --- HÀM CẬP NHẬT (SỬA) ---
 export async function PUT(
   request: NextRequest,

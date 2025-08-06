@@ -13,6 +13,7 @@ import {
   ClockCircleOutlined,
   ScheduleOutlined,
   DollarOutlined, // ✅ THÊM icon cho Payment
+  ExperimentOutlined, // ✅ THÊM icon cho Consulted Services
 } from "@ant-design/icons";
 
 const menuItems = [
@@ -48,6 +49,19 @@ const menuItems = [
       },
     ],
   },
+  // ✅ NEW: Consulted Services menu
+  {
+    key: "consulted-services",
+    icon: <ExperimentOutlined />,
+    label: "Dịch vụ tư vấn",
+    children: [
+      {
+        key: "consulted-services-daily",
+        icon: <ClockCircleOutlined />,
+        label: <Link href="/consulted-services-daily">Theo ngày</Link>,
+      },
+    ],
+  },
   // ✅ Payment menu - single entry point
   {
     key: "payments",
@@ -73,6 +87,8 @@ export default function SidebarNav() {
 
   const [openKeys, setOpenKeys] = useState<string[]>(() => {
     if (pathname.startsWith("/appointments")) return ["appointments"];
+    if (pathname.startsWith("/consulted-services"))
+      return ["consulted-services"];
     if (pathname.startsWith("/dental-services")) return ["settings"];
     return [];
   });
@@ -88,6 +104,8 @@ export default function SidebarNav() {
     selectedKey = "appointments-today";
   } else if (pathname.startsWith("/appointments")) {
     selectedKey = "appointments-list";
+  } else if (pathname.startsWith("/consulted-services-daily")) {
+    selectedKey = "consulted-services-daily";
   } else if (pathname.startsWith("/payments")) {
     selectedKey = "payments";
   } else if (pathname.startsWith("/dental-services")) {

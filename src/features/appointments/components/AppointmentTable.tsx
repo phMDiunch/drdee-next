@@ -16,6 +16,7 @@ import {
   LogoutOutlined,
   CheckOutlined,
   CloseOutlined,
+  PhoneOutlined,
 } from "@ant-design/icons";
 import type { Appointment } from "../type";
 import { BRANCHES } from "@/constants";
@@ -191,11 +192,20 @@ export default function AppointmentTable({
           <div>
             <div>{customer?.fullName || "-"}</div>
             {phone && (
-              <div
-                style={{ fontSize: "12px", color: "#666", marginTop: "2px" }}
-              >
-                {phone}
-              </div>
+              <Tooltip title={phone} placement="top">
+                <div
+                  style={{
+                    fontSize: "14px",
+                    color: "#1890ff",
+                    marginTop: "2px",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                  }}
+                >
+                  <PhoneOutlined />
+                </div>
+              </Tooltip>
             )}
           </div>
         );

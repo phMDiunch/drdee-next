@@ -1,12 +1,7 @@
 // src/features/consulted-service/components/ConsultedServiceTable.tsx
 "use client";
 import { Table, Button, Space, Tag, Typography, Tooltip } from "antd";
-import {
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  CheckOutlined,
-} from "@ant-design/icons";
+import { PlusOutlined, CheckOutlined, EyeOutlined } from "@ant-design/icons";
 import type { ConsultedServiceWithDetails } from "../type";
 import { formatCurrency, formatDateTimeVN } from "@/utils/date"; // ✅ SỬA: Đường dẫn đúng
 
@@ -19,7 +14,11 @@ type Props = {
   onEdit: (service: ConsultedServiceWithDetails) => void;
   onDelete: (service: ConsultedServiceWithDetails) => void;
   onConfirm: (service: ConsultedServiceWithDetails) => void;
+  onView: (service: ConsultedServiceWithDetails) => void; // ✅ NEW: View action
   disableAdd?: boolean;
+  showCustomerColumn?: boolean; // ✅ NEW: Option to show customer info
+  hideAddButton?: boolean; // ✅ NEW: Option to completely hide add button
+  title?: string; // ✅ NEW: Custom title
 };
 
 export default function ConsultedServiceTable({
@@ -29,9 +28,42 @@ export default function ConsultedServiceTable({
   onEdit,
   onDelete,
   onConfirm,
+  onView, // ✅ NEW: View handler
   disableAdd = false,
+  showCustomerColumn = false,
+  hideAddButton = false,
+  title = "Danh sách dịch vụ đã tư vấn",
 }: Props) {
   const columns = [
+    // ✅ Customer column (conditional)
+    ...(showCustomerColumn
+      ? [
+          {
+            title: "Khách hàng",
+            key: "customer",
+            render: (_: unknown, record: ConsultedServiceWithDetails) => (
+              <div>
+                <div style={{ fontWeight: 500 }}>
+                  {record.customer?.fullName || "N/A"}
+                </div>
+                <div style={{ marginTop: 4 }}>
+                  <Tag
+                    color="blue"
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: "bold",
+                      padding: "2px 8px",
+                    }}
+                  >
+                    {record.customer?.customerCode}
+                  </Tag>
+                </div>
+              </div>
+            ),
+            width: 200,
+          },
+        ]
+      : []),
     {
       title: "Tên dịch vụ",
       dataIndex: "consultedServiceName",
@@ -95,8 +127,17 @@ export default function ConsultedServiceTable({
     {
       title: "Thao tác",
       key: "action",
-      render: (_: any, record: ConsultedServiceWithDetails) => (
+      render: (_: unknown, record: ConsultedServiceWithDetails) => (
         <Space>
+          {/* Button Xem */}
+          <Button
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() => onView(record)}
+          >
+            Xem
+          </Button>
+
           {/* Button Chốt */}
           {record.serviceStatus !== "Đã chốt" && (
             <Button
@@ -140,22 +181,26 @@ export default function ConsultedServiceTable({
         }}
       >
         <Title level={5} style={{ margin: 0 }}>
-          Danh sách dịch vụ đã tư vấn
+          {title}
         </Title>
 
-        {/* ✅ Disable button với tooltip */}
-        <Tooltip
-          title={disableAdd ? "Cần check-in trước khi tạo dịch vụ tư vấn" : ""}
-        >
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={onAdd}
-            disabled={disableAdd} // ✅ DISABLE KHI CHƯA CHECK-IN
+        {/* ✅ Conditional Add Button */}
+        {!hideAddButton && (
+          <Tooltip
+            title={
+              disableAdd ? "Cần check-in trước khi tạo dịch vụ tư vấn" : ""
+            }
           >
-            Thêm dịch vụ tư vấn
-          </Button>
-        </Tooltip>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={onAdd}
+              disabled={disableAdd}
+            >
+              Thêm dịch vụ tư vấn
+            </Button>
+          </Tooltip>
+        )}
       </div>
 
       <Table

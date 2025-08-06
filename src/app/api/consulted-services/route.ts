@@ -3,6 +3,90 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/services/prismaClient";
 import dayjs from "dayjs";
 
+// ✅ GET method for ConsultedServiceDailyPage
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const date = searchParams.get("date"); // YYYY-MM-DD format
+    const clinicId = searchParams.get("clinicId");
+
+    if (!date) {
+      return NextResponse.json(
+        { error: "Thiếu tham số date" },
+        { status: 400 }
+      );
+    }
+
+    // Tạo start và end của ngày
+    const startOfDay = dayjs(date).startOf("day").toISOString();
+    const endOfDay = dayjs(date).endOf("day").toISOString();
+
+    const whereCondition: Record<string, unknown> = {
+      consultationDate: {
+        gte: startOfDay,
+        lte: endOfDay,
+      },
+    };
+
+    // Filter theo clinicId nếu có
+    if (clinicId) {
+      whereCondition.clinicId = clinicId;
+    }
+
+    const consultedServices = await prisma.consultedService.findMany({
+      where: whereCondition,
+      include: {
+        customer: {
+          select: {
+            id: true,
+            customerCode: true,
+            fullName: true,
+            phone: true,
+          },
+        },
+        dentalService: {
+          select: {
+            id: true,
+            name: true,
+            unit: true,
+          },
+        },
+        consultingDoctor: {
+          select: {
+            id: true,
+            fullName: true,
+          },
+        },
+        treatingDoctor: {
+          select: {
+            id: true,
+            fullName: true,
+          },
+        },
+        consultingSale: {
+          select: {
+            id: true,
+            fullName: true,
+          },
+        },
+      },
+      orderBy: {
+        consultationDate: "asc",
+      },
+    });
+
+    console.log(
+      `🦷 Found ${consultedServices.length} consulted services for ${date}`
+    );
+    return NextResponse.json(consultedServices);
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    console.error("GET consulted services error:", error);
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
@@ -97,8 +181,10 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     console.error("Lỗi khi tạo dịch vụ tư vấn:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

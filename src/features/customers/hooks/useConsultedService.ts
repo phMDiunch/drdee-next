@@ -7,7 +7,7 @@ import type { ConsultedServiceWithDetails } from "@/features/consulted-service/t
 export function useConsultedService(customer: any, setCustomer: any) {
   const [modalState, setModalState] = useState<{
     open: boolean;
-    mode: "add" | "edit";
+    mode: "add" | "edit" | "view"; // ✅ ADD: Support view mode
     data?: Partial<ConsultedServiceWithDetails>;
   }>({ open: false, mode: "add" });
 
@@ -20,6 +20,11 @@ export function useConsultedService(customer: any, setCustomer: any) {
 
   const handleEditService = (service: ConsultedServiceWithDetails) => {
     setModalState({ open: true, mode: "edit", data: service });
+  };
+
+  // ✅ NEW: Handle View Service
+  const handleViewService = (service: ConsultedServiceWithDetails) => {
+    setModalState({ open: true, mode: "view", data: service });
   };
 
   const handleFinishService = async (values: any) => {
@@ -174,6 +179,7 @@ export function useConsultedService(customer: any, setCustomer: any) {
     saving,
     handleAddService,
     handleEditService,
+    handleViewService, // ✅ NEW: Export view handler
     handleFinishService,
     handleDeleteService,
     handleConfirmService,
