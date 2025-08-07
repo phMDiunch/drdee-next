@@ -44,6 +44,7 @@ import AppointmentModal from "@/features/appointments/components/AppointmentModa
 import PaymentVoucherTable from "@/features/payment/components/PaymentVoucherTable";
 import PaymentVoucherModal from "@/features/payment/components/PaymentVoucherModal";
 import CustomerModal from "../components/CustomerModal";
+import TreatmentLogTab from "@/features/treatment-log/components/TreatmentLogTab";
 
 const { Title, Text } = Typography;
 
@@ -250,6 +251,11 @@ export default function CustomerDetailPage({ customerId }: Props) {
     },
     {
       key: "4",
+      label: "Lịch sử điều trị",
+      children: <TreatmentLogTab customerId={customerId} />,
+    },
+    {
+      key: "5",
       label: `Phiếu thu (${customer?.paymentVouchers?.length || 0})`,
       children: (
         <PaymentVoucherTable

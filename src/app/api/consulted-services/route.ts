@@ -16,24 +16,34 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const date = searchParams.get("date"); // YYYY-MM-DD format
     const clinicId = searchParams.get("clinicId");
+    const customerId = searchParams.get("customerId"); // ✅ THÊM support cho customerId
 
-    if (!date) {
+    // ✅ SỬA: Nếu có customerId thì không cần date
+    if (!date && !customerId) {
       return NextResponse.json(
-        { error: "Thiếu tham số date" },
+        { error: "Thiếu tham số date hoặc customerId" },
         { status: 400 }
       );
     }
 
-    // Tạo start và end của ngày với timezone VN
-    const startOfDay = dayjs(date).tz(VN_TZ).startOf("day").format();
-    const endOfDay = dayjs(date).tz(VN_TZ).endOf("day").format();
+    const whereCondition: Record<string, unknown> = {};
 
-    const whereCondition: Record<string, unknown> = {
-      consultationDate: {
+    // ✅ THÊM: Filter theo customerId
+    if (customerId) {
+      whereCondition.customerId = customerId;
+    }
+
+    // Filter theo date nếu có
+    if (date) {
+      // Tạo start và end của ngày với timezone VN
+      const startOfDay = dayjs(date).tz(VN_TZ).startOf("day").format();
+      const endOfDay = dayjs(date).tz(VN_TZ).endOf("day").format();
+
+      whereCondition.consultationDate = {
         gte: startOfDay,
         lte: endOfDay,
-      },
-    };
+      };
+    }
 
     // Filter theo clinicId nếu có
     if (clinicId) {
@@ -83,9 +93,17 @@ export async function GET(request: NextRequest) {
     });
 
     console.log(
-      `🦷 Found ${consultedServices.length} consulted services for ${date}`
+      `🦷 Found ${consultedServices.length} consulted services for ${
+        customerId ? `customer ${customerId}` : `date ${date}`
+      }`
     );
-    return NextResponse.json(consultedServices);
+
+    // ✅ FIX: Nếu có customerId thì wrap trong object data, còn không thì return array trực tiếp
+    if (customerId) {
+      return NextResponse.json({ data: consultedServices });
+    } else {
+      return NextResponse.json(consultedServices); // ✅ Tương thích ngược với consulted-services-daily page
+    }
   } catch (error: unknown) {
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
