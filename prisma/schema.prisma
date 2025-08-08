@@ -303,6 +303,7 @@ model TreatmentLog {
   dentistId    String
   assistant1Id String?
   assistant2Id String?
+  clinicId     String?
 
   // ---- Metadata & Ghi nhận ----
   createdById String

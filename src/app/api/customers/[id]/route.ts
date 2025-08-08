@@ -18,7 +18,7 @@ export async function GET(
           // Full details for CustomerDetailPage
           primaryContact: true,
           appointments: {
-            orderBy: { appointmentDateTime: "desc" },
+            orderBy: { appointmentDateTime: "desc" as const },
             include: {
               customer: true,
               primaryDentist: true,
@@ -26,19 +26,37 @@ export async function GET(
             },
           },
           consultedServices: {
-            orderBy: { consultationDate: "desc" },
+            orderBy: { consultationDate: "desc" as const },
             include: {
               dentalService: true,
+              consultingDoctor: {
+                select: {
+                  id: true,
+                  fullName: true,
+                },
+              },
+              treatingDoctor: {
+                select: {
+                  id: true,
+                  fullName: true,
+                },
+              },
+              consultingSale: {
+                select: {
+                  id: true,
+                  fullName: true,
+                },
+              },
             },
           },
           treatmentLogs: {
-            orderBy: { treatmentDate: "desc" },
+            orderBy: { treatmentDate: "desc" as const },
             include: {
               dentist: true,
             },
           },
           paymentVouchers: {
-            orderBy: { paymentDate: "desc" },
+            orderBy: { paymentDate: "desc" as const },
             include: {
               customer: {
                 select: {
@@ -90,7 +108,7 @@ export async function GET(
                 },
               },
             },
-            orderBy: { createdAt: "desc" },
+            orderBy: { createdAt: "desc" as const },
           },
         };
 
