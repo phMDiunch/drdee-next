@@ -1,7 +1,13 @@
 // src/features/consulted-service/components/ConsultedServiceTable.tsx
 "use client";
 import { Table, Button, Space, Tag, Typography, Tooltip } from "antd";
-import { PlusOutlined, CheckOutlined, EyeOutlined } from "@ant-design/icons";
+import {
+  PlusOutlined,
+  CheckOutlined,
+  EyeOutlined,
+  EditOutlined,
+  DeleteOutlined,
+} from "@ant-design/icons";
 import type { ConsultedServiceWithDetails } from "../type";
 import { formatCurrency, formatDateTimeVN } from "@/utils/date"; // ✅ SỬA: Đường dẫn đúng
 
@@ -34,6 +40,22 @@ export default function ConsultedServiceTable({
   hideAddButton = false,
   title = "Danh sách dịch vụ đã tư vấn",
 }: Props) {
+  // ✅ UPDATE: Function to check if user can delete a service
+  const canDeleteService = (service: ConsultedServiceWithDetails): boolean => {
+    // Không được xóa dịch vụ đã chốt
+    if (service.serviceStatus === "Đã chốt") {
+      return false;
+    }
+
+    console.log("🗑️ Delete permission check:", {
+      serviceId: service.id,
+      serviceName: service.consultedServiceName,
+      serviceStatus: service.serviceStatus,
+      canDelete: true,
+    });
+
+    return true;
+  };
   const columns = [
     // ✅ Customer column (conditional)
     ...(showCustomerColumn
@@ -60,7 +82,6 @@ export default function ConsultedServiceTable({
                 </div>
               </div>
             ),
-            width: 200,
           },
         ]
       : []),
@@ -87,58 +108,90 @@ export default function ConsultedServiceTable({
       render: (price: number) => formatCurrency(price), // ✅ SỬA: Dùng formatCurrency
     },
     {
-      title: "Trạng thái dịch vụ",
-      dataIndex: "serviceStatus",
-      key: "serviceStatus",
-      render: (status: string) => (
-        <Tag color={status === "Đã chốt" ? "green" : "orange"}>{status}</Tag>
+      title: "Bác sĩ tư vấn",
+      key: "consultingDoctor",
+      render: (_: unknown, record: ConsultedServiceWithDetails) => (
+        <span>{record.consultingDoctor?.fullName || "-"}</span>
       ),
     },
     {
-      title: "Trạng thái điều trị",
-      dataIndex: "treatmentStatus",
-      key: "treatmentStatus",
-      render: (status: string) => (
-        <Tag
-          color={
-            status === "Hoàn thành"
-              ? "green"
-              : status === "Đang điều trị"
-              ? "blue"
-              : "default"
-          }
-        >
-          {status}
-        </Tag>
+      title: "Sale tư vấn",
+      key: "consultingSale",
+      render: (_: unknown, record: ConsultedServiceWithDetails) => (
+        <span>{record.consultingSale?.fullName || "-"}</span>
       ),
     },
+    {
+      title: "Bác sĩ điều trị",
+      key: "treatingDoctor",
+      render: (_: unknown, record: ConsultedServiceWithDetails) => (
+        <span>{record.treatingDoctor?.fullName || "-"}</span>
+      ),
+    },
+    {
+      title: "Trạng thái dịch vụ",
+      dataIndex: "serviceStatus",
+      key: "serviceStatus",
+      render: (status: string, record: ConsultedServiceWithDetails) => (
+        <Tooltip
+          title={
+            status === "Đã chốt" && record.serviceConfirmDate
+              ? `Ngày chốt: ${formatDateTimeVN(record.serviceConfirmDate)}`
+              : status === "Đã chốt"
+              ? "Đã chốt (chưa có ngày chốt)"
+              : "Chưa chốt"
+          }
+        >
+          <Tag color={status === "Đã chốt" ? "green" : "orange"}>{status}</Tag>
+        </Tooltip>
+      ),
+    },
+    // {
+    //   title: "Trạng thái điều trị",
+    //   dataIndex: "treatmentStatus",
+    //   key: "treatmentStatus",
+    //   render: (status: string) => (
+    //     <Tag
+    //       color={
+    //         status === "Hoàn thành"
+    //           ? "green"
+    //           : status === "Đang điều trị"
+    //           ? "blue"
+    //           : "default"
+    //       }
+    //     >
+    //       {status}
+    //     </Tag>
+    //   ),
+    // },
     {
       title: "Ngày tư vấn",
       dataIndex: "consultationDate",
       key: "consultationDate",
       render: (date: string) => formatDateTimeVN(date),
     },
-    {
-      title: "Ngày chốt",
-      dataIndex: "serviceConfirmDate",
-      key: "serviceConfirmDate",
-      render: (date: string) => (date ? formatDateTimeVN(date) : "-"),
-    },
+    // ✅ ẨNĐI: Cột ngày chốt (thông tin này sẽ hiển thị trong tooltip của trạng thái)
+    // {
+    //   title: "Ngày chốt",
+    //   dataIndex: "serviceConfirmDate",
+    //   key: "serviceConfirmDate",
+    //   render: (date: string) => (date ? formatDateTimeVN(date) : "-"),
+    // },
     {
       title: "Thao tác",
       key: "action",
       render: (_: unknown, record: ConsultedServiceWithDetails) => (
-        <Space>
-          {/* Button Xem */}
-          <Button
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => onView(record)}
-          >
-            Xem
-          </Button>
+        <Space size="small">
+          {/* Button Xem - chỉ icon */}
+          <Tooltip title="Xem">
+            <Button
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => onView(record)}
+            />
+          </Tooltip>
 
-          {/* Button Chốt */}
+          {/* Button Chốt - giữ nguyên text */}
           {record.serviceStatus !== "Đã chốt" && (
             <Button
               size="small"
@@ -150,20 +203,25 @@ export default function ConsultedServiceTable({
             </Button>
           )}
 
-          {/* ✅ SỬA: Disable edit nếu đã chốt */}
-          <Button
-            size="small"
-            onClick={() => onEdit(record)}
-            disabled={record.serviceStatus === "Đã chốt"}
-          >
-            Sửa
-          </Button>
+          {/* Button Sửa - chỉ icon */}
+          <Tooltip title="Sửa">
+            <Button
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => onEdit(record)}
+            />
+          </Tooltip>
 
-          {/* Button Xóa - chỉ hiện khi chưa chốt */}
-          {record.serviceStatus !== "Đã chốt" && (
-            <Button size="small" danger onClick={() => onDelete(record)}>
-              Xóa
-            </Button>
+          {/* Button Xóa - chỉ icon */}
+          {canDeleteService(record) && (
+            <Tooltip title="Xóa">
+              <Button
+                size="small"
+                danger
+                icon={<DeleteOutlined />}
+                onClick={() => onDelete(record)}
+              />
+            </Tooltip>
           )}
         </Space>
       ),
@@ -211,6 +269,7 @@ export default function ConsultedServiceTable({
         bordered
         size="middle"
         pagination={{ pageSize: 10 }}
+        scroll={{ x: 1100 }} // ✅ SỬA: Giảm thêm width vì cột thao tác đã gọn hơn
       />
     </div>
   );

@@ -90,6 +90,7 @@ export default function ConsultedServiceModal({
           loading={loading}
           dentalServices={dentalServices}
           employees={activeEmployees}
+          initialData={initialData}
         />
       )}
     </Modal>

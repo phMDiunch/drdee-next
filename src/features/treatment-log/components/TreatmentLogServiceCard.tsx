@@ -16,6 +16,7 @@ import {
 } from "@ant-design/icons";
 import { formatDateTimeVN } from "@/utils/date";
 import type { TreatmentLogWithDetails } from "../type";
+import { title } from "process";
 
 const { Text } = Typography;
 
@@ -98,6 +99,12 @@ export default function TreatmentLogServiceCard({
       title: "Ghi chú điều trị",
       dataIndex: "treatmentNotes",
       key: "treatmentNotes",
+      ellipsis: true,
+    },
+    {
+      title: "Nội dung điều trị kế tiếp",
+      dataIndex: "nextStepNotes",
+      key: "nextStepNotes",
       ellipsis: true,
     },
     {

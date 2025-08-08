@@ -1,8 +1,11 @@
 // src/features/consulted-service/components/ConsultedServiceForm.tsx
 "use client";
 import { Form, Select, InputNumber, Row, Col, Button, Input, Tag } from "antd";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import type { DentalService, Employee } from "@prisma/client";
+import { useAppStore } from "@/stores/useAppStore";
+import { calculateDaysSinceConfirm } from "@/utils/date";
+import type { ConsultedServiceWithDetails } from "../type";
 import ToothSelectionModal from "./ToothSelectionModal ";
 
 const { TextArea } = Input;
@@ -13,6 +16,7 @@ type Props = {
   loading?: boolean;
   dentalServices: DentalService[];
   employees: Employee[];
+  initialData?: Partial<ConsultedServiceWithDetails>; // ✅ ADD: To check edit permissions
 };
 
 export default function ConsultedServiceForm({
@@ -21,13 +25,55 @@ export default function ConsultedServiceForm({
   loading = false,
   dentalServices = [],
   employees = [],
+  initialData, // ✅ ADD: Initial data for permission checking
 }: Props) {
-  const [formInstance] = Form.useForm(form);
+  // ✅ FIX: Create form instance once and use passed form if available
+  const [defaultForm] = Form.useForm();
+  const formInstance = form || defaultForm;
   const [toothModalVisible, setToothModalVisible] = useState(false);
   const [selectedTeeth, setSelectedTeeth] = useState<string[]>([]);
 
+  // ✅ ADD: Get current user profile for permission checking
+  const { employeeProfile } = useAppStore();
+
   // ✅ UPDATED: Sử dụng tất cả employees thay vì filter theo chức danh
   const allEmployees = employees; // Không filter gì cả
+
+  // ✅ ADD: Check if user can edit employee fields (doctors, sale)
+  const canEditEmployeeFields = useMemo(() => {
+    const isAdmin = employeeProfile?.role === "admin";
+
+    if (isAdmin) return true;
+
+    // Service chưa chốt thì vẫn sửa được
+    if (
+      !initialData?.serviceConfirmDate ||
+      initialData?.serviceStatus !== "Đã chốt"
+    ) {
+      return true;
+    }
+
+    const confirmDateStr =
+      typeof initialData.serviceConfirmDate === "string"
+        ? initialData.serviceConfirmDate
+        : initialData.serviceConfirmDate.toISOString();
+    const daysSinceConfirm = calculateDaysSinceConfirm(confirmDateStr);
+    return daysSinceConfirm <= 33;
+  }, [employeeProfile?.role, initialData]);
+
+  // ✅ NEW: Check if user can edit other fields (non-employee fields)
+  const canEditOtherFields = useMemo(() => {
+    // Nếu service chưa chốt thì sửa được tất cả
+    if (
+      !initialData?.serviceConfirmDate ||
+      initialData?.serviceStatus !== "Đã chốt"
+    ) {
+      return true;
+    }
+
+    // Nếu service đã chốt thì không được sửa các trường khác
+    return false;
+  }, [initialData]);
 
   // Thêm console.log để debug:
   console.log("All employees:", employees); // ✅ DEBUG
@@ -100,6 +146,7 @@ export default function ConsultedServiceForm({
             >
               <Select
                 showSearch
+                disabled={!canEditOtherFields}
                 placeholder="Chọn dịch vụ"
                 options={dentalServices.map((s) => ({
                   label: s.name,
@@ -128,6 +175,7 @@ export default function ConsultedServiceForm({
               <div>
                 <Button
                   onClick={handleOpenToothModal}
+                  disabled={!canEditOtherFields}
                   style={{ marginBottom: 8 }}
                 >
                   Chọn vị trí răng ({selectedTeeth.length})
@@ -159,17 +207,21 @@ export default function ConsultedServiceForm({
             <Form.Item label="Giá ưu đãi (VNĐ)" name="preferentialPrice">
               <InputNumber
                 style={{ width: "100%" }}
+                disabled={!canEditOtherFields}
                 min={0}
                 formatter={(value) =>
                   `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
                 }
-                parser={(value) => value!.replace(/\$\s?|(,*)/g, "")}
               />
             </Form.Item>
           </Col>
           <Col span={6}>
             <Form.Item label="Số lượng" name="quantity">
-              <InputNumber style={{ width: "100%" }} min={1} />
+              <InputNumber
+                style={{ width: "100%" }}
+                disabled={!canEditOtherFields}
+                min={1}
+              />
             </Form.Item>
           </Col>
 
@@ -192,6 +244,7 @@ export default function ConsultedServiceForm({
               <Select
                 showSearch
                 allowClear
+                disabled={!canEditEmployeeFields}
                 placeholder="Chọn bác sĩ tư vấn"
                 options={allEmployees.map((d) => ({
                   label: d.fullName,
@@ -205,6 +258,7 @@ export default function ConsultedServiceForm({
               <Select
                 showSearch
                 allowClear
+                disabled={!canEditEmployeeFields}
                 placeholder="Chọn sale tư vấn"
                 options={allEmployees.map((s) => ({
                   label: s.fullName,
@@ -219,6 +273,7 @@ export default function ConsultedServiceForm({
               <Select
                 showSearch
                 allowClear
+                disabled={!canEditEmployeeFields}
                 placeholder="Chọn bác sĩ điều trị"
                 options={allEmployees.map((d) => ({
                   label: d.fullName,
@@ -233,6 +288,7 @@ export default function ConsultedServiceForm({
             <Form.Item label="Ghi chú tình trạng" name="specificStatus">
               <TextArea
                 rows={3}
+                disabled={!canEditOtherFields}
                 placeholder="Ghi chú của bác sĩ về tình trạng răng..."
               />
             </Form.Item>

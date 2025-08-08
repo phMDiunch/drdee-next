@@ -1,7 +1,7 @@
 // src/app/api/consulted-services/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/services/prismaClient";
-import { nowVN } from "@/utils/date";
+import { nowVN, calculateDaysSinceConfirm } from "@/utils/date";
 
 // ✅ GET single consulted service
 export async function GET(
@@ -95,6 +95,47 @@ export async function PUT(
       );
     }
 
+    // ✅ NEW: Check permission for employee fields if service is confirmed
+    const hasEmployeeFieldChanges = [
+      "consultingDoctorId",
+      "treatingDoctorId",
+      "consultingSaleId",
+    ].some((field) => field in data);
+
+    if (
+      hasEmployeeFieldChanges &&
+      existingService.serviceStatus === "Đã chốt" &&
+      existingService.serviceConfirmDate
+    ) {
+      // Get current user role from updatedById
+      const currentUserId = data.updatedById;
+      if (currentUserId) {
+        const currentUser = await prisma.employee.findUnique({
+          where: { id: currentUserId },
+          select: { role: true },
+        });
+
+        if (currentUser?.role !== "admin") {
+          // Check 33 days rule với VN timezone
+          const confirmDateStr =
+            typeof existingService.serviceConfirmDate === "string"
+              ? existingService.serviceConfirmDate
+              : existingService.serviceConfirmDate.toISOString();
+          const daysSinceConfirm = calculateDaysSinceConfirm(confirmDateStr);
+
+          if (daysSinceConfirm > 33) {
+            return NextResponse.json(
+              {
+                error:
+                  "Không có quyền sửa thông tin nhân sự sau 33 ngày từ ngày chốt",
+              },
+              { status: 403 }
+            );
+          }
+        }
+      }
+    }
+
     // Tiếp tục logic update...
     const updated = await prisma.consultedService.update({
       where: { id },
@@ -123,7 +164,28 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params; // Thêm await
+    const { id } = await params;
+
+    // ✅ NEW: Check if service is confirmed before allowing delete
+    const existingService = await prisma.consultedService.findUnique({
+      where: { id },
+      select: { serviceStatus: true, consultedServiceName: true },
+    });
+
+    if (!existingService) {
+      return NextResponse.json(
+        { error: "Không tìm thấy dịch vụ" },
+        { status: 404 }
+      );
+    }
+
+    if (existingService.serviceStatus === "Đã chốt") {
+      return NextResponse.json(
+        { error: "Không thể xóa dịch vụ đã chốt!" },
+        { status: 400 }
+      );
+    }
+
     await prisma.consultedService.delete({
       where: { id },
     });

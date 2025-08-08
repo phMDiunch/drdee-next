@@ -92,6 +92,17 @@ export const calculateAge = (dob: string | Date): number => {
 };
 
 /**
+ * Tính số ngày từ ngày chốt đến hiện tại (timezone VN)
+ * @param confirmDate Ngày chốt dịch vụ
+ * @returns Số ngày
+ */
+export const calculateDaysSinceConfirm = (confirmDate: string): number => {
+  const now = dayjs().tz(VN_TZ);
+  const confirm = dayjs(confirmDate).tz(VN_TZ);
+  return now.diff(confirm, "day");
+};
+
+/**
  * Định dạng số tiền theo định dạng của Việt Nam
  * @param amount Số tiền
  * @returns Chuỗi định dạng số tiền
