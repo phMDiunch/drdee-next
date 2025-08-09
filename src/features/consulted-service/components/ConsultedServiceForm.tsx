@@ -250,6 +250,11 @@ export default function ConsultedServiceForm({
                   label: d.fullName,
                   value: d.id,
                 }))}
+                filterOption={(input, option) =>
+                  (option?.label ?? "")
+                    .toLowerCase()
+                    .includes(input.toLowerCase())
+                }
               />
             </Form.Item>
           </Col>
@@ -264,6 +269,11 @@ export default function ConsultedServiceForm({
                   label: s.fullName,
                   value: s.id,
                 }))}
+                filterOption={(input, option) =>
+                  (option?.label ?? "")
+                    .toLowerCase()
+                    .includes(input.toLowerCase())
+                }
               />
             </Form.Item>
           </Col>
@@ -279,6 +289,11 @@ export default function ConsultedServiceForm({
                   label: d.fullName,
                   value: d.id,
                 }))}
+                filterOption={(input, option) =>
+                  (option?.label ?? "")
+                    .toLowerCase()
+                    .includes(input.toLowerCase())
+                }
               />
             </Form.Item>
           </Col>

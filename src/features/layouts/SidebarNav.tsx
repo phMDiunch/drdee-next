@@ -16,71 +16,7 @@ import {
   ExperimentOutlined, // ✅ THÊM icon cho Consulted Services
 } from "@ant-design/icons";
 
-const menuItems = [
-  {
-    key: "dashboard",
-    icon: <DashboardOutlined />,
-    label: <Link href="/">Dashboard</Link>,
-  },
-  {
-    key: "employees",
-    icon: <TeamOutlined />,
-    label: <Link href="/employees">Nhân viên</Link>,
-  },
-  {
-    key: "customers",
-    icon: <UserOutlined />,
-    label: <Link href="/customers">Khách hàng</Link>,
-  },
-  {
-    key: "appointments",
-    icon: <CalendarOutlined />,
-    label: "Lịch hẹn",
-    children: [
-      {
-        key: "appointments-list",
-        icon: <ScheduleOutlined />,
-        label: <Link href="/appointments">Quản lý lịch hẹn</Link>,
-      },
-      {
-        key: "appointments-today",
-        icon: <ClockCircleOutlined />,
-        label: <Link href="/appointments/today">Lịch hẹn theo ngày</Link>, // ✅ SỬA LABEL
-      },
-    ],
-  },
-  // ✅ NEW: Consulted Services menu
-  {
-    key: "consulted-services",
-    icon: <ExperimentOutlined />,
-    label: "Dịch vụ tư vấn",
-    children: [
-      {
-        key: "consulted-services-daily",
-        icon: <ClockCircleOutlined />,
-        label: <Link href="/consulted-services-daily">Theo ngày</Link>,
-      },
-    ],
-  },
-  // ✅ Payment menu - single entry point
-  {
-    key: "payments",
-    icon: <DollarOutlined />,
-    label: <Link href="/payments">Phiếu thu</Link>,
-  },
-  {
-    key: "settings",
-    icon: <SettingOutlined />,
-    label: "Cài đặt",
-    children: [
-      {
-        key: "dental-services",
-        icon: <MedicineBoxOutlined />,
-        label: <Link href="/dental-services">Dịch vụ nha khoa</Link>,
-      },
-    ],
-  },
-];
+import { useAppStore } from "@/stores/useAppStore";
 
 export default function SidebarNav() {
   const pathname = usePathname();
@@ -92,6 +28,73 @@ export default function SidebarNav() {
     if (pathname.startsWith("/dental-services")) return ["settings"];
     return [];
   });
+
+  const employeeProfile = useAppStore((state) => state.employeeProfile);
+  const menuItems = [
+    {
+      key: "dashboard",
+      icon: <DashboardOutlined />,
+      label: <Link href="/">Dashboard</Link>,
+    },
+    employeeProfile?.position === "Giám đốc" && {
+      key: "employees",
+      icon: <TeamOutlined />,
+      label: <Link href="/employees">Nhân viên</Link>,
+    },
+    {
+      key: "customers",
+      icon: <UserOutlined />,
+      label: <Link href="/customers">Khách hàng</Link>,
+    },
+    {
+      key: "appointments",
+      icon: <CalendarOutlined />,
+      label: "Lịch hẹn",
+      children: [
+        {
+          key: "appointments-list",
+          icon: <ScheduleOutlined />,
+          label: <Link href="/appointments">Quản lý lịch hẹn</Link>,
+        },
+        {
+          key: "appointments-today",
+          icon: <ClockCircleOutlined />,
+          label: <Link href="/appointments/today">Lịch hẹn theo ngày</Link>, // ✅ SỬA LABEL
+        },
+      ],
+    },
+    // ✅ NEW: Consulted Services menu
+    {
+      key: "consulted-services",
+      icon: <ExperimentOutlined />,
+      label: "Dịch vụ tư vấn",
+      children: [
+        {
+          key: "consulted-services-daily",
+          icon: <ClockCircleOutlined />,
+          label: <Link href="/consulted-services-daily">Theo ngày</Link>,
+        },
+      ],
+    },
+    // ✅ Payment menu - single entry point
+    {
+      key: "payments",
+      icon: <DollarOutlined />,
+      label: <Link href="/payments">Phiếu thu</Link>,
+    },
+    employeeProfile?.position === "Giám đốc" && {
+      key: "settings",
+      icon: <SettingOutlined />,
+      label: "Cài đặt",
+      children: [
+        {
+          key: "dental-services",
+          icon: <MedicineBoxOutlined />,
+          label: <Link href="/dental-services">Dịch vụ nha khoa</Link>,
+        },
+      ],
+    },
+  ];
 
   // ✅ SỬA: Xác định selectedKey
   let selectedKey = "dashboard";

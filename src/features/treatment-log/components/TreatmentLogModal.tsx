@@ -203,35 +203,56 @@ export default function TreatmentLogModal({
               name="dentistId"
               rules={[{ required: true, message: "Vui lòng chọn bác sĩ" }]}
             >
-              <Select placeholder="Chọn bác sĩ">
-                {activeEmployees.map((employee) => (
-                  <Option key={employee.id} value={employee.id}>
-                    {employee.fullName}
-                  </Option>
-                ))}
-              </Select>
+              <Select
+                showSearch
+                allowClear
+                placeholder="Chọn bác sĩ"
+                options={activeEmployees.map((e) => ({
+                  label: e.fullName,
+                  value: e.id,
+                }))}
+                filterOption={(input, option) =>
+                  (option?.label ?? "")
+                    .toLowerCase()
+                    .includes(input.toLowerCase())
+                }
+              />
             </Form.Item>
           </Col>
           <Col span={8}>
             <Form.Item label="Điều dưỡng 1" name="assistant1Id">
-              <Select placeholder="Chọn điều dưỡng 1" allowClear>
-                {activeEmployees.map((employee) => (
-                  <Option key={employee.id} value={employee.id}>
-                    {employee.fullName}
-                  </Option>
-                ))}
-              </Select>
+              <Select
+                placeholder="Chọn điều dưỡng 1"
+                showSearch
+                allowClear
+                options={activeEmployees.map((e) => ({
+                  label: e.fullName,
+                  value: e.id,
+                }))}
+                filterOption={(input, option) =>
+                  (option?.label ?? "")
+                    .toLowerCase()
+                    .includes(input.toLowerCase())
+                }
+              />
             </Form.Item>
           </Col>
           <Col span={8}>
             <Form.Item label="Điều dưỡng 2" name="assistant2Id">
-              <Select placeholder="Chọn điều dưỡng 2" allowClear>
-                {activeEmployees.map((employee) => (
-                  <Option key={employee.id} value={employee.id}>
-                    {employee.fullName}
-                  </Option>
-                ))}
-              </Select>
+              <Select
+                placeholder="Chọn điều dưỡng 2"
+                allowClear
+                showSearch
+                options={activeEmployees.map((e) => ({
+                  label: e.fullName,
+                  value: e.id,
+                }))}
+                filterOption={(input, option) =>
+                  (option?.label ?? "")
+                    .toLowerCase()
+                    .includes(input.toLowerCase())
+                }
+              />
             </Form.Item>
           </Col>
         </Row>
