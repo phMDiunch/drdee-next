@@ -46,6 +46,40 @@ export interface RevenueData {
   }>;
 }
 
+// Sales Data for detailed service listings
+export interface SalesDetailData {
+  id: string;
+  customerSource: string | null;
+  sourceNotes: string | null;
+  customerCode: string | null;
+  customerName: string;
+  serviceName: string;
+  finalPrice: number;
+  serviceConfirmDate: string;
+  clinicId: string; // Add clinic ID for filtering
+}
+
+export interface SalesData {
+  totalSales: number;
+  totalServices: number;
+  details: SalesDetailData[];
+}
+
+export interface SalesComparisonPeriod {
+  data: SalesData;
+  periodLabel: string;
+  growth: {
+    sales: number; // Percentage
+    services: number;
+  };
+}
+
+export interface SalesComparisonData {
+  current: SalesData;
+  previousMonth: SalesComparisonPeriod;
+  previousYear: SalesComparisonPeriod;
+}
+
 export interface ReportsFilters {
   timeRange: "month" | "range";
   selectedMonth?: string; // Format: YYYY-MM for month picker

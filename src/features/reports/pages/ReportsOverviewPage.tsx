@@ -1,7 +1,7 @@
 // src/features/reports/pages/ReportsOverviewPage.tsx
 "use client";
 import { useState } from "react";
-import { Row, Col, Card, Statistic, Typography, Tag, Spin } from "antd";
+import { Row, Col, Card, Statistic, Typography, Tag, Spin, Tabs } from "antd";
 import {
   DollarOutlined,
   ShoppingCartOutlined,
@@ -10,8 +10,10 @@ import {
 } from "@ant-design/icons";
 import { formatCurrency } from "@/utils/date";
 import { useSimplifiedReportsData } from "../hooks/useSimplifiedReportsData";
+import { useSimplifiedSalesData } from "../hooks/useSimplifiedSalesData";
 import RevenueFilters from "../components/RevenueFilters";
 import DailyRevenueTable from "../components/DailyRevenueTable";
+import SalesDetailTable from "../components/SalesDetailTable";
 import type { ReportsFilters } from "../type";
 import { CHART_COLORS } from "../constants";
 
@@ -22,8 +24,23 @@ export default function ReportsOverviewPage() {
     timeRange: "month",
   });
 
-  const { loading, revenueData, comparisonData, refetch } =
-    useSimplifiedReportsData(filters);
+  const {
+    loading: revenueLoading,
+    revenueData,
+    comparisonData,
+    refetch: refetchRevenue,
+  } = useSimplifiedReportsData(filters);
+
+  const {
+    data: salesResponse,
+    loading: salesLoading,
+    refetch: refetchSales,
+  } = useSimplifiedSalesData(filters);
+
+  const salesData = salesResponse?.current;
+  const salesComparison = salesResponse;
+
+  const loading = revenueLoading || salesLoading;
 
   const handleFiltersChange = (newFilters: ReportsFilters) => {
     setFilters(newFilters);
@@ -31,7 +48,8 @@ export default function ReportsOverviewPage() {
   };
 
   const handleRefresh = () => {
-    refetch(); // Dùng refetch của React Query
+    refetchRevenue();
+    refetchSales();
   };
 
   const getGrowthIndicator = (value: number) => {
@@ -50,6 +68,37 @@ export default function ReportsOverviewPage() {
     }
     return <Tag color="default">0%</Tag>;
   };
+
+  const tabItems = [
+    {
+      key: "revenue",
+      label: "💰 Doanh thu",
+      children: (
+        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+          <Col xs={24}>
+            <DailyRevenueTable
+              data={revenueData?.byTime || []}
+              loading={revenueLoading}
+            />
+          </Col>
+        </Row>
+      ),
+    },
+    {
+      key: "sales",
+      label: "📊 Doanh số",
+      children: (
+        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+          <Col xs={24}>
+            <SalesDetailTable
+              data={salesData?.details || []}
+              loading={salesLoading}
+            />
+          </Col>
+        </Row>
+      ),
+    },
+  ];
 
   return (
     <div style={{ padding: 24 }}>
@@ -119,39 +168,39 @@ export default function ReportsOverviewPage() {
           <Col xs={24} lg={12}>
             <Card size="small">
               <Statistic
-                title="� Tổng Doanh số"
-                value={revenueData?.totalSales || 0}
+                title="📊 Tổng Doanh số"
+                value={salesData?.totalSales || 0}
                 formatter={(value) => formatCurrency(Number(value))}
                 prefix={
                   <ShoppingCartOutlined style={{ color: CHART_COLORS[1] }} />
                 }
                 valueStyle={{ color: CHART_COLORS[1], fontSize: "18px" }}
               />
-              {comparisonData && (
+              {salesComparison && (
                 <div style={{ marginTop: 12 }}>
                   {/* So với tháng trước */}
                   <div style={{ marginBottom: 6 }}>
                     {getGrowthIndicator(
-                      comparisonData.previousMonth.growth.sales
+                      salesComparison.previousMonth.growth.sales
                     )}
                     <Text
                       type="secondary"
                       style={{ marginLeft: 8, fontSize: "11px" }}
                     >
-                      so với {comparisonData.previousMonth.periodLabel}
+                      so với {salesComparison.previousMonth.periodLabel}
                     </Text>
                   </div>
 
                   {/* So với năm trước */}
                   <div>
                     {getGrowthIndicator(
-                      comparisonData.previousYear.growth.sales
+                      salesComparison.previousYear.growth.sales
                     )}
                     <Text
                       type="secondary"
                       style={{ marginLeft: 8, fontSize: "11px" }}
                     >
-                      so với {comparisonData.previousYear.periodLabel}
+                      so với {salesComparison.previousYear.periodLabel}
                     </Text>
                   </div>
                 </div>
@@ -166,7 +215,7 @@ export default function ReportsOverviewPage() {
             <Card size="small" style={{ textAlign: "center" }}>
               <div style={{ marginBottom: 8 }}>
                 <Text strong style={{ fontSize: "14px", color: "#666" }}>
-                  � Tiền mặt
+                  💵 Tiền mặt
                 </Text>
               </div>
               <div>
@@ -204,7 +253,7 @@ export default function ReportsOverviewPage() {
             <Card size="small" style={{ textAlign: "center" }}>
               <div style={{ marginBottom: 8 }}>
                 <Text strong style={{ fontSize: "14px", color: "#666" }}>
-                  💳 Thẻ Visa
+                  💎 Thẻ Visa
                 </Text>
               </div>
               <div>
@@ -237,12 +286,14 @@ export default function ReportsOverviewPage() {
           </Col>
         </Row>
 
-        {/* Daily Revenue and Sales Table */}
+        {/* Tabs for Revenue and Sales Details */}
         <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
           <Col xs={24}>
-            <DailyRevenueTable
-              data={revenueData?.byTime || []}
-              loading={loading}
+            <Tabs
+              defaultActiveKey="revenue"
+              items={tabItems}
+              size="large"
+              style={{ marginTop: 8 }}
             />
           </Col>
         </Row>

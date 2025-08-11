@@ -1,5 +1,5 @@
 // src/features/reports/utils/dataFilter.ts
-import type { RevenueData } from "../type";
+import type { RevenueData, SalesData, SalesComparisonData } from "../type";
 
 /**
  * Filter revenue data by clinic ID client-side
@@ -141,6 +141,88 @@ export function canUseClientSideFiltering(
   // Check if the target clinic exists in the all-clinics data
   const hasClinicData = allClinicsData.byClinic.some(
     (clinic) => clinic.clinicId === targetClinicId
+  );
+
+  return hasClinicData;
+}
+
+/**
+ * Filter sales data by clinic ID client-side
+ * This avoids unnecessary API calls when switching between clinics
+ */
+export function filterSalesDataByClinic(
+  data: SalesData,
+  targetClinicId?: string
+): SalesData {
+  // If no clinic filter or data is empty, return as is
+  if (!targetClinicId || !data) {
+    return data;
+  }
+
+  // Safety checks for data structure
+  if (!data.details || !Array.isArray(data.details)) {
+    return data;
+  }
+
+  // Filter sales details by clinic
+  const filteredDetails = data.details.filter(
+    (item) => item.clinicId === targetClinicId
+  );
+
+  // Recalculate totals based on filtered details
+  const totalSales = filteredDetails.reduce(
+    (sum, item) => sum + item.finalPrice,
+    0
+  );
+  const totalServices = filteredDetails.length;
+
+  return {
+    totalSales,
+    totalServices,
+    details: filteredDetails,
+  };
+}
+
+/**
+ * Filter sales comparison data by clinic ID client-side
+ */
+export function filterSalesComparisonDataByClinic(
+  data: SalesComparisonData,
+  targetClinicId?: string
+): SalesComparisonData {
+  if (!targetClinicId || !data) {
+    return data;
+  }
+
+  const filteredCurrent = filterSalesDataByClinic(data.current, targetClinicId);
+
+  return {
+    current: filteredCurrent,
+    previousMonth: {
+      ...data.previousMonth,
+      data: filterSalesDataByClinic(data.previousMonth.data, targetClinicId),
+    },
+    previousYear: {
+      ...data.previousYear,
+      data: filterSalesDataByClinic(data.previousYear.data, targetClinicId),
+    },
+  };
+}
+
+/**
+ * Check if we can filter sales data client-side instead of making API call
+ */
+export function canUseSalesClientSideFiltering(
+  allClinicsData: SalesComparisonData | null,
+  targetClinicId?: string
+): boolean {
+  if (!allClinicsData || !targetClinicId) {
+    return false;
+  }
+
+  // Check if the target clinic exists in the sales data
+  const hasClinicData = allClinicsData.current.details.some(
+    (item) => item.clinicId === targetClinicId
   );
 
   return hasClinicData;

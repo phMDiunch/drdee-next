@@ -26,7 +26,7 @@ export interface CustomerSource {
 export const CUSTOMER_SOURCES: CustomerSource[] = [
   // Nhóm Giới thiệu
   {
-    value: "Nhân viênl",
+    value: "Nhân viên",
     label: "Nhân viên giới thiệu",
     noteType: "employee_search",
   },
@@ -36,7 +36,7 @@ export const CUSTOMER_SOURCES: CustomerSource[] = [
     noteType: "customer_search",
   },
   {
-    value: "Nhân viên",
+    value: "Hismile",
     label: "Hismile",
     noteType: "text_input",
   },
@@ -55,7 +55,7 @@ export const CUSTOMER_SOURCES: CustomerSource[] = [
   { value: "Event", label: "Sự kiện / Hội thảo", noteType: "text_input" },
   {
     value: "Khách vãng lai",
-    label: "Khách vãng lai (Đi ngang qua)",
+    label: "Khách vãng lai",
     noteType: "none",
   },
 

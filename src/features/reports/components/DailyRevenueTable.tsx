@@ -9,7 +9,6 @@ const { Title } = Typography;
 interface DailyData {
   date: string;
   revenue: number;
-  sales: number;
   transactions: number;
   cash: number;
   cardNormal: number;
@@ -35,15 +34,6 @@ export default function DailyRevenueTable({ data, loading = false }: Props) {
       width: 120,
     },
     {
-      title: "� Doanh số",
-      dataIndex: "sales",
-      key: "sales",
-      render: (value: number) => formatCurrency(value),
-      sorter: (a: DailyData, b: DailyData) => a.sales - b.sales,
-      align: "right" as const,
-      width: 130,
-    },
-    {
       title: "💰 Doanh thu",
       dataIndex: "revenue",
       key: "revenue",
@@ -53,7 +43,7 @@ export default function DailyRevenueTable({ data, loading = false }: Props) {
       width: 130,
     },
     {
-      title: "� Tiền mặt",
+      title: "💵 Tiền mặt",
       dataIndex: "cash",
       key: "cash",
       render: (value: number) => formatCurrency(value),
@@ -62,7 +52,7 @@ export default function DailyRevenueTable({ data, loading = false }: Props) {
       width: 130,
     },
     {
-      title: "� Quẹt thẻ thường",
+      title: "💳 Thẻ thường",
       dataIndex: "cardNormal",
       key: "cardNormal",
       render: (value: number) => formatCurrency(value),
@@ -71,7 +61,7 @@ export default function DailyRevenueTable({ data, loading = false }: Props) {
       width: 150,
     },
     {
-      title: "💳 Quẹt thẻ Visa",
+      title: "� Thẻ Visa",
       dataIndex: "cardVisa",
       key: "cardVisa",
       render: (value: number) => formatCurrency(value),
@@ -98,7 +88,7 @@ export default function DailyRevenueTable({ data, loading = false }: Props) {
   return (
     <Card>
       <Title level={4} style={{ marginBottom: 16 }}>
-        📈 Chi tiết doanh thu và doanh số theo ngày
+        📈 Chi tiết doanh thu theo ngày
       </Title>
       <Table
         columns={columns}
@@ -107,8 +97,7 @@ export default function DailyRevenueTable({ data, loading = false }: Props) {
         loading={loading}
         pagination={{
           pageSize: 100,
-          showSizeChanger: true,
-          pageSizeOptions: ["100", "300", "500"],
+          showSizeChanger: false,
           showQuickJumper: true,
           showTotal: (total, range) =>
             `${range[0]}-${range[1]} của ${total} ngày`,
@@ -116,10 +105,6 @@ export default function DailyRevenueTable({ data, loading = false }: Props) {
         scroll={{ x: 1000 }}
         size="small"
         summary={(pageData) => {
-          const totalSales = pageData.reduce(
-            (sum, record) => sum + record.sales,
-            0
-          );
           const totalRevenue = pageData.reduce(
             (sum, record) => sum + record.revenue,
             0
@@ -150,21 +135,18 @@ export default function DailyRevenueTable({ data, loading = false }: Props) {
                   <strong>📊 Tổng cộng</strong>
                 </Table.Summary.Cell>
                 <Table.Summary.Cell index={1} align="right">
-                  <strong>{formatCurrency(totalSales)}</strong>
-                </Table.Summary.Cell>
-                <Table.Summary.Cell index={2} align="right">
                   <strong>{formatCurrency(totalRevenue)}</strong>
                 </Table.Summary.Cell>
-                <Table.Summary.Cell index={3} align="right">
+                <Table.Summary.Cell index={2} align="right">
                   <strong>{formatCurrency(totalCash)}</strong>
                 </Table.Summary.Cell>
-                <Table.Summary.Cell index={4} align="right">
+                <Table.Summary.Cell index={3} align="right">
                   <strong>{formatCurrency(totalCardNormal)}</strong>
                 </Table.Summary.Cell>
-                <Table.Summary.Cell index={5} align="right">
+                <Table.Summary.Cell index={4} align="right">
                   <strong>{formatCurrency(totalCardVisa)}</strong>
                 </Table.Summary.Cell>
-                <Table.Summary.Cell index={6} align="right">
+                <Table.Summary.Cell index={5} align="right">
                   <strong>{formatCurrency(totalTransfer)}</strong>
                 </Table.Summary.Cell>
               </Table.Summary.Row>
