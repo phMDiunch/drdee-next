@@ -14,6 +14,7 @@ import {
   ScheduleOutlined,
   DollarOutlined, // ✅ THÊM icon cho Payment
   ExperimentOutlined, // ✅ THÊM icon cho Consulted Services
+  BarChartOutlined, // ✅ THÊM icon cho Reports
 } from "@ant-design/icons";
 
 import { useAppStore } from "@/stores/useAppStore";
@@ -82,6 +83,12 @@ export default function SidebarNav() {
       icon: <DollarOutlined />,
       label: <Link href="/payments">Phiếu thu</Link>,
     },
+    // ✅ NEW: Reports menu
+    {
+      key: "reports",
+      icon: <BarChartOutlined />,
+      label: <Link href="/reports">Báo cáo</Link>,
+    },
     employeeProfile?.position === "Giám đốc" && {
       key: "settings",
       icon: <SettingOutlined />,
@@ -111,6 +118,8 @@ export default function SidebarNav() {
     selectedKey = "consulted-services-daily";
   } else if (pathname.startsWith("/payments")) {
     selectedKey = "payments";
+  } else if (pathname.startsWith("/reports")) {
+    selectedKey = "reports";
   } else if (pathname.startsWith("/dental-services")) {
     selectedKey = "dental-services";
   }
@@ -153,7 +162,7 @@ export default function SidebarNav() {
         openKeys={openKeys}
         onOpenChange={handleOpenChange}
         style={{ borderRight: 0, flex: 1, fontSize: 16 }}
-        items={menuItems}
+        items={menuItems.filter(Boolean)}
       />
       <div
         style={{

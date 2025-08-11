@@ -19,6 +19,8 @@
     "@fullcalendar/react": "^6.1.18",
     "@fullcalendar/timegrid": "^6.1.18",
     "@supabase/supabase-js": "^2.52.0",
+    "@tanstack/react-query": "^5.84.2",
+    "@tanstack/react-query-devtools": "^5.84.2",
     "antd": "^5.26.6",
     "dayjs": "^1.11.13",
     "lodash": "^4.17.21",
