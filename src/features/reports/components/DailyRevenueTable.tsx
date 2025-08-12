@@ -9,6 +9,7 @@ const { Title } = Typography;
 interface DailyData {
   date: string;
   revenue: number;
+  sales?: number; // Có thể optional để tránh lỗi
   transactions: number;
   cash: number;
   cardNormal: number;
@@ -32,6 +33,15 @@ export default function DailyRevenueTable({ data, loading = false }: Props) {
         dayjs(a.date).unix() - dayjs(b.date).unix(),
       fixed: "left" as const,
       width: 120,
+    },
+    {
+      title: "📊 Doanh số",
+      dataIndex: "sales",
+      key: "sales",
+      render: (value: number) => formatCurrency(value || 0),
+      sorter: (a: DailyData, b: DailyData) => (a.sales || 0) - (b.sales || 0),
+      align: "right" as const,
+      width: 130,
     },
     {
       title: "💰 Doanh thu",
@@ -61,7 +71,7 @@ export default function DailyRevenueTable({ data, loading = false }: Props) {
       width: 150,
     },
     {
-      title: "� Thẻ Visa",
+      title: "💎 Thẻ Visa",
       dataIndex: "cardVisa",
       key: "cardVisa",
       render: (value: number) => formatCurrency(value),
@@ -88,7 +98,7 @@ export default function DailyRevenueTable({ data, loading = false }: Props) {
   return (
     <Card>
       <Title level={4} style={{ marginBottom: 16 }}>
-        📈 Chi tiết doanh thu theo ngày
+        📈 Chi tiết doanh số & doanh thu theo ngày
       </Title>
       <Table
         columns={columns}
@@ -102,9 +112,13 @@ export default function DailyRevenueTable({ data, loading = false }: Props) {
           showTotal: (total, range) =>
             `${range[0]}-${range[1]} của ${total} ngày`,
         }}
-        scroll={{ x: 1000 }}
+        scroll={{ x: 1130 }}
         size="small"
         summary={(pageData) => {
+          const totalSales = pageData.reduce(
+            (sum, record) => sum + (record.sales || 0),
+            0
+          );
           const totalRevenue = pageData.reduce(
             (sum, record) => sum + record.revenue,
             0
@@ -135,18 +149,21 @@ export default function DailyRevenueTable({ data, loading = false }: Props) {
                   <strong>📊 Tổng cộng</strong>
                 </Table.Summary.Cell>
                 <Table.Summary.Cell index={1} align="right">
-                  <strong>{formatCurrency(totalRevenue)}</strong>
+                  <strong>{formatCurrency(totalSales)}</strong>
                 </Table.Summary.Cell>
                 <Table.Summary.Cell index={2} align="right">
-                  <strong>{formatCurrency(totalCash)}</strong>
+                  <strong>{formatCurrency(totalRevenue)}</strong>
                 </Table.Summary.Cell>
                 <Table.Summary.Cell index={3} align="right">
-                  <strong>{formatCurrency(totalCardNormal)}</strong>
+                  <strong>{formatCurrency(totalCash)}</strong>
                 </Table.Summary.Cell>
                 <Table.Summary.Cell index={4} align="right">
-                  <strong>{formatCurrency(totalCardVisa)}</strong>
+                  <strong>{formatCurrency(totalCardNormal)}</strong>
                 </Table.Summary.Cell>
                 <Table.Summary.Cell index={5} align="right">
+                  <strong>{formatCurrency(totalCardVisa)}</strong>
+                </Table.Summary.Cell>
+                <Table.Summary.Cell index={6} align="right">
                   <strong>{formatCurrency(totalTransfer)}</strong>
                 </Table.Summary.Cell>
               </Table.Summary.Row>

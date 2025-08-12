@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     };
 
     const consultationDateFilter = {
-      consultationDate: {
+      serviceConfirmDate: {
         gte: new Date(startDate),
         lte: new Date(endDate),
       },
@@ -310,7 +310,7 @@ export async function GET(request: NextRequest) {
 
     // Add sales data to daily breakdown
     consultedServices.forEach((service) => {
-      const dateKey = dayjs(service.consultationDate).format("YYYY-MM-DD");
+      const dateKey = dayjs(service.serviceConfirmDate).format("YYYY-MM-DD");
 
       // Initialize day if not exists (for sales without payments)
       if (!dailyData.has(dateKey)) {
