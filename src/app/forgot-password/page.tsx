@@ -6,6 +6,16 @@ import { Form, Input, Button, Typography, Card, message, Spin } from "antd";
 import { supabase } from "@/services/supabaseClient";
 import Link from "next/link";
 
+// Helper function to get redirect URL
+const getRedirectUrl = (): string => {
+  const isProduction = window.location.hostname !== "localhost";
+  const baseUrl = isProduction
+    ? window.location.origin
+    : process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+
+  return `${baseUrl}/auth/callback?next=/login`;
+};
+
 export default function ForgotPasswordPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -18,14 +28,44 @@ export default function ForgotPasswordPage() {
     return null;
   }
 
-  const onFinish = async (values: any) => {
+  const onFinish = async (values: { email: string }) => {
     setFormLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(values.email);
-    setFormLoading(false);
-    if (error) {
-      message.error(error.message);
-    } else {
-      message.success("Vui lòng kiểm tra email để đặt lại mật khẩu!");
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(
+        values.email,
+        {
+          redirectTo: getRedirectUrl(),
+        }
+      );
+
+      if (error) {
+        console.error("Reset password error:", error);
+
+        // Handle specific error cases
+        if (
+          error.message.includes("not found") ||
+          error.message.includes("invalid")
+        ) {
+          message.error("Email này không tồn tại trong hệ thống.");
+        } else if (error.message.includes("rate limit")) {
+          message.error("Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau.");
+        } else {
+          message.error(`Có lỗi xảy ra: ${error.message}`);
+        }
+      } else {
+        message.success(
+          "Email đặt lại mật khẩu đã được gửi! Vui lòng kiểm tra hộp thư (bao gồm cả thư mục spam) " +
+            "và làm theo hướng dẫn để đặt lại mật khẩu."
+        );
+      }
+    } catch (networkError) {
+      console.error("Network error during password reset:", networkError);
+      message.error(
+        "Có lỗi kết nối xảy ra. Vui lòng kiểm tra internet và thử lại."
+      );
+    } finally {
+      setFormLoading(false);
     }
   };
 
