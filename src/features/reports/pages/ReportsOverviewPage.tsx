@@ -105,7 +105,7 @@ export default function ReportsOverviewPage() {
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
         <Title level={3} style={{ margin: 0 }}>
-          🏢 Báo cáo Doanh thu & Doanh số theo Cơ sở
+          🏢 Báo cáo tháng theo Cơ sở
         </Title>
         <Text type="secondary">
           Báo cáo chi tiết doanh thu và doanh số của từng cơ sở theo thời gian,
@@ -124,47 +124,6 @@ export default function ReportsOverviewPage() {
       <Spin spinning={loading}>
         {/* Summary Cards */}
         <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-          <Col xs={24} lg={12}>
-            <Card size="small">
-              <Statistic
-                title="💰 Tổng Doanh thu"
-                value={revenueData?.totalRevenue || 0}
-                formatter={(value) => formatCurrency(Number(value))}
-                prefix={<DollarOutlined style={{ color: CHART_COLORS[0] }} />}
-                valueStyle={{ color: CHART_COLORS[0], fontSize: "18px" }}
-              />
-              {comparisonData && (
-                <div style={{ marginTop: 12 }}>
-                  {/* So với tháng trước */}
-                  <div style={{ marginBottom: 6 }}>
-                    {getGrowthIndicator(
-                      comparisonData.previousMonth.growth.revenue
-                    )}
-                    <Text
-                      type="secondary"
-                      style={{ marginLeft: 8, fontSize: "11px" }}
-                    >
-                      so với {comparisonData.previousMonth.periodLabel}
-                    </Text>
-                  </div>
-
-                  {/* So với năm trước */}
-                  <div>
-                    {getGrowthIndicator(
-                      comparisonData.previousYear.growth.revenue
-                    )}
-                    <Text
-                      type="secondary"
-                      style={{ marginLeft: 8, fontSize: "11px" }}
-                    >
-                      so với {comparisonData.previousYear.periodLabel}
-                    </Text>
-                  </div>
-                </div>
-              )}
-            </Card>
-          </Col>
-
           <Col xs={24} lg={12}>
             <Card size="small">
               <Statistic
@@ -201,6 +160,46 @@ export default function ReportsOverviewPage() {
                       style={{ marginLeft: 8, fontSize: "11px" }}
                     >
                       so với {salesComparison.previousYear.periodLabel}
+                    </Text>
+                  </div>
+                </div>
+              )}
+            </Card>
+          </Col>
+          <Col xs={24} lg={12}>
+            <Card size="small">
+              <Statistic
+                title="💰 Tổng Doanh thu"
+                value={revenueData?.totalRevenue || 0}
+                formatter={(value) => formatCurrency(Number(value))}
+                prefix={<DollarOutlined style={{ color: CHART_COLORS[0] }} />}
+                valueStyle={{ color: CHART_COLORS[0], fontSize: "18px" }}
+              />
+              {comparisonData && (
+                <div style={{ marginTop: 12 }}>
+                  {/* So với tháng trước */}
+                  <div style={{ marginBottom: 6 }}>
+                    {getGrowthIndicator(
+                      comparisonData.previousMonth.growth.revenue
+                    )}
+                    <Text
+                      type="secondary"
+                      style={{ marginLeft: 8, fontSize: "11px" }}
+                    >
+                      so với {comparisonData.previousMonth.periodLabel}
+                    </Text>
+                  </div>
+
+                  {/* So với năm trước */}
+                  <div>
+                    {getGrowthIndicator(
+                      comparisonData.previousYear.growth.revenue
+                    )}
+                    <Text
+                      type="secondary"
+                      style={{ marginLeft: 8, fontSize: "11px" }}
+                    >
+                      so với {comparisonData.previousYear.periodLabel}
                     </Text>
                   </div>
                 </div>

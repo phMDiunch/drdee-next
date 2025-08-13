@@ -2,18 +2,11 @@
 "use client";
 import { useMemo } from "react";
 import { useSalesReportsData } from "./useSalesReportsData";
-import { filterSalesComparisonDataByClinic } from "../utils/dataFilter";
 import type { ReportsFilters } from "../type";
 
 export const useSimplifiedSalesData = (filters: ReportsFilters) => {
-  // Always fetch data for all clinics when clinicId is specified
-  // This allows client-side filtering without additional API calls
-  const fetchFilters = useMemo(() => {
-    if (filters.clinicId) {
-      return { ...filters, clinicId: undefined };
-    }
-    return filters;
-  }, [filters]);
+  // Respect server/query scoping; don't strip clinicId
+  const fetchFilters = filters;
 
   const {
     data: salesData,
@@ -23,21 +16,9 @@ export const useSimplifiedSalesData = (filters: ReportsFilters) => {
   } = useSalesReportsData(fetchFilters);
 
   const processedData = useMemo(() => {
-    if (!filters.clinicId) {
-      return salesData;
-    }
-
-    if (salesData) {
-      const filteredSalesData = filterSalesComparisonDataByClinic(
-        salesData,
-        filters.clinicId
-      );
-
-      return filteredSalesData;
-    }
-
+    // Data already scoped by useSalesReportsData; no extra filtering here
     return salesData;
-  }, [filters.clinicId, salesData]);
+  }, [salesData]);
 
   return {
     loading,

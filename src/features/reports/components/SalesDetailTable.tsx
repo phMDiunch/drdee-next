@@ -48,7 +48,7 @@ export default function SalesDetailTable({ data, loading = false }: Props) {
       width: 150,
     },
     {
-      title: "� Mã KH",
+      title: "🆔 Mã KH",
       dataIndex: "customerCode",
       key: "customerCode",
       render: (code: string | null) => code || "Chưa có",
@@ -57,7 +57,7 @@ export default function SalesDetailTable({ data, loading = false }: Props) {
       width: 120,
     },
     {
-      title: "�👤 Khách hàng",
+      title: "👤 Khách hàng",
       dataIndex: "customerName",
       key: "customerName",
       sorter: (a: SalesDetailData, b: SalesDetailData) =>

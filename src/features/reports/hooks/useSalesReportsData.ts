@@ -120,16 +120,26 @@ export function useSalesReportsData(filters: ReportsFilters) {
 
   const cacheStrategy = getCacheStrategy();
 
+  // Align Sales scoping with Revenue:
+  // - Non-admin: always scoped to their clinicId
+  // - Admin: use filters.clinicId (can be undefined to fetch all clinics)
+  const effectiveClinicId =
+    employeeProfile?.role !== "admin" && employeeProfile?.clinicId
+      ? employeeProfile.clinicId
+      : filters.clinicId;
+
+  const fetchFilters: ReportsFilters = {
+    ...filters,
+    clinicId: effectiveClinicId,
+  };
+
   return useQuery({
-    queryKey: salesQueryKeys.reportsByFilters(
-      filters,
-      employeeProfile?.clinicId || undefined
-    ),
-    queryFn: () => fetchSalesReports(filters),
+    queryKey: salesQueryKeys.reportsByFilters(fetchFilters, effectiveClinicId),
+    queryFn: () => fetchSalesReports(fetchFilters),
     ...cacheStrategy,
     refetchOnWindowFocus: false, // Prevent unnecessary refetches
     refetchOnMount: true, // Always fetch on mount
-    enabled: true, // Always enabled
+    enabled: !!employeeProfile, // Wait for profile to ensure correct scoping
   });
 }
 
