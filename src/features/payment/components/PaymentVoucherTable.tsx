@@ -1,17 +1,18 @@
 // src/features/payment/components/PaymentVoucherTable.tsx
 "use client";
-import { Table, Button, Space, Tag, Typography } from "antd";
+import { Table, Button, Space, Tag, Typography, message } from "antd";
 import {
   PlusOutlined,
   DeleteOutlined,
   PrinterOutlined,
 } from "@ant-design/icons";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import type { PaymentVoucherWithDetails } from "../type";
 import { formatCurrency, formatDateTimeVN } from "@/utils/date";
 import { useAppStore } from "@/stores/useAppStore";
-import PrintModal from "./PrintModal";
+import PrintableReceipt from "./PrintableReceipt";
+import { BRANCHES, getBranchByCode } from "@/constants";
 
 const { Title } = Typography;
 
@@ -23,7 +24,7 @@ type Props = {
   pageSize?: number; // ✅ THÊM
   onAdd: () => void;
   onView: (voucher: PaymentVoucherWithDetails) => void;
-  onDelete: (voucher: any) => void;
+  onDelete: (voucher: PaymentVoucherWithDetails) => void;
   onPageChange?: (page: number, pageSize: number) => void; // ✅ THÊM
   showHeader?: boolean; // ✅ THÊM
   title?: string; // ✅ THÊM
@@ -37,7 +38,7 @@ export default function PaymentVoucherTable({
   page,
   pageSize,
   onAdd,
-  onView,
+  // onView,
   onDelete,
   onPageChange,
   showHeader = false,
@@ -46,17 +47,59 @@ export default function PaymentVoucherTable({
 }: Props) {
   const { employeeProfile } = useAppStore();
 
-  // Print modal state
-  const [printModal, setPrintModal] = useState({
-    open: false,
-    voucher: null as PaymentVoucherWithDetails | null,
-  });
+  // Immediate print state
+  const [printVoucher, setPrintVoucher] =
+    useState<PaymentVoucherWithDetails | null>(null);
+  const printRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = (voucher: PaymentVoucherWithDetails) => {
-    setPrintModal({
-      open: true,
-      voucher: voucher,
-    });
+    setPrintVoucher(voucher);
+    // Defer to next tick for hidden receipt to render
+    setTimeout(() => {
+      if (!printRef.current) return;
+      const printWindow = window.open("", "_blank");
+      if (!printWindow) {
+        message.error(
+          "Không thể mở cửa sổ in. Vui lòng kiểm tra popup blocker."
+        );
+        return;
+      }
+      const printContent = printRef.current.innerHTML;
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8" />
+            <title>Phiếu Thu - ${voucher.paymentNumber}</title>
+            <style>
+              * { box-sizing: border-box; }
+              body { font-family: 'Times New Roman', serif; color: #000; }
+              .printable-receipt { margin: 0 auto; }
+              @media print {
+                body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                @page { size: A4; margin: 10mm; }
+              }
+              .ant-table { font-size: inherit; }
+              .ant-table-thead > tr > th { background: #f5f5f5 !important; font-weight: bold; padding: 8px !important; }
+              .ant-table-tbody > tr > td { padding: 8px !important; border-bottom: 1px solid #e8e8e8; }
+              .ant-divider { border-top: 1px solid #d9d9d9; margin: 12px 0; }
+              .ant-typography { margin-bottom: 0; }
+            </style>
+          </head>
+          <body>
+            ${printContent}
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.onload = () => {
+        setTimeout(() => {
+          printWindow.print();
+          printWindow.close();
+          setPrintVoucher(null);
+        }, 300);
+      };
+    }, 0);
   };
 
   // ✅ THÊM: Render expandable row content
@@ -66,7 +109,10 @@ export default function PaymentVoucherTable({
         title: "Dịch vụ",
         dataIndex: ["consultedService"],
         key: "serviceName",
-        render: (consultedService: any) => {
+        render: (consultedService: {
+          consultedServiceName?: string;
+          dentalService?: { name: string };
+        }) => {
           const serviceName =
             consultedService?.consultedServiceName ||
             consultedService?.dentalService?.name ||
@@ -206,14 +252,14 @@ export default function PaymentVoucherTable({
       title: "Số dịch vụ",
       dataIndex: "details",
       key: "detailsCount",
-      render: (details: any[]) => (
+      render: (details: unknown[]) => (
         <Tag color="blue">{details?.length || 0} dịch vụ</Tag>
       ),
     },
     {
       title: "Thao tác",
       key: "action",
-      render: (_: any, record: PaymentVoucherWithDetails) => (
+      render: (_: unknown, record: PaymentVoucherWithDetails) => (
         <Space>
           <Button
             size="small"
@@ -303,12 +349,32 @@ export default function PaymentVoucherTable({
         }}
       />
 
-      {/* Print Modal */}
-      <PrintModal
-        open={printModal.open}
-        voucher={printModal.voucher}
-        onCancel={() => setPrintModal({ open: false, voucher: null })}
-      />
+      {/* Hidden printable content for immediate printing */}
+      <div style={{ position: "absolute", left: -10000, top: -10000 }}>
+        {printVoucher && (
+          <div ref={printRef}>
+            {(() => {
+              const branch =
+                getBranchByCode(
+                  printVoucher.clinicId ||
+                    employeeProfile?.clinicId ||
+                    BRANCHES[0]?.value
+                ) || BRANCHES[0];
+              const clinicInfo = {
+                name: branch.name,
+                address: branch.address,
+                phone: branch.phone,
+              };
+              return (
+                <PrintableReceipt
+                  voucher={printVoucher}
+                  clinicInfo={clinicInfo}
+                />
+              );
+            })()}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,14 +1,13 @@
 // src/features/payment/components/PrintModal.tsx
 "use client";
-import { useState, useRef } from "react";
-import { Modal, Radio, Button, Space, Typography, message } from "antd";
+import { useRef } from "react";
+import { Modal, Button, Space, Typography, message } from "antd";
 import { PrinterOutlined } from "@ant-design/icons";
 import PrintableReceipt from "./PrintableReceipt";
 import type { PaymentVoucherWithDetails } from "../type";
+import { BRANCHES, getBranchByCode } from "@/constants";
 
 const { Title } = Typography;
-
-type PrintFormat = "A4" | "A5" | "thermal";
 
 interface Props {
   open: boolean;
@@ -16,33 +15,7 @@ interface Props {
   onCancel: () => void;
 }
 
-const CLINIC_INFO = {
-  name: "PHÒNG KHÁM NHA KHOA ABC",
-  address: "123 Đường ABC, Quận 1, TP.HCM",
-  phone: "028.1234.5678",
-  // logo: "/images/clinic-logo.png" // Optional
-};
-
-const PRINT_FORMATS = [
-  {
-    value: "A4" as const,
-    label: "A4 - Tiêu chuẩn",
-    description: "Phù hợp cho văn phòng, lưu trữ",
-  },
-  {
-    value: "A5" as const,
-    label: "A5 - Compact",
-    description: "Tiết kiệm giấy, dễ cầm nắm",
-  },
-  {
-    value: "thermal" as const,
-    label: "Nhiệt - 80mm",
-    description: "Máy in nhiệt, nhanh chóng",
-  },
-];
-
 export default function PrintModal({ open, voucher, onCancel }: Props) {
-  const [selectedFormat, setSelectedFormat] = useState<PrintFormat>("A4");
   const printRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = () => {
@@ -62,7 +35,7 @@ export default function PrintModal({ open, voucher, onCancel }: Props) {
         <head>
           <title>Phiếu Thu - ${voucher?.paymentNumber}</title>
           <meta charset="utf-8">
-          <style>
+      <style>
             * {
               margin: 0;
               padding: 0;
@@ -87,14 +60,8 @@ export default function PrintModal({ open, voucher, onCancel }: Props) {
               }
               
               @page {
-                margin: ${selectedFormat === "thermal" ? "0" : "10mm"};
-                size: ${
-                  selectedFormat === "A4"
-                    ? "A4"
-                    : selectedFormat === "A5"
-                    ? "A5"
-                    : "80mm auto"
-                };
+        margin: 10mm;
+        size: A4;
               }
               
               .no-print {
@@ -207,29 +174,6 @@ export default function PrintModal({ open, voucher, onCancel }: Props) {
     >
       {voucher && (
         <div>
-          {/* Format Selection */}
-          <div style={{ marginBottom: 20 }}>
-            <Title level={5}>Chọn khổ giấy:</Title>
-            <Radio.Group
-              value={selectedFormat}
-              onChange={(e) => setSelectedFormat(e.target.value)}
-              style={{ width: "100%" }}
-            >
-              <Space direction="vertical" style={{ width: "100%" }}>
-                {PRINT_FORMATS.map((format) => (
-                  <Radio key={format.value} value={format.value}>
-                    <div>
-                      <div style={{ fontWeight: "bold" }}>{format.label}</div>
-                      <div style={{ fontSize: "12px", color: "#666" }}>
-                        {format.description}
-                      </div>
-                    </div>
-                  </Radio>
-                ))}
-              </Space>
-            </Radio.Group>
-          </div>
-
           {/* Print Preview */}
           <div
             style={{
@@ -253,12 +197,26 @@ export default function PrintModal({ open, voucher, onCancel }: Props) {
                 backgroundColor: "white",
               }}
             >
-              <PrintableReceipt
-                ref={printRef}
-                voucher={voucher}
-                format={selectedFormat}
-                clinicInfo={CLINIC_INFO}
-              />
+              {(() => {
+                const branch =
+                  getBranchByCode(
+                    voucher.clinicId ||
+                      voucher.cashier?.clinicId ||
+                      BRANCHES[0]?.value
+                  ) || BRANCHES[0];
+                const clinicInfo = {
+                  name: branch.name,
+                  address: branch.address,
+                  phone: branch.phone,
+                };
+                return (
+                  <PrintableReceipt
+                    ref={printRef}
+                    voucher={voucher}
+                    clinicInfo={clinicInfo}
+                  />
+                );
+              })()}
             </div>
           </div>
         </div>
