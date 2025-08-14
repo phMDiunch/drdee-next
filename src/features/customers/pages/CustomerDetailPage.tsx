@@ -1,6 +1,6 @@
 // src/features/customers/pages/CustomerDetailPage.tsx
 "use client";
-import { useMemo, useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Spin,
   Tabs,
@@ -12,17 +12,17 @@ import {
   Row,
   Col,
   Tag,
-  Statistic,
+  // Statistic,
   Breadcrumb,
 } from "antd";
 import Link from "next/link";
 import {
   ArrowLeftOutlined,
-  PlusOutlined,
+  // PlusOutlined,
   LoginOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
-  EditOutlined,
+  // EditOutlined,
 } from "@ant-design/icons";
 import { useAppStore } from "@/stores/useAppStore";
 import dayjs from "dayjs";
@@ -45,6 +45,11 @@ import PaymentVoucherTable from "@/features/payment/components/PaymentVoucherTab
 import PaymentVoucherModal from "@/features/payment/components/PaymentVoucherModal";
 import CustomerModal from "../components/CustomerModal";
 import TreatmentLogTab from "@/features/treatment-log/components/TreatmentLogTab";
+import CustomerTreatmentCareTab from "@/features/treatment-care/components/CustomerTreatmentCareTab";
+import CreateCareModal from "@/features/treatment-care/components/CreateCareModal";
+import type { Customer } from "@/features/customers/type";
+import type { ConsultedServiceWithDetails } from "@/features/consulted-service/type";
+import type { Appointment as PrismaAppointment } from "@prisma/client";
 
 const { Title, Text } = Typography;
 
@@ -53,6 +58,9 @@ type Props = {
 };
 
 export default function CustomerDetailPage({ customerId }: Props) {
+  type CustomerFormValues = Partial<Omit<Customer, "dob">> & {
+    dob?: import("dayjs").Dayjs | Date | string | null;
+  };
   // Custom hooks
   const { customer, setCustomer, loading, refetch } =
     useCustomerDetail(customerId);
@@ -63,12 +71,14 @@ export default function CustomerDetailPage({ customerId }: Props) {
   // State for customer edit modal
   const [customerModal, setCustomerModal] = useState<{
     open: boolean;
-    data?: any;
+    data?: CustomerFormValues;
   }>({ open: false });
   const [isSavingCustomer, setIsSavingCustomer] = useState(false);
+  // Aftercare quick action
+  const [aftercareOpen, setAftercareOpen] = useState(false);
 
   // Store
-  const { employeeProfile, dentalServices, activeEmployees } = useAppStore();
+  const { employeeProfile, activeEmployees } = useAppStore();
 
   // Remove fetchActiveEmployees useEffect since data is auto-loaded on login
 
@@ -82,7 +92,13 @@ export default function CustomerDetailPage({ customerId }: Props) {
       return { hasCheckedIn: false, appointment: null };
 
     const today = dayjs().format("YYYY-MM-DD");
-    const todayAppt = customer.appointments.find((appt: any) => {
+    type CustomerAppointmentLite = {
+      appointmentDateTime: string;
+      checkInTime: string | null;
+    };
+    const todayAppt = (
+      customer.appointments as Array<CustomerAppointmentLite>
+    ).find((appt) => {
       const apptDate = dayjs(appt.appointmentDateTime).format("YYYY-MM-DD");
       return apptDate === today && appt.checkInTime;
     });
@@ -94,17 +110,22 @@ export default function CustomerDetailPage({ customerId }: Props) {
   }, [customer?.appointments]);
 
   const financialSummary = useMemo(() => {
+    type ConsultedLite = {
+      serviceStatus: string;
+      finalPrice: number;
+      amountPaid?: number | null;
+    };
     const confirmedServices =
-      customer?.consultedServices?.filter(
-        (service: any) => service.serviceStatus === "Đã chốt"
+      (customer?.consultedServices as Array<ConsultedLite> | undefined)?.filter(
+        (service) => service.serviceStatus === "Đã chốt"
       ) || [];
 
     const totalAmount = confirmedServices.reduce(
-      (sum: number, service: any) => sum + service.finalPrice,
+      (sum: number, service: ConsultedLite) => sum + (service.finalPrice || 0),
       0
     );
     const amountPaid = confirmedServices.reduce(
-      (sum: number, service: any) => sum + (service.amountPaid || 0),
+      (sum: number, service: ConsultedLite) => sum + (service.amountPaid || 0),
       0
     );
     const debt = totalAmount - amountPaid;
@@ -114,19 +135,17 @@ export default function CustomerDetailPage({ customerId }: Props) {
 
   // Handlers for editing customer
   const handleEditCustomer = () => {
-    setCustomerModal({
-      open: true,
-      data: {
-        ...customer,
-        dob: customer.dob ? dayjs(customer.dob) : null,
-      },
-    });
+    const data: CustomerFormValues = {
+      ...(customer as Customer),
+      dob: customer?.dob ? dayjs(customer.dob) : null,
+    };
+    setCustomerModal({ open: true, data });
   };
 
-  const handleFinishEdit = async (values: any) => {
+  const handleFinishEdit = async (values: CustomerFormValues) => {
     setIsSavingCustomer(true);
     try {
-      if (values.dob?.$d) {
+      if (values.dob && dayjs.isDayjs(values.dob)) {
         values.dob = dayjs(values.dob).toISOString();
       }
 
@@ -154,12 +173,32 @@ export default function CustomerDetailPage({ customerId }: Props) {
       toast.success("Cập nhật thông tin khách hàng thành công!");
       setCustomerModal({ open: false });
       await refetch(); // Refetch all customer data
-    } catch (err: any) {
-      toast.error(err.message || "Có lỗi xảy ra khi cập nhật");
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error ? err.message : "Có lỗi xảy ra khi cập nhật";
+      toast.error(msg);
     } finally {
       setIsSavingCustomer(false);
     }
   };
+
+  // Compute latest treatment date (YYYY-MM-DD) from customer's treatment logs
+  const latestTreatmentDate: string | null = useMemo(() => {
+    const logs =
+      (customer?.treatmentLogs as
+        | Array<{ treatmentDate: string | Date }>
+        | undefined) || [];
+    if (logs.length === 0) return null;
+    // API orders by treatmentDate desc already, but ensure robustness
+    const latest = logs
+      .slice()
+      .sort(
+        (a, b) =>
+          new Date(b.treatmentDate).getTime() -
+          new Date(a.treatmentDate).getTime()
+      )[0].treatmentDate;
+    return dayjs(latest).format("YYYY-MM-DD");
+  }, [customer]);
 
   if (loading) {
     return (
@@ -190,10 +229,27 @@ export default function CustomerDetailPage({ customerId }: Props) {
     },
     {
       key: "2",
-      label: `Lịch hẹn (${customer?.appointments?.length || 0})`,
+      label: `Lịch hẹn (${
+        (customer?.appointments as Array<unknown> | undefined)?.length || 0
+      })`,
       children: (
         <AppointmentTable
-          data={customer?.appointments || []}
+          data={
+            (customer?.appointments || []) as Array<
+              PrismaAppointment & {
+                customer: {
+                  id: string;
+                  customerCode: string | null;
+                  fullName: string;
+                  phone: string | null;
+                  email: string | null;
+                  address: string | null;
+                };
+                primaryDentist: { id: string; fullName: string };
+                secondaryDentist?: { id: string; fullName: string } | null;
+              }
+            >
+          }
           loading={loading}
           onEdit={appointmentHook.handleEditAppointment}
           onDelete={appointmentHook.handleDeleteAppointment}
@@ -209,7 +265,9 @@ export default function CustomerDetailPage({ customerId }: Props) {
     },
     {
       key: "3",
-      label: `Dịch vụ đã tư vấn (${customer?.consultedServices?.length || 0})`,
+      label: `Dịch vụ đã tư vấn (${
+        (customer?.consultedServices as Array<unknown> | undefined)?.length || 0
+      })`,
       children: (
         <div>
           {!todayCheckinStatus.hasCheckedIn && (
@@ -237,7 +295,10 @@ export default function CustomerDetailPage({ customerId }: Props) {
           )}
 
           <ConsultedServiceTable
-            data={customer?.consultedServices || []}
+            data={
+              (customer?.consultedServices ||
+                []) as ConsultedServiceWithDetails[]
+            }
             loading={loading}
             onAdd={consultedServiceHook.handleAddService}
             onEdit={consultedServiceHook.handleEditService}
@@ -253,6 +314,24 @@ export default function CustomerDetailPage({ customerId }: Props) {
       key: "4",
       label: "Lịch sử điều trị",
       children: <TreatmentLogTab customerId={customerId} />,
+    },
+    {
+      key: "aftercare",
+      label: "Chăm sóc sau điều trị",
+      children: (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <Button
+              type="primary"
+              onClick={() => setAftercareOpen(true)}
+              disabled={!latestTreatmentDate}
+            >
+              Chăm sóc
+            </Button>
+          </div>
+          <CustomerTreatmentCareTab customerId={customerId} />
+        </div>
+      ),
     },
     {
       key: "5",
@@ -428,9 +507,14 @@ export default function CustomerDetailPage({ customerId }: Props) {
         }
         onFinish={paymentHook.handleFinishPayment}
         loading={paymentHook.saving}
-        availableServices={customer?.consultedServices?.filter(
-          (s: any) =>
-            s.serviceStatus === "Đã chốt" && s.finalPrice > (s.amountPaid || 0)
+        availableServices={(
+          customer?.consultedServices as
+            | ConsultedServiceWithDetails[]
+            | undefined
+        )?.filter(
+          (s) =>
+            s.serviceStatus === "Đã chốt" &&
+            (s.finalPrice || 0) > (s.amountPaid || 0)
         )}
         employees={activeEmployees}
         customerId={customerId} // ✅ THÊM PROP NÀY
@@ -455,6 +539,16 @@ export default function CustomerDetailPage({ customerId }: Props) {
         loading={isSavingCustomer}
         customers={[]}
       />
+
+      {/* Aftercare Quick Modal - reuse CreateCareModal */}
+      {latestTreatmentDate && (
+        <CreateCareModal
+          open={aftercareOpen}
+          onClose={() => setAftercareOpen(false)}
+          customerId={customerId}
+          treatmentDate={latestTreatmentDate}
+        />
+      )}
     </div>
   );
 }

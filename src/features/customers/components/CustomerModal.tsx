@@ -8,11 +8,11 @@ const { Title } = Typography;
 type Props = {
   open: boolean;
   mode: "add" | "edit";
-  data?: Partial<Customer>;
+  data?: Record<string, unknown>;
   onCancel: () => void;
   onFinish: (values: Partial<Customer>) => void;
   loading?: boolean;
-  customers?: any[];
+  customers?: Array<{ id: string; fullName: string; phone?: string | null }>;
 };
 
 export default function CustomerModal({

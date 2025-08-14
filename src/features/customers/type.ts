@@ -1,9 +1,5 @@
 // src/features/customers/type.ts
-import type {
-  Customer as PrismaCustomer,
-  Appointment,
-  Employee,
-} from "@prisma/client";
+import type { Customer as PrismaCustomer, Appointment } from "@prisma/client";
 import type { PaymentVoucherWithDetails } from "@/features/payment/type";
 
 // Base customer type
@@ -38,6 +34,9 @@ export type CustomerWithRelations = PrismaCustomer & {
 };
 
 export type CustomerWithDetails = Customer & {
-  // ...existing relations...
+  // Optional heavy relations when includeDetails=true
+  appointments?: unknown[];
+  consultedServices?: unknown[];
+  treatmentLogs?: unknown[];
   paymentVouchers?: PaymentVoucherWithDetails[];
 };

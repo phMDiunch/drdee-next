@@ -1,0 +1,3 @@
+-- Baseline migration for existing production database
+-- This migration is intentionally empty and will be marked as applied.
+-- It establishes migration history without changing the current schema.

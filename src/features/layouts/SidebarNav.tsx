@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Menu } from "antd";
+import { Menu, type MenuProps } from "antd";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -15,6 +15,7 @@ import {
   DollarOutlined, // ✅ THÊM icon cho Payment
   ExperimentOutlined, // ✅ THÊM icon cho Consulted Services
   BarChartOutlined, // ✅ THÊM icon cho Reports
+  HeartOutlined,
 } from "@ant-design/icons";
 
 import { useAppStore } from "@/stores/useAppStore";
@@ -31,17 +32,21 @@ export default function SidebarNav() {
   });
 
   const employeeProfile = useAppStore((state) => state.employeeProfile);
-  const menuItems = [
+  const menuItems: Required<MenuProps>["items"] = [
     {
       key: "dashboard",
       icon: <DashboardOutlined />,
       label: <Link href="/">Dashboard</Link>,
     },
-    employeeProfile?.position === "Giám đốc" && {
-      key: "employees",
-      icon: <TeamOutlined />,
-      label: <Link href="/employees">Nhân viên</Link>,
-    },
+    ...(employeeProfile?.position === "Giám đốc"
+      ? ([
+          {
+            key: "employees",
+            icon: <TeamOutlined />,
+            label: <Link href="/employees">Nhân viên</Link>,
+          },
+        ] as Required<MenuProps>["items"])
+      : []),
     {
       key: "customers",
       icon: <UserOutlined />,
@@ -83,24 +88,34 @@ export default function SidebarNav() {
       icon: <DollarOutlined />,
       label: <Link href="/payments">Phiếu thu</Link>,
     },
+    // Move Treatment Care below Payments
+    {
+      key: "treatment-care",
+      icon: <HeartOutlined />,
+      label: <Link href="/treatment-care">Chăm sóc sau điều trị</Link>,
+    },
     // ✅ NEW: Reports menu
     {
       key: "reports",
       icon: <BarChartOutlined />,
       label: <Link href="/reports">Báo cáo</Link>,
     },
-    employeeProfile?.position === "Giám đốc" && {
-      key: "settings",
-      icon: <SettingOutlined />,
-      label: "Cài đặt",
-      children: [
-        {
-          key: "dental-services",
-          icon: <MedicineBoxOutlined />,
-          label: <Link href="/dental-services">Dịch vụ nha khoa</Link>,
-        },
-      ],
-    },
+    ...(employeeProfile?.position === "Giám đốc"
+      ? ([
+          {
+            key: "settings",
+            icon: <SettingOutlined />,
+            label: "Cài đặt",
+            children: [
+              {
+                key: "dental-services",
+                icon: <MedicineBoxOutlined />,
+                label: <Link href="/dental-services">Dịch vụ nha khoa</Link>,
+              },
+            ],
+          },
+        ] as Required<MenuProps>["items"])
+      : []),
   ];
 
   // ✅ SỬA: Xác định selectedKey
@@ -120,6 +135,8 @@ export default function SidebarNav() {
     selectedKey = "payments";
   } else if (pathname.startsWith("/reports")) {
     selectedKey = "reports";
+  } else if (pathname.startsWith("/treatment-care")) {
+    selectedKey = "treatment-care";
   } else if (pathname.startsWith("/dental-services")) {
     selectedKey = "dental-services";
   }
@@ -162,7 +179,7 @@ export default function SidebarNav() {
         openKeys={openKeys}
         onOpenChange={handleOpenChange}
         style={{ borderRight: 0, flex: 1, fontSize: 16 }}
-        items={menuItems.filter(Boolean)}
+        items={menuItems}
       />
       <div
         style={{
