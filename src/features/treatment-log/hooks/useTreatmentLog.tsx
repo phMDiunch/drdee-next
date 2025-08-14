@@ -42,7 +42,15 @@ export function useTreatmentLog() {
         });
 
         if (!response.ok) {
-          throw new Error("Failed to create treatment log");
+          let message = "Failed to create treatment log";
+          try {
+            const payload = await response.json();
+            message = payload?.error || message;
+          } catch {
+            // ignore parse error, fall back to status text
+            message = response.statusText || message;
+          }
+          throw new Error(message);
         }
 
         const result = await response.json();
@@ -68,7 +76,14 @@ export function useTreatmentLog() {
         });
 
         if (!response.ok) {
-          throw new Error("Failed to update treatment log");
+          let message = "Failed to update treatment log";
+          try {
+            const payload = await response.json();
+            message = payload?.error || message;
+          } catch {
+            message = response.statusText || message;
+          }
+          throw new Error(message);
         }
 
         const result = await response.json();
@@ -89,7 +104,14 @@ export function useTreatmentLog() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to delete treatment log");
+        let message = "Failed to delete treatment log";
+        try {
+          const payload = await response.json();
+          message = payload?.error || message;
+        } catch {
+          message = response.statusText || message;
+        }
+        throw new Error(message);
       }
 
       const result = await response.json();

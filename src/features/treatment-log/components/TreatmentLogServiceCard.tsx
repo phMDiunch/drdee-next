@@ -8,6 +8,7 @@ import {
   Button,
   Popconfirm,
   Space,
+  Tooltip,
 } from "antd";
 import {
   EditOutlined,
@@ -16,7 +17,6 @@ import {
 } from "@ant-design/icons";
 import { formatDateTimeVN } from "@/utils/date";
 import type { TreatmentLogWithDetails } from "../type";
-import { title } from "process";
 
 const { Text } = Typography;
 
@@ -100,12 +100,50 @@ export default function TreatmentLogServiceCard({
       dataIndex: "treatmentNotes",
       key: "treatmentNotes",
       ellipsis: true,
+      render: (notes: string, record: TreatmentLogWithDetails) => (
+        <Tooltip
+          overlayStyle={{ maxWidth: 600 }}
+          title={
+            <div style={{ whiteSpace: "pre-wrap" }}>
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                Nội dung điều trị
+              </div>
+              <div style={{ marginBottom: 8 }}>{notes || "-"}</div>
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                Nội dung điều trị kế tiếp
+              </div>
+              <div>{record.nextStepNotes || "-"}</div>
+            </div>
+          }
+        >
+          <span title={notes}>{notes}</span>
+        </Tooltip>
+      ),
     },
     {
       title: "Nội dung điều trị kế tiếp",
       dataIndex: "nextStepNotes",
       key: "nextStepNotes",
       ellipsis: true,
+      render: (next: string, record: TreatmentLogWithDetails) => (
+        <Tooltip
+          overlayStyle={{ maxWidth: 600 }}
+          title={
+            <div style={{ whiteSpace: "pre-wrap" }}>
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                Nội dung điều trị kế tiếp
+              </div>
+              <div style={{ marginBottom: 8 }}>{next || "-"}</div>
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                Nội dung điều trị
+              </div>
+              <div>{record.treatmentNotes || "-"}</div>
+            </div>
+          }
+        >
+          <span title={next}>{next}</span>
+        </Tooltip>
+      ),
     },
     {
       title: "Hành động",

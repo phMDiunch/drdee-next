@@ -1,6 +1,14 @@
 // src/features/treatment-log/components/TreatmentLogTable.tsx
 "use client";
-import { Table, Tag, Button, Popconfirm, Space, Typography } from "antd";
+import {
+  Table,
+  Tag,
+  Button,
+  Popconfirm,
+  Space,
+  Typography,
+  Tooltip,
+} from "antd";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import type { TreatmentLogWithDetails } from "../type";
 import { TREATMENT_STATUS_OPTIONS } from "../constants";
@@ -26,10 +34,24 @@ export default function TreatmentLogTable({
       title: "Dịch vụ điều trị",
       dataIndex: ["consultedService", "consultedServiceName"],
       key: "serviceName",
-      width: 200,
+      // Slightly narrower and ellipsis to avoid horizontal scroll
+      width: 160,
+      ellipsis: true as const,
       render: (name: string, record: TreatmentLogWithDetails) => (
         <div>
-          <Text strong>{name}</Text>
+          <Text
+            strong
+            style={{
+              display: "inline-block",
+              maxWidth: "100%",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+            title={name}
+          >
+            {name}
+          </Text>
           <br />
           <Text type="secondary" style={{ fontSize: 12 }}>
             Đơn vị: {record.consultedService.consultedServiceUnit}
@@ -41,45 +63,53 @@ export default function TreatmentLogTable({
       title: "Nội dung điều trị",
       dataIndex: "treatmentNotes",
       key: "treatmentNotes",
-      width: 300,
-      render: (notes: string) => (
-        <Text
-          style={{
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
-          }}
+      // Let table handle truncation similar to by-service view
+      ellipsis: true as const,
+      render: (notes: string, record: TreatmentLogWithDetails) => (
+        <Tooltip
+          overlayStyle={{ maxWidth: 600 }}
+          title={
+            <div style={{ whiteSpace: "pre-wrap" }}>
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                Nội dung điều trị
+              </div>
+              <div style={{ marginBottom: 8 }}>{notes || "-"}</div>
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                Nội dung điều trị kế tiếp
+              </div>
+              <div>{record.nextStepNotes || "-"}</div>
+            </div>
+          }
         >
-          {notes}
-        </Text>
+          <Text title={notes}>{notes}</Text>
+        </Tooltip>
       ),
     },
     {
       title: "Bác sĩ điều trị",
       dataIndex: ["dentist", "fullName"],
       key: "dentist",
-      width: 150,
+      width: 140,
     },
     {
       title: "Điều dưỡng 1",
       dataIndex: ["assistant1", "fullName"],
       key: "assistant1",
-      width: 130,
+      width: 120,
       render: (name: string) => name || "-",
     },
     {
       title: "Điều dưỡng 2",
       dataIndex: ["assistant2", "fullName"],
       key: "assistant2",
-      width: 130,
+      width: 120,
       render: (name: string) => name || "-",
     },
     {
       title: "Trạng thái",
       dataIndex: "treatmentStatus",
       key: "treatmentStatus",
-      width: 140,
+      width: 120,
       render: (status: string) => {
         const statusConfig = TREATMENT_STATUS_OPTIONS.find(
           (s) => s.value === status
@@ -101,8 +131,7 @@ export default function TreatmentLogTable({
     {
       title: "Thao tác",
       key: "actions",
-      width: 100,
-      fixed: "right" as const,
+      width: 90,
       render: (_: unknown, record: TreatmentLogWithDetails) => (
         <Space size="small">
           <Button
@@ -140,7 +169,6 @@ export default function TreatmentLogTable({
       loading={loading}
       pagination={false}
       size="small"
-      scroll={{ x: 1000 }}
       locale={{
         emptyText: "Chưa có lịch sử điều trị nào",
       }}

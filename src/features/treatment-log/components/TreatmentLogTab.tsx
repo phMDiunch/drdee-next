@@ -211,10 +211,7 @@ export default function TreatmentLogTab({ customerId }: Props) {
             <Title level={5} type="secondary">
               Chưa có lịch sử điều trị
             </Title>
-            <span>
-              Lịch sử điều trị sẽ được tạo từ các lịch hẹn có trạng thái
-              &quot;Đã Đến&quot;
-            </span>
+            <span>Bạn có thể thêm lịch sử điều trị khi cần.</span>
           </Space>
         }
         style={{ padding: "50px 0" }}
