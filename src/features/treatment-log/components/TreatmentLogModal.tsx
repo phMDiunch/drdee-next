@@ -46,6 +46,8 @@ export default function TreatmentLogModal({
     }[]
   >([]);
   const [loadingServices, setLoadingServices] = useState(false);
+  const [clinics, setClinics] = useState<{ id: string; name: string }[]>([]);
+  const [loadingClinics, setLoadingClinics] = useState(false);
   const { activeEmployees, employeeProfile } = useAppStore();
 
   // Lấy danh sách consulted services của customer
@@ -83,6 +85,35 @@ export default function TreatmentLogModal({
     }
   }, [open, customerId, fetchConsultedServices]);
 
+  // Fetch clinics list when modal opens
+  useEffect(() => {
+    const fetchClinics = async () => {
+      setLoadingClinics(true);
+      try {
+        const res = await fetch("/api/clinics");
+        if (res.ok) {
+          const data = await res.json();
+          // Ensure employee's clinic appears even if not in API list
+          const empClinicId = employeeProfile?.clinicId;
+          const list: { id: string; name: string }[] = Array.isArray(data)
+            ? data
+            : [];
+          const hasEmpClinic = empClinicId
+            ? list.some((c) => c.id === empClinicId)
+            : true;
+          setClinics(
+            !hasEmpClinic && empClinicId
+              ? [{ id: empClinicId, name: empClinicId }, ...list]
+              : list
+          );
+        }
+      } finally {
+        setLoadingClinics(false);
+      }
+    };
+    if (open) fetchClinics();
+  }, [open, employeeProfile?.clinicId]);
+
   // Set form values khi mở modal
   useEffect(() => {
     if (open) {
@@ -91,6 +122,7 @@ export default function TreatmentLogModal({
           appointmentId,
           dentistId: employeeProfile?.id,
           treatmentStatus: DEFAULT_TREATMENT_STATUS,
+          clinicId: employeeProfile?.clinicId,
         });
       } else if (mode === "edit" && initialData) {
         form.setFieldsValue({
@@ -101,6 +133,7 @@ export default function TreatmentLogModal({
           dentistId: initialData.dentistId,
           assistant1Id: initialData.assistant1Id,
           assistant2Id: initialData.assistant2Id,
+          clinicId: initialData.clinicId,
         });
       }
     }
@@ -268,6 +301,26 @@ export default function TreatmentLogModal({
                 {TREATMENT_STATUS_OPTIONS.map((status) => (
                   <Option key={status.value} value={status.value}>
                     {status.label}
+                  </Option>
+                ))}
+              </Select>
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              label="Chi nhánh"
+              name="clinicId"
+              rules={[{ required: true, message: "Vui lòng chọn chi nhánh" }]}
+            >
+              <Select
+                placeholder="Chọn chi nhánh"
+                loading={loadingClinics}
+                showSearch
+                optionFilterProp="label"
+              >
+                {clinics.map((c) => (
+                  <Option key={c.id} value={c.id} label={c.name}>
+                    {c.name}
                   </Option>
                 ))}
               </Select>

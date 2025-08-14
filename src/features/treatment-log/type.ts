@@ -13,6 +13,7 @@ export interface TreatmentLog {
   dentistId: string;
   assistant1Id?: string;
   assistant2Id?: string;
+  clinicId?: string;
   createdById: string;
   updatedById: string;
   createdAt: Date;

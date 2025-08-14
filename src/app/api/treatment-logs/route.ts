@@ -98,6 +98,7 @@ export async function POST(request: NextRequest) {
       dentistId,
       assistant1Id,
       assistant2Id,
+      clinicId,
       createdById,
     } = body;
 
@@ -156,6 +157,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Determine clinicId: prefer provided clinicId; else derive from appointment or consulted service; fallback to creator's profile if available
+    let effectiveClinicId: string | null = null;
+    if (clinicId) {
+      effectiveClinicId = clinicId;
+    } else if (appointmentId) {
+      const apptClinic = await prisma.appointment.findUnique({
+        where: { id: appointmentId },
+        select: { clinicId: true },
+      });
+      effectiveClinicId = apptClinic?.clinicId || null;
+    }
+    if (!effectiveClinicId) {
+      const consultedClinic = await prisma.consultedService.findUnique({
+        where: { id: consultedServiceId },
+        select: { clinicId: true },
+      });
+      effectiveClinicId = consultedClinic?.clinicId || null;
+    }
+
     const treatmentLog = await prisma.treatmentLog.create({
       data: {
         customerId: effectiveCustomerId,
@@ -167,6 +187,7 @@ export async function POST(request: NextRequest) {
         dentistId,
         assistant1Id: assistant1Id || null,
         assistant2Id: assistant2Id || null,
+        clinicId: effectiveClinicId,
         createdById,
         updatedById: createdById,
         imageUrls: [],

@@ -93,6 +93,7 @@ export async function PUT(
       dentistId,
       assistant1Id,
       assistant2Id,
+      clinicId,
       updatedById,
     } = body;
 
@@ -113,6 +114,7 @@ export async function PUT(
         dentistId,
         assistant1Id: assistant1Id || null,
         assistant2Id: assistant2Id || null,
+        clinicId: clinicId || undefined,
         updatedById,
       },
       include: {
