@@ -1,4 +1,4 @@
-// src/features/treatment-care/components/CareDetailDrawer.tsx
+// src/features/treatment-care/components/TreatmentCareDetail.tsx
 "use client";
 import { Drawer, Descriptions, Space, Tag, Typography } from "antd";
 import dayjs from "dayjs";

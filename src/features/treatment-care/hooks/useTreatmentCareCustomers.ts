@@ -1,17 +1,17 @@
-// src/features/treatment-care/hooks/useCandidates.ts
+// src/features/treatment-care/hooks/useTreatmentCareCustomers.ts
 import { useQuery } from "@tanstack/react-query";
 import { useAuthHeaders } from "@/lib/authHeaders";
-import { CandidateItem } from "../type";
+import { TreatmentCareCustomer } from "../type";
 
-export function useAftercareCandidates(params: {
+export function useTreatmentCareCustomers(params: {
   date: string;
   keyword?: string;
 }) {
   const { date, keyword } = params;
   const headers = useAuthHeaders();
   return useQuery({
-    queryKey: ["aftercare-candidates", date, keyword ?? ""],
-    queryFn: async (): Promise<CandidateItem[]> => {
+    queryKey: ["treatment-care-customers", date, keyword ?? ""],
+    queryFn: async (): Promise<TreatmentCareCustomer[]> => {
       const usp = new URLSearchParams();
       usp.set("date", date);
       if (keyword) usp.set("keyword", keyword);

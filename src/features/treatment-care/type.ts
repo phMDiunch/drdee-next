@@ -1,7 +1,7 @@
 // src/features/treatment-care/type.ts
 import { TreatmentCareStatus } from "@prisma/client";
 
-export type CandidateItem = {
+export type TreatmentCareCustomer = {
   customerId: string;
   customerCode: string | null;
   customerName: string;
@@ -36,4 +36,7 @@ export type TreatmentCareRecord = {
   careStaff?: { id: string; fullName: string };
 };
 
-export type GroupedByDay = { day: string; items: TreatmentCareRecord[] }[];
+export type TreatmentCareGroupedByDay = {
+  day: string;
+  items: TreatmentCareRecord[];
+}[];

@@ -1,9 +1,10 @@
-// src/app/(private)/treatment-care/page.tsx
-import TreatmentCareCustomerTable from "@/features/treatment-care/components/TreatmentCareCustomerTable";
-import TreatmentCareTable from "@/features/treatment-care/components/TreatmentCareTable";
+// src/features/treatment-care/pages/TreatmentCareListPage.tsx
+"use client";
 import { Tabs } from "antd";
+import TreatmentCareCustomerTable from "../components/TreatmentCareCustomerTable";
+import TreatmentCareTable from "../components/TreatmentCareTable";
 
-export default function TreatmentCarePage() {
+export default function TreatmentCareListPage() {
   return (
     <Tabs
       items={[

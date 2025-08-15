@@ -1,4 +1,4 @@
-// src/features/treatment-care/components/CandidatesTable.tsx
+// src/features/treatment-care/components/TreatmentCareCustomerTable.tsx
 "use client";
 import {
   Button,
@@ -16,27 +16,30 @@ import { PhoneOutlined } from "@ant-design/icons";
 import Link from "next/link";
 import { useState } from "react";
 import dayjs from "dayjs";
-import { useAftercareCandidates } from "../hooks/useCandidates";
-import { CandidateItem } from "../type";
-import CreateCareModal from "./CreateCareModal";
+import { useTreatmentCareCustomers } from "../hooks/useTreatmentCareCustomers";
+import { TreatmentCareCustomer } from "../type";
+import TreatmentCareModal from "./TreatmentCareModal";
 
 const { Title } = Typography;
 
-export default function CandidatesTable() {
+export default function TreatmentCareCustomerTable() {
   const [date, setDate] = useState(
     dayjs().subtract(1, "day").format("YYYY-MM-DD")
   );
   const [keyword, setKeyword] = useState("");
-  const [open, setOpen] = useState<{ visible: boolean; item?: CandidateItem }>({
+  const [open, setOpen] = useState<{
+    visible: boolean;
+    item?: TreatmentCareCustomer;
+  }>({
     visible: false,
   });
 
-  const { data, isLoading, refetch } = useAftercareCandidates({
+  const { data, isLoading, refetch } = useTreatmentCareCustomers({
     date,
     keyword: keyword || undefined,
   });
 
-  const columns: import("antd").TableProps<CandidateItem>["columns"] = [
+  const columns: import("antd").TableProps<TreatmentCareCustomer>["columns"] = [
     {
       title: "Mã KH",
       dataIndex: "customerCode",
@@ -47,7 +50,7 @@ export default function CandidatesTable() {
       title: "Họ tên",
       dataIndex: "customerName",
       key: "customerName",
-      render: (text: string, r: CandidateItem) => (
+      render: (text: string, r: TreatmentCareCustomer) => (
         <Link href={`/customers/${r.customerId}`}>{text}</Link>
       ),
     },
@@ -55,7 +58,7 @@ export default function CandidatesTable() {
       title: "Liên hệ",
       key: "phoneIcon",
       width: 80,
-      render: (_: unknown, r: CandidateItem) =>
+      render: (_: unknown, r: TreatmentCareCustomer) =>
         r.phone ? (
           <Tooltip title={r.phone}>
             <a href={`tel:${r.phone}`}>
@@ -67,9 +70,9 @@ export default function CandidatesTable() {
     {
       title: "Dịch vụ điều trị",
       key: "treatmentServiceNames",
-      render: (_: unknown, r: CandidateItem) => (
+      render: (_: unknown, r: TreatmentCareCustomer) => (
         <Space wrap>
-          {r.treatmentServiceNames.map((s) => (
+          {r.treatmentServiceNames.map((s: string) => (
             <Tag key={s}>{s}</Tag>
           ))}
         </Space>
@@ -78,9 +81,9 @@ export default function CandidatesTable() {
     {
       title: "BS điều trị",
       key: "treatingDoctorNames",
-      render: (_: unknown, r: CandidateItem) => (
+      render: (_: unknown, r: TreatmentCareCustomer) => (
         <Space wrap>
-          {r.treatingDoctorNames.map((s) => (
+          {r.treatingDoctorNames.map((s: string) => (
             <Tag color="blue" key={s}>
               {s}
             </Tag>
@@ -93,7 +96,7 @@ export default function CandidatesTable() {
       title: "",
       key: "actions",
       width: 140,
-      render: (_: unknown, r: CandidateItem) => (
+      render: (_: unknown, r: TreatmentCareCustomer) => (
         <Button
           type="primary"
           onClick={() => setOpen({ visible: true, item: r })}
@@ -148,7 +151,7 @@ export default function CandidatesTable() {
       {isLoading ? (
         <Spin />
       ) : (
-        <Table<CandidateItem>
+        <Table<TreatmentCareCustomer>
           rowKey={(r) => r.customerId}
           columns={columns}
           dataSource={data || []}
@@ -157,7 +160,7 @@ export default function CandidatesTable() {
         />
       )}
 
-      <CreateCareModal
+      <TreatmentCareModal
         open={open.visible}
         onClose={() => setOpen({ visible: false })}
         customerId={open.item?.customerId || ""}

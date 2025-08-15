@@ -1,8 +1,8 @@
-// src/features/treatment-care/components/CreateCareModal.tsx
+// src/features/treatment-care/components/TreatmentCareModal.tsx
 "use client";
 import { Modal, Form, DatePicker, Input, Radio } from "antd";
 import dayjs from "dayjs";
-import { useCreateTreatmentCare } from "../hooks/useTreatmentCares";
+import { useCreateTreatmentCareRecord } from "../hooks/useTreatmentCareRecords";
 import { TREATMENT_CARE_STATUS_OPTIONS } from "../constants";
 
 const { TextArea } = Input;
@@ -21,7 +21,7 @@ export default function CreateCareModal({
   treatmentDate: string; // YYYY-MM-DD
 }) {
   const [form] = Form.useForm();
-  const createMut = useCreateTreatmentCare();
+  const createMut = useCreateTreatmentCareRecord();
 
   const handleOk = async () => {
     const v = await form.validateFields();
