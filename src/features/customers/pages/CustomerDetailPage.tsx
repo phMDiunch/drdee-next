@@ -45,8 +45,8 @@ import PaymentVoucherTable from "@/features/payment/components/PaymentVoucherTab
 import PaymentVoucherModal from "@/features/payment/components/PaymentVoucherModal";
 import CustomerModal from "../components/CustomerModal";
 import TreatmentLogTab from "@/features/treatment-log/components/TreatmentLogTab";
-import CustomerTreatmentCareTab from "@/features/treatment-care/components/CustomerTreatmentCareTab";
-import CreateCareModal from "@/features/treatment-care/components/CreateCareModal";
+import TreatmentCareTable from "@/features/treatment-care/components/TreatmentCareTable";
+import TreatmentCareModal from "@/features/treatment-care/components/TreatmentCareModal";
 import type { Customer } from "@/features/customers/type";
 import type { ConsultedServiceWithDetails } from "@/features/consulted-service/type";
 import type { Appointment as PrismaAppointment } from "@prisma/client";
@@ -329,7 +329,7 @@ export default function CustomerDetailPage({ customerId }: Props) {
               Chăm sóc
             </Button>
           </div>
-          <CustomerTreatmentCareTab customerId={customerId} />
+          <TreatmentCareTable customerId={customerId} />
         </div>
       ),
     },
@@ -540,9 +540,9 @@ export default function CustomerDetailPage({ customerId }: Props) {
         customers={[]}
       />
 
-      {/* Aftercare Quick Modal - reuse CreateCareModal */}
+      {/* Aftercare Quick Modal - reuse TreatmentCareModal */}
       {latestTreatmentDate && (
-        <CreateCareModal
+        <TreatmentCareModal
           open={aftercareOpen}
           onClose={() => setAftercareOpen(false)}
           customerId={customerId}
