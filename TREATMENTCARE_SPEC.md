@@ -48,13 +48,13 @@ Mục tiêu: tài liệu ngắn gọn, đủ để implement đồng bộ FE + A
   - pages/TreatmentCarePage.tsx
   - constants.ts (TREATMENT_CARE_STATUS_OPTIONS, CARE_STATUS_COLOR_MAP)
   - components/
-  - CandidatesTable.tsx
+  - TreatmentCareCustomerTable.tsx
   - RecordsList.tsx
   - CreateCareModal.tsx
   - CareDetailDrawer.tsx
   - CustomerTreatmentCareTab.tsx
   - hooks/
-  - useCandidates.ts (useAftercareCandidates)
+  - useTreatmentCareCustomers.ts
   - useTreatmentCares.ts (useTreatmentCares, useCreateTreatmentCare, useDeleteTreatmentCare, useCustomerTreatmentCares)
   - type.ts
 
@@ -68,11 +68,11 @@ Mục tiêu: tài liệu ngắn gọn, đủ để implement đồng bộ FE + A
 - Badge: “Đã chăm sóc X lần hôm nay” (đếm TreatmentCare theo KH và treatmentDate).
 - Liên hệ: hiển thị icon điện thoại (nếu có số), tooltip = số; click gọi tel:.
 
-Hook: useAftercareCandidates
+Hook: useTreatmentCareCustomers
 
 - Input: { treatmentDate, clinicId? (admin), keyword? }
 - Scope: non-admin ép clinicId = profile.clinicId.
-- Output: Candidate[] = { customerId, customerCode, customerName, phone, treatmentDate, treatmentServiceNames[], treatingDoctorNames[] }
+- Output: TreatmentCareCustomer[] = { customerId, customerCode, customerName, phone, treatmentDate, treatmentServiceNames[], treatingDoctorNames[] }
 
 ### 4.2 Tab Bản ghi (Records — 35 ngày gần nhất, group theo ngày)
 
@@ -90,12 +90,12 @@ Hook: useTreatmentCares
 Hook: useCreateTreatmentCareMutation
 
 - Input: { customerId, treatmentDate (YYYY-MM-DD), careAt (ISO), careStatus, careContent }
-- On success: invalidate Candidates (ngày hiện tại) + Records (range liên quan).
+- On success: invalidate Customers (ngày hiện tại) + Records (range liên quan).
 
 Hook: useDeleteTreatmentCareMutation
 
 - Input: { id }
-- On success: invalidate Candidates/Records.
+- On success: invalidate Customers/Records.
 
 ### 4.3 Tab “Chăm sóc” trong Customer Detail
 
@@ -120,16 +120,16 @@ Nút “Chăm sóc” tại tab này (đã triển khai, tái sử dụng modal)
 - Mục tiêu: tạo nhanh bản ghi chăm sóc cho đúng KH ngay trong chi tiết KH.
 - Cách làm: tái sử dụng `CreateCareModal`, truyền `customerId` và `treatmentDate` mặc định = ngày điều trị mới nhất (từ TreatmentLog của KH). Không tạo component mới.
 - Nếu KH không có TreatmentLog: nút bị vô hiệu hóa.
-- Quy tắc ràng buộc và snapshot giữ nguyên như ở Candidates/Records (BE đã kiểm tra tồn tại TreatmentLog trong ngày và careAt(VN) ≥ treatmentDate).
+- Quy tắc ràng buộc và snapshot giữ nguyên như ở Customers/Records (BE đã kiểm tra tồn tại TreatmentLog trong ngày và careAt(VN) ≥ treatmentDate).
 
 ## 5) Backend — API
 
 Headers (tạm v1): x-employee-id, x-employee-role, x-clinic-id.
 
-- GET /api/aftercare/candidates?date=YYYY-MM-DD&clinicId?&keyword?&page?&pageSize?
+- GET /api/treatment-cares/customers?date=YYYY-MM-DD&clinicId?&keyword?&page?&pageSize?
 
   - Non-admin: ép clinicId từ header.
-  - Trả về Candidate[] (gộp theo customer trong đúng treatmentDate VN).
+  - Trả về TreatmentCareCustomer[] (gộp theo customer trong đúng treatmentDate VN).
 
 - GET /api/treatment-cares?clinicId?&from=YYYY-MM-DD&to=YYYY-MM-DD&careStatus?&onlyMine?=1&keyword?&groupBy=day
 
@@ -186,14 +186,14 @@ Mục tiêu: bám pattern API Next.js hiện có (NextRequest/NextResponse + pri
 
 - Chuẩn so sánh theo Asia/Ho_Chi_Minh (sử dụng dayjs.tz và helper trong `src/utils/date.ts`).
 - Group theo ngày của Records: dùng date(careAt) theo VN.
-- Candidates dựa treatmentDate theo VN.
+- Customers dựa treatmentDate theo VN.
 
 ### Endpoints
 
-- GET `/api/aftercare/candidates?date=YYYY-MM-DD&clinicId?&keyword?&page?&pageSize?`
+- GET `/api/treatment-cares/customers?date=YYYY-MM-DD&clinicId?&keyword?&page?&pageSize?`
   - Scope: non-admin ép clinicId (từ header).
-  - Trả về mảng Candidate gộp theo customer cho đúng treatmentDate.
-  - Candidate: { customerId, customerCode, customerName, phone, treatmentDate: 'YYYY-MM-DD', treatmentServiceNames: string[], treatingDoctorNames: string[], careCount?: number }
+  - Trả về mảng TreatmentCareCustomer gộp theo customer cho đúng treatmentDate.
+  - TreatmentCareCustomer: { customerId, customerCode, customerName, phone, treatmentDate: 'YYYY-MM-DD', treatmentServiceNames: string[], treatingDoctorNames: string[], careCount?: number }
 - GET `/api/treatment-cares?clinicId?&from=YYYY-MM-DD&to=YYYY-MM-DD&careStatus?&onlyMine?=1&keyword?&groupBy=day`
   - Scope: non-admin ép clinicId (từ header). onlyMine → careStaffId = current employee.
   - Mặc định nếu thiếu from/to: from=today-34, to=today (VN), groupBy=day.
@@ -223,8 +223,8 @@ Mục tiêu: bám pattern API Next.js hiện có (NextRequest/NextResponse + pri
 ### Tìm kiếm & phân trang
 
 - Keyword Records: tìm theo customerCode/fullName/phone và careContent (insensitive).
-- Candidates: tìm theo customerCode/fullName/phone.
-- Pagination: Candidates (tuỳ, v1 có thể không); Records (Customer Detail) có page/pageSize, order by careAt desc.
+- Customers: tìm theo customerCode/fullName/phone.
+- Pagination: Customers (tuỳ, v1 có thể không); Records (Customer Detail) có page/pageSize, order by careAt desc.
 
 ### Lỗi (đề xuất)
 

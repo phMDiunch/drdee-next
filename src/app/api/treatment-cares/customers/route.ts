@@ -1,4 +1,4 @@
-// src/app/api/aftercare/candidates/route.ts
+// src/app/api/treatment-cares/customers/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/services/prismaClient";
 import dayjs from "dayjs";
@@ -120,7 +120,7 @@ export async function GET(request: NextRequest) {
       )
     );
 
-    const candidates = Object.values(byCustomer).map((c) => ({
+    const customers = Object.values(byCustomer).map((c) => ({
       customerId: c.customerId,
       customerCode: c.customerCode,
       customerName: c.customerName,
@@ -132,13 +132,13 @@ export async function GET(request: NextRequest) {
     }));
 
     // Optional: sort by name
-    candidates.sort((a, b) =>
+    customers.sort((a, b) =>
       a.customerName.localeCompare(b.customerName, "vi")
     );
 
-    return NextResponse.json(candidates);
+    return NextResponse.json(customers);
   } catch (error) {
-    console.error("aftercare/candidates", error);
+    console.error("treatment-cares/customers", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

@@ -15,10 +15,13 @@ export function useTreatmentCareCustomers(params: {
       const usp = new URLSearchParams();
       usp.set("date", date);
       if (keyword) usp.set("keyword", keyword);
-      const res = await fetch(`/api/aftercare/candidates?${usp.toString()}`, {
-        cache: "no-store",
-        headers,
-      });
+      const res = await fetch(
+        `/api/treatment-cares/customers?${usp.toString()}`,
+        {
+          cache: "no-store",
+          headers,
+        }
+      );
       if (!res.ok) throw new Error(await res.text());
       return res.json();
     },
