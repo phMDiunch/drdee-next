@@ -169,7 +169,7 @@ export default function TreatmentLogModal({
       onOk={() => form.submit()}
       confirmLoading={loading}
       width={800}
-      destroyOnClose
+      destroyOnHidden
     >
       <Form
         form={form}

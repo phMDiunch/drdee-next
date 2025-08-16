@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: {
-        appointmentDateTime: "asc", // Cũ nhất trước
+        appointmentDateTime: "desc", // Mới nhất trước
       },
     });
 

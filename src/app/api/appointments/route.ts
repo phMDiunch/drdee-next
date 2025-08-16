@@ -4,7 +4,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/services/prismaClient";
 import { Prisma } from "@prisma/client";
 import dayjs from "dayjs";
-import { toISOStringVN } from "@/utils/date";
 
 // Lấy danh sách lịch hẹn (theo ngày, bác sĩ, clinic nếu muốn)
 export async function GET(request: NextRequest) {

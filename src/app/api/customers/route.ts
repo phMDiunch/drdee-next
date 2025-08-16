@@ -6,7 +6,6 @@ import { Prisma } from "@prisma/client";
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
-import { nowVN } from "@/utils/date";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);

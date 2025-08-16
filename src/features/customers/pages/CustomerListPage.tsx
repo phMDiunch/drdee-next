@@ -12,12 +12,7 @@ import {
   DatePicker,
   Space,
 } from "antd";
-import {
-  LoginOutlined,
-  CalendarOutlined,
-  LeftOutlined,
-  RightOutlined,
-} from "@ant-design/icons";
+import { LoginOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
 import CustomerTable from "@/features/customers/components/CustomerTable";
 import CustomerModal from "@/features/customers/components/CustomerModal";
 import { Customer } from "@/features/customers/type";
