@@ -1,7 +1,16 @@
 // src/features/consulted-service/pages/ConsultedServiceDailyPage.tsx
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { Card, Button, Typography, Row, Col, DatePicker, Space } from "antd";
+import {
+  Card,
+  Button,
+  Typography,
+  Row,
+  Col,
+  DatePicker,
+  Space,
+  Tabs,
+} from "antd";
 import {
   LeftOutlined,
   RightOutlined,
@@ -25,6 +34,10 @@ export default function ConsultedServiceDailyPage() {
   >([]);
   const [loading, setLoading] = useState(false);
 
+  // ✅ ADD: Clinic management for admin (like DailyAppointmentsPage)
+  const [clinics, setClinics] = useState<{ id: string; name: string }[]>([]);
+  const [selectedClinicId, setSelectedClinicId] = useState<string>("");
+
   // Modal states for edit and view (no add from this page)
   const [modal, setModal] = useState<{
     open: boolean;
@@ -34,16 +47,25 @@ export default function ConsultedServiceDailyPage() {
 
   const { employeeProfile } = useAppStore();
 
-  // ✅ Fetch consulted services theo ngày được chọn
+  // ✅ UPDATED: Clinic scope logic like DailyAppointmentsPage
+  const activeClinicScope =
+    employeeProfile?.role === "admin"
+      ? selectedClinicId || employeeProfile?.clinicId || ""
+      : employeeProfile?.clinicId || "";
+
+  // ✅ UPDATED: Fetch consulted services with clinic scope
   const fetchConsultedServicesByDate = useCallback(
     async (date: dayjs.Dayjs) => {
       try {
         setLoading(true);
         const dateStr = date.format("YYYY-MM-DD");
 
-        const res = await fetch(
-          `/api/consulted-services?date=${dateStr}&clinicId=${employeeProfile?.clinicId}`
-        );
+        const params = new URLSearchParams({ date: dateStr });
+        if (activeClinicScope) {
+          params.set("clinicId", activeClinicScope);
+        }
+
+        const res = await fetch(`/api/consulted-services?${params.toString()}`);
 
         if (!res.ok) {
           throw new Error("Không thể tải danh sách dịch vụ tư vấn");
@@ -60,14 +82,59 @@ export default function ConsultedServiceDailyPage() {
         setLoading(false);
       }
     },
-    [employeeProfile?.clinicId]
+    [activeClinicScope]
   );
 
   useEffect(() => {
-    if (employeeProfile?.clinicId) {
+    if (activeClinicScope) {
       fetchConsultedServicesByDate(selectedDate);
     }
-  }, [employeeProfile?.clinicId, selectedDate, fetchConsultedServicesByDate]);
+  }, [activeClinicScope, selectedDate, fetchConsultedServicesByDate]);
+
+  // ✅ ADD: Fetch clinics for admin (like DailyAppointmentsPage)
+  useEffect(() => {
+    const loadClinics = async () => {
+      if (employeeProfile?.role !== "admin") return;
+      try {
+        const res = await fetch("/api/clinics");
+        if (!res.ok) throw new Error("Không thể tải danh sách cơ sở");
+        let data: { id: string; name: string }[] = await res.json();
+        if (!Array.isArray(data)) data = [];
+
+        // Ensure admin's clinic id present
+        if (
+          employeeProfile.clinicId &&
+          !data.find((c) => c.id === employeeProfile.clinicId)
+        ) {
+          data.push({
+            id: employeeProfile.clinicId,
+            name: employeeProfile.clinicId,
+          });
+        }
+
+        setClinics(data);
+        // Default selection: keep current or use admin's clinic
+        if (!selectedClinicId) {
+          setSelectedClinicId(employeeProfile.clinicId || data[0]?.id || "");
+        }
+      } catch (e) {
+        console.error(e);
+        toast.error("Lỗi tải danh sách cơ sở");
+      }
+    };
+    loadClinics();
+  }, [employeeProfile?.role, employeeProfile?.clinicId, selectedClinicId]);
+
+  // ✅ ADD: Initialize selectedClinicId early for admin
+  useEffect(() => {
+    if (
+      employeeProfile?.role === "admin" &&
+      !selectedClinicId &&
+      employeeProfile?.clinicId
+    ) {
+      setSelectedClinicId(employeeProfile.clinicId);
+    }
+  }, [employeeProfile?.role, employeeProfile?.clinicId, selectedClinicId]);
 
   // ✅ Điều hướng ngày
   const goToPreviousDay = () => {
@@ -356,6 +423,21 @@ export default function ConsultedServiceDailyPage() {
             </Row>
           </Col>
         </Row>
+
+        {/* ✅ ADD: Admin clinic tabs (like DailyAppointmentsPage) */}
+        {employeeProfile?.role === "admin" && (
+          <div style={{ marginBottom: 16 }}>
+            <Tabs
+              size="small"
+              activeKey={selectedClinicId}
+              onChange={(key) => {
+                setSelectedClinicId(key);
+                // Data will refetch automatically via useEffect dependency
+              }}
+              items={clinics.map((c) => ({ key: c.id, label: c.name }))}
+            />
+          </div>
+        )}
 
         {/* ✅ Thống kê nhanh */}
         <Row gutter={16} style={{ marginBottom: 16 }}>

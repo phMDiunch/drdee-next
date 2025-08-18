@@ -11,6 +11,7 @@ import {
   Button,
   Spin,
   Space,
+  Tabs,
 } from "antd";
 import {
   DollarOutlined,
@@ -35,6 +36,10 @@ export default function PaymentDailyPage() {
   const [selectedDate, setSelectedDate] = useState(dayjs()); // Single date like appointments
   const [loading, setLoading] = useState(false);
 
+  // ✅ ADD: Clinic management for admin (like other pages)
+  const [clinics, setClinics] = useState<{ id: string; name: string }[]>([]);
+  const [selectedClinicId, setSelectedClinicId] = useState<string>("");
+
   const [dailyPayments, setDailyPayments] = useState<
     PaymentVoucherWithDetails[]
   >([]);
@@ -56,10 +61,16 @@ export default function PaymentDailyPage() {
 
   const { employeeProfile, activeEmployees } = useAppStore();
 
-  // Fetch daily payments by selected date
+  // ✅ UPDATED: Clinic scope logic like other pages
+  const activeClinicScope =
+    employeeProfile?.role === "admin"
+      ? selectedClinicId || employeeProfile?.clinicId || ""
+      : employeeProfile?.clinicId || "";
+
+  // ✅ UPDATED: Fetch daily payments with clinic scope
   const fetchPaymentsByDate = useCallback(
     async (date: dayjs.Dayjs) => {
-      if (!employeeProfile) return;
+      if (!activeClinicScope) return;
 
       setLoading(true);
       try {
@@ -71,11 +82,8 @@ export default function PaymentDailyPage() {
           endDate,
           page: "1",
           pageSize: "1000", // Get all for daily view
+          clinicId: activeClinicScope, // ✅ Always use clinic scope
         });
-
-        if (employeeProfile.role !== "admin") {
-          params.set("clinicId", employeeProfile.clinicId || "");
-        }
 
         const res = await fetch(`/api/payment-vouchers?${params.toString()}`);
         const data = await res.json();
@@ -106,14 +114,59 @@ export default function PaymentDailyPage() {
       }
       setLoading(false);
     },
-    [employeeProfile]
+    [activeClinicScope]
   );
 
   useEffect(() => {
-    if (employeeProfile) {
+    if (activeClinicScope) {
       fetchPaymentsByDate(selectedDate);
     }
-  }, [employeeProfile, selectedDate, fetchPaymentsByDate]);
+  }, [activeClinicScope, selectedDate, fetchPaymentsByDate]);
+
+  // ✅ ADD: Fetch clinics for admin (like other pages)
+  useEffect(() => {
+    const loadClinics = async () => {
+      if (employeeProfile?.role !== "admin") return;
+      try {
+        const res = await fetch("/api/clinics");
+        if (!res.ok) throw new Error("Không thể tải danh sách cơ sở");
+        let data: { id: string; name: string }[] = await res.json();
+        if (!Array.isArray(data)) data = [];
+
+        // Ensure admin's clinic id present
+        if (
+          employeeProfile.clinicId &&
+          !data.find((c) => c.id === employeeProfile.clinicId)
+        ) {
+          data.push({
+            id: employeeProfile.clinicId,
+            name: employeeProfile.clinicId,
+          });
+        }
+
+        setClinics(data);
+        // Default selection: keep current or use admin's clinic
+        if (!selectedClinicId) {
+          setSelectedClinicId(employeeProfile.clinicId || data[0]?.id || "");
+        }
+      } catch (e) {
+        console.error(e);
+        toast.error("Lỗi tải danh sách cơ sở");
+      }
+    };
+    loadClinics();
+  }, [employeeProfile?.role, employeeProfile?.clinicId, selectedClinicId]);
+
+  // ✅ ADD: Initialize selectedClinicId early for admin
+  useEffect(() => {
+    if (
+      employeeProfile?.role === "admin" &&
+      !selectedClinicId &&
+      employeeProfile?.clinicId
+    ) {
+      setSelectedClinicId(employeeProfile.clinicId);
+    }
+  }, [employeeProfile?.role, employeeProfile?.clinicId, selectedClinicId]);
 
   // Date navigation functions
   const goToPreviousDay = () => {
@@ -157,13 +210,13 @@ export default function PaymentDailyPage() {
     });
   };
 
-  const handleFinish = async (values: any) => {
+  const handleFinish = async (values: Record<string, unknown>) => {
     setLoading(true);
     try {
       const payload = {
         ...values,
         createdById: employeeProfile?.id,
-        clinicId: employeeProfile?.clinicId,
+        clinicId: activeClinicScope, // ✅ Use activeClinicScope instead of employeeProfile.clinicId
       };
 
       const res = await fetch("/api/payment-vouchers", {
@@ -337,6 +390,21 @@ export default function PaymentDailyPage() {
             </Row>
           </Col>
         </Row>
+
+        {/* ✅ ADD: Admin clinic tabs (like other pages) */}
+        {employeeProfile?.role === "admin" && (
+          <div style={{ marginBottom: 16 }}>
+            <Tabs
+              size="small"
+              activeKey={selectedClinicId}
+              onChange={(key) => {
+                setSelectedClinicId(key);
+                // Data will refetch automatically via useEffect dependency
+              }}
+              items={clinics.map((c) => ({ key: c.id, label: c.name }))}
+            />
+          </div>
+        )}
 
         {/* Summary Cards */}
         <Spin spinning={loading}>

@@ -3,6 +3,7 @@
 import { Form, Select, InputNumber, Row, Col, Button, Input, Tag } from "antd";
 import { useState, useMemo } from "react";
 import type { DentalService, Employee } from "@prisma/client";
+import type { FormInstance } from "antd";
 import { useAppStore } from "@/stores/useAppStore";
 import { calculateDaysSinceConfirm } from "@/utils/date";
 import type { ConsultedServiceWithDetails } from "../type";
@@ -11,8 +12,8 @@ import ToothSelectionModal from "./ToothSelectionModal ";
 const { TextArea } = Input;
 
 type Props = {
-  form?: any;
-  onFinish: (values: any) => void;
+  form: FormInstance; // Required form instance
+  onFinish: (values: Record<string, unknown>) => void;
   loading?: boolean;
   dentalServices: DentalService[];
   employees: Employee[];
@@ -27,9 +28,6 @@ export default function ConsultedServiceForm({
   employees = [],
   initialData, // ✅ ADD: Initial data for permission checking
 }: Props) {
-  // ✅ FIX: Create form instance once and use passed form if available
-  const [defaultForm] = Form.useForm();
-  const formInstance = form || defaultForm;
   const [toothModalVisible, setToothModalVisible] = useState(false);
   const [selectedTeeth, setSelectedTeeth] = useState<string[]>([]);
 
@@ -89,7 +87,7 @@ export default function ConsultedServiceForm({
       (s) => s.id === dentalServiceId
     );
     if (selectedService) {
-      formInstance.setFieldsValue({
+      form.setFieldsValue({
         price: selectedService.price,
         preferentialPrice: selectedService.price,
         quantity: 1,
@@ -97,27 +95,30 @@ export default function ConsultedServiceForm({
         consultedServiceUnit: selectedService.unit,
       });
       // Tự động tính thành tiền
-      handleValuesChange({}, formInstance.getFieldsValue());
+      handleValuesChange({}, form.getFieldsValue());
     }
   };
 
   // Hàm tự động tính toán lại các giá trị
-  const handleValuesChange = (_: any, allValues: any) => {
+  const handleValuesChange = (
+    _: Record<string, unknown>,
+    allValues: Record<string, unknown>
+  ) => {
     const { quantity = 1, preferentialPrice = 0 } = allValues;
-    const finalPrice = quantity * preferentialPrice;
-    formInstance.setFieldsValue({ finalPrice });
+    const finalPrice = (quantity as number) * (preferentialPrice as number);
+    form.setFieldsValue({ finalPrice });
   };
 
   // Xử lý chọn răng
   const handleOpenToothModal = () => {
-    const currentTeeth = formInstance.getFieldValue("toothPositions") || [];
+    const currentTeeth = form.getFieldValue("toothPositions") || [];
     setSelectedTeeth(currentTeeth);
     setToothModalVisible(true);
   };
 
   const handleToothModalOk = (teeth: string[]) => {
     setSelectedTeeth(teeth);
-    formInstance.setFieldsValue({ toothPositions: teeth });
+    form.setFieldsValue({ toothPositions: teeth });
     setToothModalVisible(false);
   };
 
@@ -128,7 +129,7 @@ export default function ConsultedServiceForm({
   return (
     <>
       <Form
-        form={formInstance}
+        form={form}
         layout="vertical"
         onFinish={onFinish}
         onValuesChange={handleValuesChange}

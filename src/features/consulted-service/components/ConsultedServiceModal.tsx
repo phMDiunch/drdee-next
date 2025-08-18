@@ -43,6 +43,9 @@ export default function ConsultedServiceModal({
         form.resetFields();
       }
       // View mode không cần form logic
+    } else {
+      // Reset form khi modal đóng để tránh warnings
+      form.resetFields();
     }
   }, [open, mode, initialData, form]);
 
@@ -84,14 +87,16 @@ export default function ConsultedServiceModal({
           service={initialData as ConsultedServiceWithDetails}
         />
       ) : (
-        <ConsultedServiceForm
-          form={form}
-          onFinish={onFinish}
-          loading={loading}
-          dentalServices={dentalServices}
-          employees={activeEmployees}
-          initialData={initialData}
-        />
+        open && (
+          <ConsultedServiceForm
+            form={form}
+            onFinish={onFinish}
+            loading={loading}
+            dentalServices={dentalServices}
+            employees={activeEmployees}
+            initialData={initialData}
+          />
+        )
       )}
     </Modal>
   );
