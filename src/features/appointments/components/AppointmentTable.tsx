@@ -9,7 +9,6 @@ import {
   Tooltip,
   Popconfirm,
 } from "antd";
-import type { Key } from "antd/es/table/interface";
 import {
   PlusOutlined,
   LoginOutlined,
@@ -17,7 +16,10 @@ import {
   CheckOutlined,
   CloseOutlined,
   PhoneOutlined,
+  EditOutlined,
+  DeleteOutlined,
 } from "@ant-design/icons";
+import type { Key } from "antd/es/table/interface";
 import type { Appointment } from "../type";
 import { BRANCHES } from "@/constants";
 import { APPOINTMENT_STATUS_OPTIONS } from "../constants";
@@ -131,16 +133,12 @@ export default function AppointmentTable({
 
   // ✅ THÊM: Helper functions cho workflow mới
   const canConfirm = (appointment: Appointment) => {
-    // ✅ Show confirm khi: Status "Chờ xác nhận" hoặc "Chưa đến" && ngày mai trở đi
+    // ✅ Xác nhận chỉ áp dụng cho lịch ở ngày tương lai còn đang chờ xác nhận
     const isFuture = dayjs(appointment.appointmentDateTime).isAfter(
       dayjs(),
       "day"
     );
-    return (
-      (appointment.status === "Chờ xác nhận" ||
-        appointment.status === "Chưa đến") &&
-      isFuture
-    );
+    return appointment.status === "Chờ xác nhận" && isFuture;
   };
 
   const canMarkNoShow = (appointment: Appointment) => {
@@ -227,16 +225,16 @@ export default function AppointmentTable({
         dayjs(a.appointmentDateTime).unix() -
         dayjs(b.appointmentDateTime).unix(),
       defaultSortOrder: "ascend" as const,
-      render: (v: string | Date) =>
-        v ? dayjs(v).format("HH:mm DD/MM/YYYY") : "",
-    },
-
-    {
-      title: "Thời lượng",
-      dataIndex: "duration",
-      key: "duration",
-      width: 100,
-      render: (duration: number) => `${duration} phút`,
+      render: (v: string | Date, record: AppointmentWithIncludes) => {
+        if (!v) return "";
+        const timeStr = dayjs(v).format("HH:mm");
+        const d = record.duration;
+        return typeof d === "number" && d > 0 ? (
+          <Tooltip title={`Thời lượng: ${d} phút`}>{timeStr}</Tooltip>
+        ) : (
+          timeStr
+        );
+      },
     },
     {
       title: "Bác sĩ chính",
@@ -305,15 +303,33 @@ export default function AppointmentTable({
             title: "Check-in",
             dataIndex: "checkInTime",
             key: "checkInTime",
-            render: (v: string | Date) =>
-              v ? dayjs(v).format("HH:mm DD/MM") : "-",
+            sorter: (
+              a: AppointmentWithIncludes,
+              b: AppointmentWithIncludes
+            ) => {
+              if (!a.checkInTime && !b.checkInTime) return 0;
+              if (!a.checkInTime) return 1; // null values last
+              if (!b.checkInTime) return -1;
+              return dayjs(a.checkInTime).unix() - dayjs(b.checkInTime).unix();
+            },
+            render: (v: string | Date) => (v ? dayjs(v).format("HH:mm") : "-"),
           },
           {
             title: "Check-out",
             dataIndex: "checkOutTime",
             key: "checkOutTime",
-            render: (v: string | Date) =>
-              v ? dayjs(v).format("HH:mm DD/MM") : "-",
+            sorter: (
+              a: AppointmentWithIncludes,
+              b: AppointmentWithIncludes
+            ) => {
+              if (!a.checkOutTime && !b.checkOutTime) return 0;
+              if (!a.checkOutTime) return 1; // null values last
+              if (!b.checkOutTime) return -1;
+              return (
+                dayjs(a.checkOutTime).unix() - dayjs(b.checkOutTime).unix()
+              );
+            },
+            render: (v: string | Date) => (v ? dayjs(v).format("HH:mm") : "-"),
           },
         ]
       : []),
@@ -419,27 +435,23 @@ export default function AppointmentTable({
             )}
 
             {/* ✅ DISABLE SỬA/XÓA CHO LỊCH QUÁ KHỨ */}
-            <Tooltip title={getTooltipTitle()}>
-              {/* Nút Sửa */}
+            <Tooltip title={getTooltipTitle() || "Sửa lịch hẹn"}>
               <Button
                 size="small"
+                icon={<EditOutlined />}
                 onClick={() => onEdit(record)}
                 disabled={isLocked}
-              >
-                Sửa
-              </Button>
+              />
             </Tooltip>
 
-            <Tooltip title={getTooltipTitle()}>
-              {/* Nút Xóa */}
+            <Tooltip title={getTooltipTitle() || "Xóa lịch hẹn"}>
               <Button
                 size="small"
                 danger
+                icon={<DeleteOutlined />}
                 onClick={() => onDelete(record)}
                 disabled={isLocked}
-              >
-                Xóa
-              </Button>
+              />
             </Tooltip>
           </Space>
         );

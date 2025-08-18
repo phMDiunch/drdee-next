@@ -1,11 +1,23 @@
 // src/features/appointments/pages/DailyAppointmentsPage.tsx // ✅ SỬA COMMENT
 "use client";
-import { useState, useEffect, useCallback } from "react";
-import { Card, Button, Typography, Row, Col, DatePicker, Space } from "antd";
+import { useState, useEffect, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  Card,
+  Button,
+  Typography,
+  Row,
+  Col,
+  DatePicker,
+  Space,
+  Input,
+  Tabs,
+} from "antd";
 import {
   LeftOutlined,
   RightOutlined,
   CalendarOutlined,
+  PlusOutlined,
 } from "@ant-design/icons";
 import { toast } from "react-toastify";
 import AppointmentTable from "../components/AppointmentTable";
@@ -32,10 +44,9 @@ type AppointmentWithIncludes = Appointment & {
 
 export default function DailyAppointmentsPage() {
   const [selectedDate, setSelectedDate] = useState(dayjs()); // ✅ State cho ngày được chọn
-  const [appointments, setAppointments] = useState<AppointmentWithIncludes[]>(
-    []
-  );
-  const [loading, setLoading] = useState(false);
+  // Removed manual appointments state; now managed by React Query
+  const [loading, setLoading] = useState(false); // still used for create/edit submit & optimistic actions
+  const [search, setSearch] = useState(""); // từ khóa tìm kiếm khách hàng / mã
 
   // Modal states
   const [modal, setModal] = useState<{
@@ -45,44 +56,141 @@ export default function DailyAppointmentsPage() {
   }>({ open: false, mode: "add" });
 
   const { employeeProfile, activeEmployees } = useAppStore();
+  // Clinics (admin only)
+  const [clinics, setClinics] = useState<{ id: string; name: string }[]>([]);
+  const [selectedClinicId, setSelectedClinicId] = useState<string>(""); // actual clinic id for admin
 
   // ✅ UPDATED: Sử dụng tất cả employees thay vì filter theo chức danh
   const allEmployees = activeEmployees; // Không filter gì cả
 
-  // ✅ Fetch lịch hẹn theo ngày được chọn
-  const fetchAppointmentsByDate = useCallback(
-    async (date: dayjs.Dayjs) => {
-      try {
-        setLoading(true);
-        const dateStr = date.format("YYYY-MM-DD");
+  // React Query: lấy lịch hẹn theo ngày + clinic scope
+  const dateStr = selectedDate.format("YYYY-MM-DD");
+  // Fallback: nếu admin chưa chọn clinic (đang chờ fetch clinics) dùng ngay clinicId của profile để không chờ thêm vòng
+  const activeClinicScope =
+    employeeProfile?.role === "admin"
+      ? selectedClinicId || employeeProfile?.clinicId || ""
+      : employeeProfile?.clinicId || "";
+  const queryClient = useQueryClient();
 
-        const res = await fetch(
-          `/api/appointments/today?date=${dateStr}&clinicId=${employeeProfile?.clinicId}`
-        );
-
-        if (!res.ok) {
-          throw new Error("Không thể tải danh sách lịch hẹn");
-        }
-
-        const data = await res.json();
-        setAppointments(data);
-      } catch (error: unknown) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Unknown error";
-        console.error("Fetch appointments error:", error);
-        toast.error(errorMessage);
-      } finally {
-        setLoading(false);
-      }
+  const {
+    data: appointments = [] as AppointmentWithIncludes[],
+    isLoading: appointmentsLoading,
+    isFetching: appointmentsFetching,
+    refetch: refetchAppointments,
+  } = useQuery<AppointmentWithIncludes[]>({
+    queryKey: ["appointments-daily", dateStr, activeClinicScope],
+    enabled:
+      !!employeeProfile &&
+      (!!activeClinicScope || employeeProfile?.role !== "admin"),
+    queryFn: async () => {
+      const params = new URLSearchParams({ date: dateStr });
+      if (activeClinicScope) params.set("clinicId", activeClinicScope);
+      const res = await fetch(`/api/appointments/today?${params.toString()}`);
+      if (!res.ok) throw new Error("Không thể tải danh sách lịch hẹn");
+      return await res.json();
     },
-    [employeeProfile?.clinicId]
-  );
+    staleTime: 60_000,
+    // React Query v5: dùng placeholderData để giữ dữ liệu cũ
+    placeholderData: (prev) => prev,
+    refetchOnWindowFocus: false,
+  });
 
+  // Prefetch adjacent days & limited other clinics
   useEffect(() => {
-    if (employeeProfile?.clinicId) {
-      fetchAppointmentsByDate(selectedDate);
+    if (!employeeProfile) return;
+    const prefetchFetch = async (dStr: string, scope: string) => {
+      if (!scope) return;
+      await queryClient.prefetchQuery({
+        queryKey: ["appointments-daily", dStr, scope],
+        queryFn: async () => {
+          const params = new URLSearchParams({ date: dStr });
+          params.set("clinicId", scope);
+          const res = await fetch(
+            `/api/appointments/today?${params.toString()}`
+          );
+          if (!res.ok) throw new Error("Prefetch lịch hẹn thất bại");
+          return await res.json();
+        },
+        staleTime: 60_000,
+      });
+    };
+    const nextDay = selectedDate.add(1, "day").format("YYYY-MM-DD");
+    const prevDay = selectedDate.subtract(1, "day").format("YYYY-MM-DD");
+    if (employeeProfile.role === "admin") {
+      if (selectedClinicId) {
+        prefetchFetch(nextDay, selectedClinicId);
+        prefetchFetch(prevDay, selectedClinicId);
+      }
+      clinics
+        .filter((c) => c.id !== selectedClinicId)
+        .slice(0, 2)
+        .forEach((c) => prefetchFetch(dateStr, c.id));
+    } else if (activeClinicScope) {
+      prefetchFetch(nextDay, activeClinicScope);
+      prefetchFetch(prevDay, activeClinicScope);
     }
-  }, [employeeProfile?.clinicId, selectedDate, fetchAppointmentsByDate]);
+  }, [
+    employeeProfile,
+    selectedClinicId,
+    clinics,
+    selectedDate,
+    dateStr,
+    activeClinicScope,
+    queryClient,
+  ]);
+
+  // Refetch when selectedClinicId changes (admin) handled automatically by queryKey
+  useEffect(() => {
+    // noop: side-effects removed; query handles dependencies
+  }, [selectedClinicId, selectedDate]);
+
+  // Fetch clinics for admin; default select their clinic id
+  useEffect(() => {
+    const loadClinics = async () => {
+      if (employeeProfile?.role !== "admin") return;
+      try {
+        const res = await fetch("/api/clinics");
+        if (!res.ok) throw new Error("Không thể tải danh sách cơ sở");
+        let data: { id: string; name: string }[] = await res.json();
+        if (!Array.isArray(data)) data = [];
+        // ensure admin's clinic id present
+        if (
+          employeeProfile.clinicId &&
+          !data.find(
+            (c: { id: string; name: string }) =>
+              c.id === employeeProfile.clinicId
+          )
+        ) {
+          data.push({
+            id: employeeProfile.clinicId,
+            name: employeeProfile.clinicId,
+          });
+        }
+        setClinics(data);
+        // default selection ưu tiên giữ selected hiện tại nếu đã có
+        if (!selectedClinicId) {
+          setSelectedClinicId(
+            selectedClinicId || employeeProfile.clinicId || data[0]?.id || ""
+          );
+        }
+      } catch (e) {
+        console.error(e);
+        toast.error("Lỗi tải danh sách cơ sở");
+      }
+    };
+    loadClinics();
+  }, [employeeProfile?.role, employeeProfile?.clinicId, selectedClinicId]);
+
+  // Khởi tạo nhanh selectedClinicId khi có employeeProfile (trước khi fetch clinics) để kích hoạt query sớm
+  useEffect(() => {
+    if (
+      employeeProfile?.role === "admin" &&
+      !selectedClinicId &&
+      employeeProfile?.clinicId
+    ) {
+      setSelectedClinicId(employeeProfile.clinicId);
+    }
+  }, [employeeProfile?.role, employeeProfile?.clinicId, selectedClinicId]);
 
   // ✅ Điều hướng ngày
   const goToPreviousDay = () => {
@@ -118,137 +226,129 @@ export default function DailyAppointmentsPage() {
     return selectedDate.format("DD/MM/YYYY");
   };
 
+  // Lọc danh sách theo tên khách hoặc mã khách (case-insensitive, trim)
+  const filteredAppointments = useMemo(() => {
+    const kw = search.trim().toLowerCase();
+    if (!kw) return appointments;
+    return appointments.filter((a) => {
+      const name = a.customer?.fullName?.toLowerCase() || "";
+      const code = a.customer?.customerCode?.toLowerCase() || "";
+      return name.includes(kw) || code.includes(kw);
+    });
+  }, [appointments, search]);
+
   // ✅ Handle Confirm - Xác nhận lịch hẹn
-  const handleConfirm = async (appointment: AppointmentWithIncludes) => {
-    try {
+  const confirmMutation = useMutation({
+    mutationFn: async (appointment: AppointmentWithIncludes) => {
       const res = await fetch(`/api/appointments/${appointment.id}/confirm`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          updatedById: employeeProfile?.id,
-        }),
+        body: JSON.stringify({ updatedById: employeeProfile?.id }),
       });
-
-      if (!res.ok) {
-        const { error } = await res.json();
-        throw new Error(error || "Xác nhận lịch hẹn thất bại");
-      }
-
-      const updatedAppointment = await res.json();
-
-      setAppointments((prev) =>
-        prev.map((appt) =>
-          appt.id === appointment.id ? updatedAppointment : appt
-        )
+      if (!res.ok)
+        throw new Error(
+          (await res.json()).error || "Xác nhận lịch hẹn thất bại"
+        );
+      return (await res.json()) as AppointmentWithIncludes;
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData<AppointmentWithIncludes[]>(
+        ["appointments-daily", dateStr, activeClinicScope],
+        (old) =>
+          old ? old.map((a) => (a.id === updated.id ? updated : a)) : [updated]
       );
-
-      toast.success(
-        `Đã xác nhận lịch hẹn cho ${appointment.customer?.fullName}!`
+      toast.success(`Đã xác nhận lịch hẹn cho ${updated.customer?.fullName}!`);
+    },
+    onError: (e: unknown) => {
+      toast.error(
+        e instanceof Error ? e.message : "Xác nhận lịch hẹn thất bại"
       );
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      toast.error(errorMessage);
-    }
-  };
+    },
+  });
+  const handleConfirm = (appointment: AppointmentWithIncludes) =>
+    confirmMutation.mutate(appointment);
 
   // ✅ Handle No Show - Đánh dấu không đến
-  const handleNoShow = async (appointment: AppointmentWithIncludes) => {
-    try {
+  const noShowMutation = useMutation({
+    mutationFn: async (appointment: AppointmentWithIncludes) => {
       const res = await fetch(`/api/appointments/${appointment.id}/no-show`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          updatedById: employeeProfile?.id,
-        }),
+        body: JSON.stringify({ updatedById: employeeProfile?.id }),
       });
-
-      if (!res.ok) {
-        const { error } = await res.json();
-        throw new Error(error || "Đánh dấu không đến thất bại");
-      }
-
-      const updatedAppointment = await res.json();
-
-      setAppointments((prev) =>
-        prev.map((appt) =>
-          appt.id === appointment.id ? updatedAppointment : appt
-        )
+      if (!res.ok)
+        throw new Error(
+          (await res.json()).error || "Đánh dấu không đến thất bại"
+        );
+      return (await res.json()) as AppointmentWithIncludes;
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData<AppointmentWithIncludes[]>(
+        ["appointments-daily", dateStr, activeClinicScope],
+        (old) =>
+          old ? old.map((a) => (a.id === updated.id ? updated : a)) : [updated]
       );
-
-      toast.success(
-        `Đã đánh dấu không đến cho ${appointment.customer?.fullName}!`
-      );
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      toast.error(errorMessage);
-    }
-  };
+      toast.success(`Đã đánh dấu không đến cho ${updated.customer?.fullName}!`);
+    },
+    onError: (e: unknown) =>
+      toast.error(
+        e instanceof Error ? e.message : "Đánh dấu không đến thất bại"
+      ),
+  });
+  const handleNoShow = (appointment: AppointmentWithIncludes) =>
+    noShowMutation.mutate(appointment);
 
   // Handle Check-in
-  const handleCheckIn = async (appointment: AppointmentWithIncludes) => {
-    try {
+  const checkInMutation = useMutation({
+    mutationFn: async (appointment: AppointmentWithIncludes) => {
       const res = await fetch(`/api/appointments/${appointment.id}/checkin`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          updatedById: employeeProfile?.id,
-        }),
+        body: JSON.stringify({ updatedById: employeeProfile?.id }),
       });
-
-      if (!res.ok) {
-        const { error } = await res.json();
-        throw new Error(error || "Check-in thất bại");
-      }
-
-      const updatedAppointment = await res.json();
-
-      setAppointments((prev) =>
-        prev.map((appt) =>
-          appt.id === appointment.id ? updatedAppointment : appt
-        )
+      if (!res.ok)
+        throw new Error((await res.json()).error || "Check-in thất bại");
+      return (await res.json()) as AppointmentWithIncludes;
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData<AppointmentWithIncludes[]>(
+        ["appointments-daily", dateStr, activeClinicScope],
+        (old) =>
+          old ? old.map((a) => (a.id === updated.id ? updated : a)) : [updated]
       );
-
-      toast.success(`Đã check-in cho ${appointment.customer?.fullName}!`);
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      toast.error(errorMessage);
-    }
-  };
+      toast.success(`Đã check-in cho ${updated.customer?.fullName}!`);
+    },
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : "Check-in thất bại"),
+  });
+  const handleCheckIn = (appointment: AppointmentWithIncludes) =>
+    checkInMutation.mutate(appointment);
 
   // Handle Check-out
-  const handleCheckOut = async (appointment: AppointmentWithIncludes) => {
-    try {
+  const checkOutMutation = useMutation({
+    mutationFn: async (appointment: AppointmentWithIncludes) => {
       const res = await fetch(`/api/appointments/${appointment.id}/checkout`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          updatedById: employeeProfile?.id,
-        }),
+        body: JSON.stringify({ updatedById: employeeProfile?.id }),
       });
-
-      if (!res.ok) {
-        const { error } = await res.json();
-        throw new Error(error || "Check-out thất bại");
-      }
-
-      const updatedAppointment = await res.json();
-
-      setAppointments((prev) =>
-        prev.map((appt) =>
-          appt.id === appointment.id ? updatedAppointment : appt
-        )
+      if (!res.ok)
+        throw new Error((await res.json()).error || "Check-out thất bại");
+      return (await res.json()) as AppointmentWithIncludes;
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData<AppointmentWithIncludes[]>(
+        ["appointments-daily", dateStr, activeClinicScope],
+        (old) =>
+          old ? old.map((a) => (a.id === updated.id ? updated : a)) : [updated]
       );
-
-      toast.success(`Đã check-out cho ${appointment.customer?.fullName}!`);
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      toast.error(errorMessage);
-    }
-  };
+      toast.success(`Đã check-out cho ${updated.customer?.fullName}!`);
+    },
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : "Check-out thất bại"),
+  });
+  const handleCheckOut = (appointment: AppointmentWithIncludes) =>
+    checkOutMutation.mutate(appointment);
 
   // Handle Edit
   const handleEdit = async (appt: AppointmentWithIncludes) => {
@@ -313,7 +413,7 @@ export default function DailyAppointmentsPage() {
       const result = await res.json();
       toast.success(result.message || "Đã xóa lịch hẹn thành công!");
 
-      fetchAppointmentsByDate(selectedDate);
+      refetchAppointments();
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
@@ -348,7 +448,11 @@ export default function DailyAppointmentsPage() {
 
       if (!isEdit) {
         payload.createdById = employeeProfile?.id;
-        payload.clinicId = employeeProfile?.clinicId || "";
+        if (employeeProfile?.role === "admin") {
+          if (selectedClinicId) payload.clinicId = selectedClinicId;
+        } else {
+          payload.clinicId = employeeProfile?.clinicId || "";
+        }
       }
 
       const res = await fetch(url, {
@@ -364,7 +468,7 @@ export default function DailyAppointmentsPage() {
             : "Đã tạo lịch hẹn thành công!"
         );
         setModal({ open: false, mode: "add" });
-        fetchAppointmentsByDate(selectedDate);
+        refetchAppointments();
       } else {
         const { error } = await res.json();
         toast.error(error || "Lỗi không xác định");
@@ -376,7 +480,10 @@ export default function DailyAppointmentsPage() {
     }
   };
 
-  if (loading && appointments.length === 0) {
+  if (
+    (appointmentsLoading || appointmentsFetching) &&
+    appointments.length === 0
+  ) {
     return (
       <div style={{ padding: 24, textAlign: "center" }}>
         <Card loading={true} />
@@ -394,8 +501,21 @@ export default function DailyAppointmentsPage() {
           style={{ marginBottom: 24 }}
         >
           <Col>
-            <Title level={4} style={{ margin: 0 }}>
-              📅 Lịch hẹn - {getDateLabel()}
+            <Title
+              level={4}
+              style={{
+                margin: 0,
+                display: "flex",
+                gap: 8,
+                alignItems: "center",
+              }}
+            >
+              <span>📅 Lịch hẹn - {getDateLabel()}</span>
+              {appointmentsFetching && !appointmentsLoading && (
+                <span style={{ fontSize: 12, color: "#999" }}>
+                  Đang cập nhật…
+                </span>
+              )}
             </Title>
             <Typography.Text type="secondary">
               {selectedDate.format("dddd, DD/MM/YYYY")}
@@ -403,7 +523,7 @@ export default function DailyAppointmentsPage() {
           </Col>
 
           <Col>
-            <Row gutter={8} align="middle">
+            <Row gutter={8} align="middle" wrap={false}>
               {/* Date Picker */}
               <Col>
                 <DatePicker
@@ -439,9 +559,26 @@ export default function DailyAppointmentsPage() {
                   />
                 </Space.Compact>
               </Col>
+              {/* Ô search đã chuyển xuống header bảng */}
             </Row>
           </Col>
         </Row>
+
+        {/* Admin clinic tabs */}
+        {employeeProfile?.role === "admin" && (
+          <div style={{ marginBottom: 16 }}>
+            <Tabs
+              size="small"
+              activeKey={selectedClinicId}
+              onChange={(key) => {
+                setSelectedClinicId(key);
+                // Query refetch auto via key change; force refetch for immediacy
+                refetchAppointments();
+              }}
+              items={clinics.map((c) => ({ key: c.id, label: c.name }))}
+            />
+          </div>
+        )}
 
         {/* ✅ Thống kê nhanh */}
         <Row gutter={16} style={{ marginBottom: 16 }}>
@@ -495,34 +632,70 @@ export default function DailyAppointmentsPage() {
                   ).length
                 }
               </Typography.Title>
-              <Typography.Text type="secondary">Chưa đến</Typography.Text>
+              <Typography.Text type="secondary">
+                Không đến (quá giờ)
+              </Typography.Text>
             </Card>
           </Col>
         </Row>
 
+        {/* Header tùy chỉnh: tiêu đề + search + add */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 12,
+            flexWrap: "wrap",
+            marginBottom: 12,
+          }}
+        >
+          <Typography.Title level={5} style={{ margin: 0 }}>
+            {filteredAppointments.length}/{appointments.length} lịch hẹn trong
+            ngày
+          </Typography.Title>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <Input.Search
+              allowClear
+              placeholder="Tìm tên hoặc mã KH"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onSearch={(v) => setSearch(v)}
+              style={{ width: 240 }}
+            />
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() =>
+                setModal({
+                  open: true,
+                  mode: "add",
+                  data: {
+                    appointmentDateTime: selectedDate
+                      .hour(9)
+                      .minute(0)
+                      .toDate(),
+                  },
+                })
+              }
+            >
+              Thêm lịch hẹn
+            </Button>
+          </div>
+        </div>
+
         {/* ✅ Bảng lịch hẹn */}
         <AppointmentTable
-          data={appointments}
-          loading={loading}
+          data={filteredAppointments}
+          loading={appointmentsLoading || appointmentsFetching}
           onEdit={handleEdit}
           onDelete={handleDelete}
-          showHeader={true}
-          title={`${appointments.length} lịch hẹn trong ngày`}
+          showHeader={false}
           showCheckInOut={true}
           onCheckIn={handleCheckIn}
           onCheckOut={handleCheckOut}
-          onConfirm={handleConfirm} // ✅ THÊM PROP MỚI
-          onNoShow={handleNoShow} // ✅ THÊM PROP MỚI
-          employees={allEmployees} // ✅ TRUYỀN EMPLOYEES
-          onAdd={() =>
-            setModal({
-              open: true,
-              mode: "add",
-              data: {
-                appointmentDateTime: selectedDate.hour(9).minute(0).toDate(), // ✅ CONVERT TO DATE
-              },
-            })
-          }
+          onConfirm={handleConfirm}
+          onNoShow={handleNoShow}
         />
       </Card>
 

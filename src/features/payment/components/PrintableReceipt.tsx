@@ -6,7 +6,6 @@ import { Table, Typography, Divider } from "antd";
 import { formatCurrency, formatDateVN } from "@/utils/date";
 import type { PaymentVoucherWithDetails } from "../type";
 import { getPaymentMethodConfig } from "../constants";
-import { currencyToVietnameseText } from "@/utils/number";
 import ClinicLogo from "@/components/ClinicLogo";
 
 const { Title, Text } = Typography;
@@ -108,7 +107,6 @@ const PrintableReceipt = forwardRef<HTMLDivElement, Props>(
               : uniqueMethods.length === 1
               ? getPaymentMethodConfig(uniqueMethods[0]).label
               : "Nhiều phương thức";
-          const moneyInWords = currencyToVietnameseText(totalAmount);
           return (
             <div style={{ marginBottom: 8 }}>
               <div
@@ -133,12 +131,6 @@ const PrintableReceipt = forwardRef<HTMLDivElement, Props>(
                 </div>
                 <div>
                   <Text strong>Loại giao dịch:</Text> <Text>{methodLabel}</Text>
-                </div>
-                <div style={{ gridColumn: "1 / span 2" }}>
-                  <Text strong>Viết bằng chữ:</Text>{" "}
-                  <Text italic style={{ textTransform: "capitalize" }}>
-                    {moneyInWords}
-                  </Text>
                 </div>
               </div>
             </div>

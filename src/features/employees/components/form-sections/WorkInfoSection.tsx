@@ -79,13 +79,17 @@ export default function WorkInfoSection() {
           </Form.Item>
         </Col>
         <Col span={12}>
-          <Form.Item label="Chi nhánh" name="clinicId">
+          <Form.Item
+            label="Chi nhánh"
+            name="clinicId"
+            rules={[{ required: true, message: "Chọn chi nhánh làm việc" }]}
+          >
             <Select
+              placeholder="Chọn chi nhánh"
               options={BRANCHES.map((b) => ({
                 label: b.label,
                 value: b.value,
               }))}
-              allowClear
             />
           </Form.Item>
         </Col>

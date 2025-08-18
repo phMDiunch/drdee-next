@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
     ]);
 
     return NextResponse.json({ employees, total });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: "Lỗi lấy danh sách nhân viên" },
       { status: 500 }
@@ -78,14 +78,23 @@ export async function GET(request: NextRequest) {
 export async function POST(request: Request) {
   try {
     const data = await request.json();
+    // ✅ Require clinicId when creating an employee (business rule)
+    if (
+      !data.clinicId ||
+      typeof data.clinicId !== "string" ||
+      !data.clinicId.trim()
+    ) {
+      return NextResponse.json(
+        { error: "Thiếu clinicId - vui lòng chọn cơ sở làm việc" },
+        { status: 400 }
+      );
+    }
     const employee = await prisma.employee.create({
       data,
     });
     return NextResponse.json(employee, { status: 201 });
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: error.message || "Lỗi tạo nhân viên" },
-      { status: 500 }
-    );
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Lỗi tạo nhân viên";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

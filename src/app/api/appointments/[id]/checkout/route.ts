@@ -16,7 +16,18 @@ export async function PATCH(
     // Kiểm tra appointment có tồn tại không
     const existingAppointment = await prisma.appointment.findUnique({
       where: { id },
-      include: { customer: true },
+      include: {
+        customer: {
+          select: {
+            id: true,
+            customerCode: true,
+            fullName: true,
+            phone: true,
+            email: true,
+            address: true,
+          },
+        },
+      },
     });
 
     if (!existingAppointment) {
@@ -55,8 +66,11 @@ export async function PATCH(
         customer: {
           select: {
             id: true,
+            customerCode: true,
             fullName: true,
             phone: true,
+            email: true,
+            address: true,
           },
         },
         primaryDentist: {

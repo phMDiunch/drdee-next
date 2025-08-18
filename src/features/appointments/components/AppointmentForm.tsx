@@ -57,7 +57,9 @@ export default function AppointmentForm({
       const customer = initialValues.customer;
       return [
         {
-          label: `${customer.fullName} - ${customer.phone}`,
+          label: `${customer.customerCode || customer.id} - ${
+            customer.fullName
+          }`,
           value: customer.id,
         },
       ];
@@ -66,7 +68,9 @@ export default function AppointmentForm({
       const customer = initialValues.customer;
       return [
         {
-          label: `${customer.fullName} - ${customer.phone}`,
+          label: `${customer.customerCode || customer.id} - ${
+            customer.fullName
+          }`,
           value: customer.id,
         },
       ];
@@ -88,7 +92,7 @@ export default function AppointmentForm({
       const res = await fetch(`/api/customers?${params.toString()}`);
       const data = await res.json();
       const options = (data.customers || []).map((c: any) => ({
-        label: `${c.fullName} - ${c.phone}`,
+        label: `${c.customerCode || c.id} - ${c.fullName}`,
         value: c.id,
       }));
       setCustomerOptions(options);
@@ -212,7 +216,7 @@ export default function AppointmentForm({
           >
             <Select
               showSearch
-              placeholder="Gõ tên hoặc SĐT để tìm khách hàng..."
+              placeholder="Gõ tên hoặc mã KH để tìm khách hàng..."
               defaultActiveFirstOption={false}
               suffixIcon={null}
               filterOption={false}
@@ -230,7 +234,7 @@ export default function AppointmentForm({
         </Col>
 
         {/* Thời gian hẹn */}
-        <Col span={12}>
+        <Col span={6}>
           <Form.Item
             label="Thời gian hẹn"
             name="appointmentDateTime"
@@ -264,7 +268,7 @@ export default function AppointmentForm({
         )}
 
         {/* Các trường khác giữ nguyên */}
-        <Col span={12}>
+        <Col span={6}>
           <Form.Item
             label="Thời lượng (phút)"
             name="duration"
@@ -316,13 +320,17 @@ export default function AppointmentForm({
         </Col>
 
         <Col span={12}>
-          <Form.Item label="Chi nhánh" name="clinicId">
+          <Form.Item
+            label="Chi nhánh"
+            name="clinicId"
+            rules={[{ required: true, message: "Chọn chi nhánh" }]}
+          >
             <Select
+              placeholder="Chọn chi nhánh"
               options={BRANCHES.map((b) => ({
                 label: b.label,
                 value: b.value,
               }))}
-              disabled={true}
             />
           </Form.Item>
         </Col>
