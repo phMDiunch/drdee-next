@@ -269,7 +269,6 @@ export default function ConsultedServiceTable({
         bordered
         size="middle"
         pagination={{ pageSize: 10 }}
-        scroll={{ x: 1100 }} // ✅ SỬA: Giảm thêm width vì cột thao tác đã gọn hơn
       />
     </div>
   );

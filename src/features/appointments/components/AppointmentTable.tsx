@@ -227,12 +227,12 @@ export default function AppointmentTable({
       defaultSortOrder: "ascend" as const,
       render: (v: string | Date, record: AppointmentWithIncludes) => {
         if (!v) return "";
-        const timeStr = dayjs(v).format("HH:mm");
+        const dateTimeStr = dayjs(v).format("DD/MM/YYYY HH:mm");
         const d = record.duration;
         return typeof d === "number" && d > 0 ? (
-          <Tooltip title={`Thời lượng: ${d} phút`}>{timeStr}</Tooltip>
+          <Tooltip title={`Thời lượng: ${d} phút`}>{dateTimeStr}</Tooltip>
         ) : (
-          timeStr
+          dateTimeStr
         );
       },
     },

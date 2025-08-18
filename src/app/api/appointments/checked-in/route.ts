@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     const appointments = await prisma.appointment.findMany({
       where: {
         customerId,
-        status: "Đã đến", // Trạng thái đã check-in
+        status: { in: ["Đã đến", "Đến đột xuất"] }, // Trạng thái đã check-in và đến đột xuất
       },
       include: {
         customer: {
