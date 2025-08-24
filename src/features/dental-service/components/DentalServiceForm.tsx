@@ -61,12 +61,12 @@ export default function DentalServiceForm({
         </Col>
         <Col span={12}>
           <Form.Item label="Nhóm dịch vụ" name="serviceGroup">
-            <Select allowClear options={SERVICE_GROUP_OPTIONS} />
+            <Select showSearch allowClear options={SERVICE_GROUP_OPTIONS} />
           </Form.Item>
         </Col>
         <Col span={12}>
           <Form.Item label="Bộ môn" name="department">
-            <Select allowClear options={DEPARTMENT_OPTIONS} />
+            <Select allowClear showSearch options={DEPARTMENT_OPTIONS} />
           </Form.Item>
         </Col>
         <Col span={12}>

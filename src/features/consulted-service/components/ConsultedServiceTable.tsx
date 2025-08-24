@@ -25,6 +25,7 @@ type Props = {
   showCustomerColumn?: boolean; // ✅ NEW: Option to show customer info
   hideAddButton?: boolean; // ✅ NEW: Option to completely hide add button
   title?: string; // ✅ NEW: Custom title
+  isAdmin?: boolean; // ✅ NEW: Admin permission flag
 };
 
 export default function ConsultedServiceTable({
@@ -39,11 +40,31 @@ export default function ConsultedServiceTable({
   showCustomerColumn = false,
   hideAddButton = false,
   title = "Danh sách dịch vụ đã tư vấn",
+  isAdmin = false, // ✅ NEW: Admin permission flag
 }: Props) {
   // ✅ UPDATE: Function to check if user can delete a service
   const canDeleteService = (service: ConsultedServiceWithDetails): boolean => {
-    // Không được xóa dịch vụ đã chốt
+    // Admin có quyền xóa tất cả dịch vụ, kể cả đã chốt
+    if (isAdmin) {
+      console.log("🗑️ Admin delete permission:", {
+        serviceId: service.id,
+        serviceName: service.consultedServiceName,
+        serviceStatus: service.serviceStatus,
+        canDelete: true,
+        reason: "Admin có quyền xóa tất cả dịch vụ",
+      });
+      return true;
+    }
+
+    // Non-admin không được xóa dịch vụ đã chốt
     if (service.serviceStatus === "Đã chốt") {
+      console.log("🗑️ Delete permission denied:", {
+        serviceId: service.id,
+        serviceName: service.consultedServiceName,
+        serviceStatus: service.serviceStatus,
+        canDelete: false,
+        reason: "Dịch vụ đã chốt, chỉ admin mới có quyền xóa",
+      });
       return false;
     }
 

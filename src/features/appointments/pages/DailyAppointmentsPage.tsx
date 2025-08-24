@@ -18,6 +18,7 @@ import {
   RightOutlined,
   CalendarOutlined,
   PlusOutlined,
+  DownloadOutlined,
 } from "@ant-design/icons";
 import { toast } from "react-toastify";
 import AppointmentTable from "../components/AppointmentTable";
@@ -26,6 +27,7 @@ import { useAppStore } from "@/stores/useAppStore";
 import type { Appointment } from "../type";
 import { formatDateTimeVN, toISOStringVN } from "@/utils/date";
 import dayjs from "dayjs";
+import * as XLSX from "xlsx";
 
 const { Title } = Typography;
 
@@ -480,6 +482,46 @@ export default function DailyAppointmentsPage() {
     }
   };
 
+  // ✅ Hàm xuất Excel
+  const exportToExcel = () => {
+    try {
+      // Chuẩn bị dữ liệu cho Excel
+      const excelData = filteredAppointments.map((appointment, index) => {
+        const appointmentTime = dayjs(appointment.appointmentDateTime);
+        return {
+          STT: index + 1,
+          "Mã KH": appointment.customer?.customerCode || "",
+          "Tên khách hàng": appointment.customer?.fullName || "",
+          "Ngày hẹn": appointmentTime.format("DD/MM/YYYY"),
+          "Giờ hẹn": appointmentTime.format("HH:mm"),
+          "Thời lượng (phút)": appointment.duration || "",
+          "Bác sĩ chính": appointment.primaryDentist?.fullName || "",
+          "Bác sĩ phụ": appointment.secondaryDentist?.fullName || "",
+          "Trạng thái": appointment.status || "",
+          "Ghi chú": appointment.notes || "",
+        };
+      });
+
+      // Tạo worksheet
+      const worksheet = XLSX.utils.json_to_sheet(excelData);
+
+      // Tạo workbook
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Lịch hẹn");
+
+      // Tạo tên file với ngày
+      const fileName = `lich-hen-${selectedDate.format("DD-MM-YYYY")}.xlsx`;
+
+      // Tải file
+      XLSX.writeFile(workbook, fileName);
+
+      // Không toast khi thành công
+    } catch (error) {
+      console.error("Export error:", error);
+      toast.error("Có lỗi khi xuất file Excel!");
+    }
+  };
+
   if (
     (appointmentsLoading || appointmentsFetching) &&
     appointments.length === 0
@@ -663,6 +705,14 @@ export default function DailyAppointmentsPage() {
               onSearch={(v) => setSearch(v)}
               style={{ width: 240 }}
             />
+            <Button
+              icon={<DownloadOutlined />}
+              onClick={exportToExcel}
+              disabled={filteredAppointments.length === 0}
+              title="Xuất Excel"
+            >
+              Xuất Excel
+            </Button>
             <Button
               type="primary"
               icon={<PlusOutlined />}

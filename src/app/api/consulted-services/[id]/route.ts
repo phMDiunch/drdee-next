@@ -158,18 +158,35 @@ export async function PUT(
   }
 }
 
+// Helper function to get header value
+function getHeader(req: NextRequest, key: string) {
+  return req.headers.get(key) || undefined;
+}
+
 // --- HÀM XÓA ---
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
 
+    // ✅ NEW: Get user role from headers
+    const role = getHeader(request, "x-employee-role");
+    const isAdmin = role === "admin";
+
     // ✅ NEW: Check if service is confirmed before allowing delete
     const existingService = await prisma.consultedService.findUnique({
       where: { id },
-      select: { serviceStatus: true, consultedServiceName: true },
+      select: {
+        serviceStatus: true,
+        consultedServiceName: true,
+        customer: {
+          select: {
+            fullName: true,
+          },
+        },
+      },
     });
 
     if (!existingService) {
@@ -179,17 +196,35 @@ export async function DELETE(
       );
     }
 
-    if (existingService.serviceStatus === "Đã chốt") {
+    // ✅ UPDATED: Only allow admin to delete confirmed services
+    if (existingService.serviceStatus === "Đã chốt" && !isAdmin) {
       return NextResponse.json(
-        { error: "Không thể xóa dịch vụ đã chốt!" },
-        { status: 400 }
+        { error: "Không thể xóa dịch vụ đã chốt! Chỉ admin mới có quyền này." },
+        { status: 403 } // 403 Forbidden for permission denied
       );
     }
 
     await prisma.consultedService.delete({
       where: { id },
     });
-    return NextResponse.json({ success: true });
+
+    const message =
+      existingService.serviceStatus === "Đã chốt"
+        ? `Admin đã xóa dịch vụ đã chốt: "${existingService.consultedServiceName}" của khách hàng "${existingService.customer?.fullName}"`
+        : `Đã xóa dịch vụ: "${existingService.consultedServiceName}"`;
+
+    console.log(`🗑️ DELETE Service: ${message}`, {
+      serviceId: id,
+      serviceName: existingService.consultedServiceName,
+      serviceStatus: existingService.serviceStatus,
+      deletedBy: isAdmin ? "admin" : "regular user",
+      customerName: existingService.customer?.fullName,
+    });
+
+    return NextResponse.json({
+      success: true,
+      message,
+    });
   } catch (error: any) {
     console.error("Lỗi khi xóa dịch vụ tư vấn:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });

@@ -24,6 +24,7 @@ import { useAppStore } from "@/stores/useAppStore";
 import type { ConsultedServiceWithDetails } from "../type";
 import { formatCurrency, formatDateTimeVN } from "@/utils/date";
 import dayjs from "dayjs";
+import { useAuthHeaders } from "@/lib/authHeaders"; // ✅ NEW: Import auth headers
 
 const { Title } = Typography;
 
@@ -33,6 +34,9 @@ export default function ConsultedServiceDailyPage() {
     ConsultedServiceWithDetails[]
   >([]);
   const [loading, setLoading] = useState(false);
+
+  // ✅ ADD: Get auth headers for API calls
+  const authHeaders = useAuthHeaders();
 
   // ✅ ADD: Clinic management for admin (like DailyAppointmentsPage)
   const [clinics, setClinics] = useState<{ id: string; name: string }[]>([]);
@@ -246,24 +250,34 @@ export default function ConsultedServiceDailyPage() {
 
   // ✅ Handle Delete
   const handleDelete = async (service: ConsultedServiceWithDetails) => {
-    if (service.serviceStatus === "Đã chốt") {
-      toast.error("Không thể xóa dịch vụ đã chốt!");
+    const isAdmin = employeeProfile?.role === "admin";
+
+    // Non-admin không được xóa dịch vụ đã chốt
+    if (!isAdmin && service.serviceStatus === "Đã chốt") {
+      toast.error("Không thể xóa dịch vụ đã chốt! Chỉ admin mới có quyền này.");
       return;
     }
 
-    const confirmed = window.confirm(
-      `Bạn chắc chắn muốn xóa dịch vụ "${
-        service.consultedServiceName
-      }" của khách hàng "${service.customer?.fullName}" vào ${formatDateTimeVN(
-        service.consultationDate
-      )}?`
-    );
+    // Xác nhận xóa với thông báo khác nhau cho admin và non-admin
+    let confirmMessage = `Bạn chắc chắn muốn xóa dịch vụ "${
+      service.consultedServiceName
+    }" của khách hàng "${service.customer?.fullName}" vào ${formatDateTimeVN(
+      service.consultationDate
+    )}?`;
 
+    if (isAdmin && service.serviceStatus === "Đã chốt") {
+      confirmMessage = `⚠️ ADMIN: ${confirmMessage}\n\nLưu ý: Đây là dịch vụ đã chốt, việc xóa có thể ảnh hưởng đến dữ liệu nghiệp vụ!`;
+    }
+
+    const confirmed = window.confirm(confirmMessage);
     if (!confirmed) return;
 
     try {
       const res = await fetch(`/api/consulted-services/${service.id}`, {
         method: "DELETE",
+        headers: {
+          ...authHeaders, // ✅ ADD: Include auth headers
+        },
       });
 
       if (!res.ok) {
@@ -504,6 +518,7 @@ export default function ConsultedServiceDailyPage() {
           showCustomerColumn={true} // ✅ Show customer info for daily view
           hideAddButton={true} // ✅ Completely hide add button
           title={`${consultedServices.length} dịch vụ tư vấn trong ngày`}
+          isAdmin={employeeProfile?.role === "admin"} // ✅ NEW: Pass admin permission
         />
       </Card>
 

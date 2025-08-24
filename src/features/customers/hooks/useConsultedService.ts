@@ -4,6 +4,7 @@ import { toast } from "react-toastify";
 import { useAppStore } from "@/stores/useAppStore";
 import type { ConsultedServiceWithDetails } from "@/features/consulted-service/type";
 import { nowVN } from "@/utils/date";
+import { useAuthHeaders } from "@/lib/authHeaders"; // ✅ NEW: Import auth headers
 
 export function useConsultedService(customer: any, setCustomer: any) {
   const [modalState, setModalState] = useState<{
@@ -14,6 +15,9 @@ export function useConsultedService(customer: any, setCustomer: any) {
 
   const [saving, setSaving] = useState(false);
   const { employeeProfile } = useAppStore();
+
+  // ✅ NEW: Get auth headers for API calls
+  const authHeaders = useAuthHeaders();
 
   const handleAddService = () => {
     setModalState({ open: true, mode: "add" });
@@ -98,19 +102,35 @@ export function useConsultedService(customer: any, setCustomer: any) {
   };
 
   const handleDeleteService = async (service: ConsultedServiceWithDetails) => {
-    const confirmed = window.confirm(
-      `Bạn chắc chắn muốn xóa dịch vụ "${service.consultedServiceName}"?`
-    );
+    const isAdmin = employeeProfile?.role === "admin";
 
+    // Tạo thông báo xác nhận phù hợp
+    let confirmMessage = `Bạn chắc chắn muốn xóa dịch vụ "${service.consultedServiceName}"?`;
+
+    if (service.serviceStatus === "Đã chốt") {
+      if (!isAdmin) {
+        toast.error(
+          "Không thể xóa dịch vụ đã chốt! Chỉ admin mới có quyền này."
+        );
+        return;
+      }
+      confirmMessage = `⚠️ ADMIN: ${confirmMessage}\n\nLưu ý: Đây là dịch vụ đã chốt, việc xóa có thể ảnh hưởng đến dữ liệu nghiệp vụ!`;
+    }
+
+    const confirmed = window.confirm(confirmMessage);
     if (!confirmed) return;
 
     try {
       const res = await fetch(`/api/consulted-services/${service.id}`, {
         method: "DELETE",
+        headers: {
+          ...authHeaders, // ✅ ADD: Include auth headers
+        },
       });
 
       if (!res.ok) {
-        throw new Error("Xóa dịch vụ thất bại");
+        const { error } = await res.json();
+        throw new Error(error || "Xóa dịch vụ thất bại");
       }
 
       setCustomer((prev: any) => ({

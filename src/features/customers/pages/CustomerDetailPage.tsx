@@ -306,6 +306,7 @@ export default function CustomerDetailPage({ customerId }: Props) {
             onConfirm={consultedServiceHook.handleConfirmService}
             onView={consultedServiceHook.handleViewService} // ✅ NEW: Add view handler
             disableAdd={!todayCheckinStatus.hasCheckedIn}
+            isAdmin={employeeProfile?.role === "admin"} // ✅ NEW: Pass admin permission
           />
         </div>
       ),
