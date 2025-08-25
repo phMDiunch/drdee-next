@@ -41,13 +41,39 @@ export function useConsultedService(customer: any, setCustomer: any) {
         : "/api/consulted-services";
       const method = isEdit ? "PUT" : "POST";
 
-      const payload = {
+      let payload = {
         ...values,
         customerId: customer.id,
         clinicId: employeeProfile?.clinicId,
         createdById: isEdit ? undefined : employeeProfile?.id,
         updatedById: employeeProfile?.id,
       };
+
+      // ✅ FIX: Chỉ gửi employee fields nếu service đã chốt
+      if (isEdit && modalState.data?.serviceStatus === "Đã chốt") {
+        const employeeFields = [
+          "consultingDoctorId",
+          "treatingDoctorId",
+          "consultingSaleId",
+        ];
+        const filteredPayload: any = {
+          updatedById: employeeProfile?.id,
+        };
+
+        // Chỉ thêm employee fields nếu chúng có trong values
+        employeeFields.forEach((field) => {
+          if (field in values) {
+            filteredPayload[field] = values[field];
+          }
+        });
+
+        payload = filteredPayload;
+
+        console.log("🔒 Service đã chốt - chỉ gửi employee fields:", {
+          originalValues: values,
+          filteredPayload: payload,
+        });
+      }
 
       const res = await fetch(url, {
         method,
@@ -59,7 +85,7 @@ export function useConsultedService(customer: any, setCustomer: any) {
         const { error } = await res.json();
         // ✅ Hiển thị error message rõ ràng
         if (error.includes("đã chốt")) {
-          throw new Error("Dịch vụ đã chốt không thể chỉnh sửa!");
+          throw new Error(error);
         }
         throw new Error(
           error || `Lỗi khi ${isEdit ? "cập nhật" : "tạo"} dịch vụ`

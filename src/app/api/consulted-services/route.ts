@@ -17,16 +17,41 @@ export async function GET(request: NextRequest) {
     const date = searchParams.get("date"); // YYYY-MM-DD format
     const clinicId = searchParams.get("clinicId");
     const customerId = searchParams.get("customerId"); // ✅ THÊM support cho customerId
+    const consultingDoctorId = searchParams.get("consultingDoctorId"); // ✅ THÊM: Filter theo consulting doctor
+    const consultingSaleId = searchParams.get("consultingSaleId"); // ✅ THÊM: Filter theo consulting sale
 
-    // ✅ SỬA: Nếu có customerId thì không cần date
-    if (!date && !customerId) {
+    // ✅ SỬA: Nếu có customerId hoặc consultingDoctorId/consultingSaleId thì không cần date
+    if (!date && !customerId && !consultingDoctorId && !consultingSaleId) {
       return NextResponse.json(
-        { error: "Thiếu tham số date hoặc customerId" },
+        {
+          error:
+            "Thiếu tham số date, customerId hoặc consultingDoctorId/consultingSaleId",
+        },
         { status: 400 }
       );
     }
 
     const whereCondition: Record<string, unknown> = {};
+
+    // ✅ THÊM: Filter theo customerId
+    if (customerId) {
+      whereCondition.customerId = customerId;
+    }
+
+    // ✅ THÊM: Filter theo consulting doctor hoặc sale
+    if (consultingDoctorId || consultingSaleId) {
+      const orConditions: Record<string, unknown>[] = [];
+
+      if (consultingDoctorId) {
+        orConditions.push({ consultingDoctorId: consultingDoctorId });
+      }
+
+      if (consultingSaleId) {
+        orConditions.push({ consultingSaleId: consultingSaleId });
+      }
+
+      whereCondition.OR = orConditions;
+    }
 
     // ✅ THÊM: Filter theo customerId
     if (customerId) {
@@ -166,6 +191,24 @@ export async function POST(request: NextRequest) {
     }
 
     // ✅ Tạo consulted service với appointmentId từ lịch đã check-in
+    const preferentialPriceValue =
+      data.preferentialPrice !== undefined
+        ? data.preferentialPrice
+        : dentalService.price;
+
+    const finalPriceValue = preferentialPriceValue * (data.quantity || 1);
+
+    console.log("💰 Price calculation in POST:", {
+      serviceId: data.dentalServiceId,
+      serviceName: dentalService.name,
+      originalPrice: dentalService.price,
+      requestedPreferentialPrice: data.preferentialPrice,
+      finalPreferentialPrice: preferentialPriceValue,
+      quantity: data.quantity || 1,
+      calculatedFinalPrice: finalPriceValue,
+      isPreferentialPriceZero: data.preferentialPrice === 0,
+    });
+
     const consultedServiceData = {
       ...data,
       appointmentId: checkedInAppointment.id, // ✅ GẮN VÀO APPOINTMENT ĐÃ CHECK-IN
@@ -174,11 +217,15 @@ export async function POST(request: NextRequest) {
       consultedServiceName: dentalService.name,
       consultedServiceUnit: dentalService.unit,
       price: dentalService.price,
-      preferentialPrice: data.preferentialPrice || dentalService.price,
-      finalPrice:
-        (data.preferentialPrice || dentalService.price) * (data.quantity || 1),
-      debt:
-        (data.preferentialPrice || dentalService.price) * (data.quantity || 1), // Ban đầu chưa trả
+
+      // ✅ FIXED: Handle preferentialPrice = 0 correctly
+      preferentialPrice: preferentialPriceValue,
+
+      // ✅ FIXED: Calculate finalPrice with correct preferentialPrice
+      finalPrice: finalPriceValue,
+
+      // ✅ FIXED: Calculate debt with correct preferentialPrice
+      debt: finalPriceValue, // Ban đầu chưa trả
     };
 
     const newConsultedService = await prisma.consultedService.create({

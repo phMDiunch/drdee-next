@@ -337,15 +337,60 @@ export default function ConsultedServiceDailyPage() {
 
   // ✅ Handle Modal Submit
   const handleFinish = async (values: Record<string, unknown>) => {
+    console.log("🔄 Attempting to update consulted service:", {
+      serviceId: modal.data?.id,
+      values,
+      userRole: employeeProfile?.role,
+      serviceStatus: modal.data?.serviceStatus,
+      serviceConfirmDate: modal.data?.serviceConfirmDate,
+    });
+
     setLoading(true);
     try {
+      // ✅ FIX: For confirmed services, only send employee fields that can be changed
+      let updateData: Record<string, unknown> = {
+        ...values,
+        updatedById: employeeProfile?.id,
+      };
+
+      if (modal.data?.serviceStatus === "Đã chốt") {
+        console.log(
+          "🔒 Service is confirmed - filtering to employee fields only"
+        );
+        const employeeFields = [
+          "consultingDoctorId",
+          "treatingDoctorId",
+          "consultingSaleId",
+        ];
+        const filteredData: Record<string, unknown> = {
+          updatedById: employeeProfile?.id,
+        };
+
+        // Only include employee fields that are present in the form data
+        employeeFields.forEach((field) => {
+          if (field in values) {
+            filteredData[field] = values[field];
+          }
+        });
+
+        updateData = filteredData;
+        console.log(
+          "📝 Filtered update data for confirmed service:",
+          updateData
+        );
+      }
+
       const res = await fetch(`/api/consulted-services/${modal.data?.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...values,
-          updatedById: employeeProfile?.id,
-        }),
+        body: JSON.stringify(updateData),
+      });
+
+      const responseData = await res.json();
+      console.log("📡 API Response:", {
+        status: res.status,
+        statusText: res.statusText,
+        data: responseData,
       });
 
       if (res.ok) {
@@ -353,11 +398,12 @@ export default function ConsultedServiceDailyPage() {
         setModal({ open: false, mode: "edit" });
         fetchConsultedServicesByDate(selectedDate);
       } else {
-        const { error } = await res.json();
-        toast.error(error || "Lỗi không xác định");
+        console.error("❌ Update failed:", responseData);
+        toast.error(responseData.error || "Lỗi không xác định");
       }
-    } catch {
-      toast.error("Có lỗi xảy ra");
+    } catch (error) {
+      console.error("❌ Network error:", error);
+      toast.error("Có lỗi xảy ra khi kết nối server");
     } finally {
       setLoading(false);
     }

@@ -131,7 +131,18 @@ export default function ConsultedServiceForm({
       <Form
         form={form}
         layout="vertical"
-        onFinish={onFinish}
+        onFinish={(values) => {
+          console.log("📋 Form onFinish - submitted values:", {
+            preferentialPrice: values.preferentialPrice,
+            finalPrice: values.finalPrice,
+            quantity: values.quantity,
+            isPreferentialPriceZero: values.preferentialPrice === 0,
+            isPreferentialPriceUndefined:
+              values.preferentialPrice === undefined,
+            allValues: values,
+          });
+          onFinish(values);
+        }}
         onValuesChange={handleValuesChange}
         initialValues={{
           quantity: 1,

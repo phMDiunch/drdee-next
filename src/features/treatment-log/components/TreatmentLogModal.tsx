@@ -1,7 +1,7 @@
 // src/features/treatment-log/components/TreatmentLogModal.tsx
 "use client";
 import { Modal, Form, Input, Select, Row, Col, Typography } from "antd";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useAppStore } from "@/stores/useAppStore";
 import type { TreatmentLogWithDetails } from "../type";
 import {
@@ -20,6 +20,12 @@ type Props = {
   customerId?: string;
   appointmentDate?: string;
   initialData?: Partial<TreatmentLogWithDetails>;
+  consultedServices?: {
+    id: string;
+    consultedServiceName: string;
+    consultedServiceUnit: string;
+    serviceStatus: string;
+  }[]; // ✅ Nhận consultedServices từ parent
   onCancel: () => void;
   onFinish: (values: Record<string, unknown>) => void;
   loading?: boolean;
@@ -32,58 +38,15 @@ export default function TreatmentLogModal({
   customerId,
   appointmentDate,
   initialData,
+  consultedServices = [], // ✅ Nhận từ parent, default là empty array
   onCancel,
   onFinish,
   loading = false,
 }: Props) {
   const [form] = Form.useForm();
-  const [consultedServices, setConsultedServices] = useState<
-    {
-      id: string;
-      consultedServiceName: string;
-      consultedServiceUnit: string;
-      serviceStatus: string; // ✅ THÊM field này để filter
-    }[]
-  >([]);
-  const [loadingServices, setLoadingServices] = useState(false);
   const [clinics, setClinics] = useState<{ id: string; name: string }[]>([]);
   const [loadingClinics, setLoadingClinics] = useState(false);
   const { activeEmployees, employeeProfile } = useAppStore();
-
-  // Lấy danh sách consulted services của customer
-  const fetchConsultedServices = useCallback(async () => {
-    if (!customerId) return;
-
-    setLoadingServices(true);
-    try {
-      const response = await fetch(
-        `/api/consulted-services?customerId=${customerId}`
-      );
-      if (response.ok) {
-        const data = await response.json();
-        console.log("📋 Consulted services data:", data); // ✅ DEBUG LOG
-        // Lọc chỉ lấy những dịch vụ đã chốt
-        const confirmedServices = (data.data || []).filter(
-          (service: { serviceStatus: string }) =>
-            service.serviceStatus === "Đã chốt"
-        );
-        console.log("✅ Confirmed services:", confirmedServices); // ✅ DEBUG LOG
-        setConsultedServices(confirmedServices);
-      } else {
-        console.error("❌ API Error:", response.status, await response.text()); // ✅ DEBUG LOG
-      }
-    } catch (error) {
-      console.error("Error fetching consulted services:", error);
-    } finally {
-      setLoadingServices(false);
-    }
-  }, [customerId]);
-
-  useEffect(() => {
-    if (open && customerId) {
-      fetchConsultedServices();
-    }
-  }, [open, customerId, fetchConsultedServices]);
 
   // Fetch clinics list when modal opens
   useEffect(() => {
@@ -114,18 +77,39 @@ export default function TreatmentLogModal({
     if (open) fetchClinics();
   }, [open, employeeProfile?.clinicId]);
 
-  // Set form values khi mở modal
+  // Reset form khi modal đóng
   useEffect(() => {
-    if (open) {
+    if (!open) {
+      form.resetFields();
+    }
+  }, [open, form]);
+
+  // Set form values khi mở modal và tất cả dependencies đã sẵn sàng
+  useEffect(() => {
+    if (open && !loadingClinics) {
+      console.log("🔧 TreatmentLogModal - Setting form values:", {
+        mode,
+        initialData,
+        appointmentId,
+        employeeProfile: employeeProfile?.id,
+        consultedServicesLoaded: consultedServices.length,
+        clinicsLoaded: clinics.length,
+      });
+
+      // Reset form trước khi set values mới
+      form.resetFields();
+
       if (mode === "add") {
-        form.setFieldsValue({
+        const addValues = {
           appointmentId,
           dentistId: employeeProfile?.id,
           treatmentStatus: DEFAULT_TREATMENT_STATUS,
           clinicId: employeeProfile?.clinicId,
-        });
+        };
+        console.log("➕ Add mode - setting values:", addValues);
+        form.setFieldsValue(addValues);
       } else if (mode === "edit" && initialData) {
-        form.setFieldsValue({
+        const editValues = {
           consultedServiceId: initialData.consultedServiceId,
           treatmentNotes: initialData.treatmentNotes,
           nextStepNotes: initialData.nextStepNotes,
@@ -134,10 +118,28 @@ export default function TreatmentLogModal({
           assistant1Id: initialData.assistant1Id,
           assistant2Id: initialData.assistant2Id,
           clinicId: initialData.clinicId,
+        };
+        console.log("✏️ Edit mode - setting form values:", editValues);
+        form.setFieldsValue(editValues);
+
+        // Verify values were set (using requestAnimationFrame instead of setTimeout)
+        requestAnimationFrame(() => {
+          const currentValues = form.getFieldsValue();
+          console.log("🔍 Current form values after setting:", currentValues);
         });
       }
     }
-  }, [open, mode, initialData, appointmentId, employeeProfile, form]);
+  }, [
+    open,
+    mode,
+    initialData,
+    appointmentId,
+    employeeProfile,
+    form,
+    loadingClinics,
+    consultedServices.length,
+    clinics.length,
+  ]);
 
   const handleFinish = (values: Record<string, unknown>) => {
     const submitData = {
@@ -167,7 +169,10 @@ export default function TreatmentLogModal({
       open={open}
       onCancel={onCancel}
       onOk={() => form.submit()}
-      confirmLoading={loading}
+      confirmLoading={loading || loadingClinics}
+      okButtonProps={{
+        disabled: loadingClinics,
+      }}
       width={800}
       destroyOnHidden
     >
@@ -186,7 +191,7 @@ export default function TreatmentLogModal({
             >
               <Select
                 placeholder="Chọn dịch vụ điều trị"
-                loading={loadingServices}
+                loading={false}
                 showSearch
                 optionFilterProp="children"
               >

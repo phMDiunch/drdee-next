@@ -76,43 +76,104 @@ export async function PUT(
     const { id } = await params;
     const data = await request.json();
 
+    console.log("🔄 PUT Request - Update consulted service:", {
+      serviceId: id,
+      requestData: data,
+      timestamp: new Date().toISOString(),
+    });
+
     // ✅ Kiểm tra dịch vụ đã chốt chưa
     const existingService = await prisma.consultedService.findUnique({
       where: { id },
     });
 
     if (!existingService) {
+      console.log("❌ Service not found:", id);
       return NextResponse.json(
         { error: "Không tìm thấy dịch vụ" },
         { status: 404 }
       );
     }
 
-    if (existingService.serviceStatus === "Đã chốt") {
-      return NextResponse.json(
-        { error: "Không thể sửa dịch vụ đã chốt!" },
-        { status: 400 }
-      );
-    }
+    console.log("📋 Existing service info:", {
+      serviceId: id,
+      serviceStatus: existingService.serviceStatus,
+      serviceConfirmDate: existingService.serviceConfirmDate,
+      consultingDoctorId: existingService.consultingDoctorId,
+      treatingDoctorId: existingService.treatingDoctorId,
+      consultingSaleId: existingService.consultingSaleId,
+    });
 
-    // ✅ NEW: Check permission for employee fields if service is confirmed
+    // ✅ FIXED: Check permission for different field types
     const hasEmployeeFieldChanges = [
       "consultingDoctorId",
       "treatingDoctorId",
       "consultingSaleId",
     ].some((field) => field in data);
 
+    const hasOtherFieldChanges = Object.keys(data).some(
+      (field) =>
+        ![
+          "consultingDoctorId",
+          "treatingDoctorId",
+          "consultingSaleId",
+          "updatedById",
+          "updatedAt",
+        ].includes(field)
+    );
+
+    console.log("🔍 Permission check:", {
+      serviceStatus: existingService.serviceStatus,
+      hasEmployeeFieldChanges,
+      hasOtherFieldChanges,
+      changedFields: Object.keys(data),
+      employeeFields: [
+        "consultingDoctorId",
+        "treatingDoctorId",
+        "consultingSaleId",
+      ].filter((field) => field in data),
+      otherFields: Object.keys(data).filter(
+        (field) =>
+          ![
+            "consultingDoctorId",
+            "treatingDoctorId",
+            "consultingSaleId",
+            "updatedById",
+            "updatedAt",
+          ].includes(field)
+      ),
+    });
+
+    // ✅ FIXED: Only reject non-employee field changes for confirmed services
+    if (existingService.serviceStatus === "Đã chốt" && hasOtherFieldChanges) {
+      console.log("❌ Rejected: Cannot edit basic fields of confirmed service");
+      return NextResponse.json(
+        { error: "Dịch vụ đã chốt không thể chỉnh sửa thông tin cơ bản!" },
+        { status: 400 }
+      );
+    }
+
+    // ✅ Check permission for employee fields if service is confirmed
     if (
       hasEmployeeFieldChanges &&
       existingService.serviceStatus === "Đã chốt" &&
       existingService.serviceConfirmDate
     ) {
+      console.log(
+        "🔐 Checking employee field permissions for confirmed service..."
+      );
+
       // Get current user role from updatedById
       const currentUserId = data.updatedById;
       if (currentUserId) {
         const currentUser = await prisma.employee.findUnique({
           where: { id: currentUserId },
           select: { role: true },
+        });
+
+        console.log("👤 Current user info:", {
+          userId: currentUserId,
+          role: currentUser?.role,
         });
 
         if (currentUser?.role !== "admin") {
@@ -123,20 +184,35 @@ export async function PUT(
               : existingService.serviceConfirmDate.toISOString();
           const daysSinceConfirm = calculateDaysSinceConfirm(confirmDateStr);
 
+          console.log("📅 33-day rule check:", {
+            serviceConfirmDate: confirmDateStr,
+            daysSinceConfirm,
+            isWithin33Days: daysSinceConfirm <= 33,
+          });
+
           if (daysSinceConfirm > 33) {
+            console.log(
+              "❌ Rejected: Beyond 33-day limit for employee field changes"
+            );
             return NextResponse.json(
               {
                 error:
-                  "Không có quyền sửa thông tin nhân sự sau 33 ngày từ ngày chốt",
+                  "Dịch vụ đã chốt quá 33 ngày, không thể sửa thông tin nhân sự!",
               },
               { status: 403 }
             );
           }
+        } else {
+          console.log("✅ Admin user - bypassing 33-day rule");
         }
+      } else {
+        console.log("⚠️ No updatedById provided");
       }
     }
 
     // Tiếp tục logic update...
+    console.log("✅ Permissions passed - proceeding with update");
+
     const updated = await prisma.consultedService.update({
       where: { id },
       data: {
@@ -152,9 +228,22 @@ export async function PUT(
       },
     });
 
+    console.log("✅ Update successful:", {
+      serviceId: updated.id,
+      updatedFields: Object.keys(data),
+      newValues: {
+        consultingDoctorId: updated.consultingDoctorId,
+        treatingDoctorId: updated.treatingDoctorId,
+        consultingSaleId: updated.consultingSaleId,
+      },
+    });
+
     return NextResponse.json(updated);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    console.error("Update consulted service error:", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
@@ -225,9 +314,11 @@ export async function DELETE(
       success: true,
       message,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Lỗi khi xóa dịch vụ tư vấn:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
@@ -273,8 +364,10 @@ export async function PATCH(
     });
 
     return NextResponse.json(updatedService);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Lỗi khi chốt dịch vụ:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

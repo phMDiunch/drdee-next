@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const date = searchParams.get("date"); // YYYY-MM-DD format
     const clinicId = searchParams.get("clinicId");
+    const doctorId = searchParams.get("doctorId"); // ✅ THÊM: Filter theo doctor
 
     if (!date) {
       return NextResponse.json(
@@ -39,6 +40,14 @@ export async function GET(request: NextRequest) {
     // Filter theo clinicId nếu có
     if (clinicId) {
       whereCondition.clinicId = clinicId;
+    }
+
+    // ✅ THÊM: Filter theo doctor (primary hoặc secondary)
+    if (doctorId) {
+      whereCondition.OR = [
+        { primaryDentistId: doctorId },
+        { secondaryDentistId: doctorId },
+      ];
     }
 
     const appointments = await prisma.appointment.findMany({

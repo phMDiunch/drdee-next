@@ -1,6 +1,6 @@
 // src/features/treatment-log/components/TreatmentLogTab.tsx
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Spin, Empty, Typography, Space, Switch } from "antd";
 import { CalendarOutlined, MedicineBoxOutlined } from "@ant-design/icons";
 import { toast } from "react-toastify";
@@ -51,6 +51,30 @@ export default function TreatmentLogTab({ customerId }: Props) {
     updateTreatmentLog,
     deleteTreatmentLog,
   } = useTreatmentLog();
+
+  // ✅ Extract consulted services from existing appointments data
+  const consultedServices = useMemo(() => {
+    const serviceMap = new Map();
+
+    appointments.forEach((appointment) => {
+      appointment.treatmentLogs?.forEach((log) => {
+        const service = log.consultedService;
+        if (service && !serviceMap.has(service.id)) {
+          serviceMap.set(service.id, {
+            id: service.id,
+            consultedServiceName: service.consultedServiceName,
+            consultedServiceUnit: service.consultedServiceUnit,
+            serviceStatus: service.serviceStatus,
+          });
+        }
+      });
+    });
+
+    return Array.from(serviceMap.values()).filter(
+      (service: { serviceStatus: string }) =>
+        service.serviceStatus === "Đã chốt"
+    );
+  }, [appointments]);
 
   // Load appointments khi component mount
   useEffect(() => {
@@ -139,6 +163,20 @@ export default function TreatmentLogTab({ customerId }: Props) {
 
   // Mở modal sửa treatment log
   const handleEditTreatment = (treatmentLog: TreatmentLogWithDetails) => {
+    console.log("✏️ handleEditTreatment called with:", {
+      id: treatmentLog.id,
+      consultedServiceId: treatmentLog.consultedServiceId,
+      treatmentNotes: treatmentLog.treatmentNotes,
+      nextStepNotes: treatmentLog.nextStepNotes,
+      treatmentStatus: treatmentLog.treatmentStatus,
+      dentistId: treatmentLog.dentistId,
+      assistant1Id: treatmentLog.assistant1Id,
+      assistant2Id: treatmentLog.assistant2Id,
+      clinicId: treatmentLog.clinicId,
+      appointmentId: treatmentLog.appointmentId,
+      appointment: treatmentLog.appointment,
+    });
+
     const appointmentDate = treatmentLog.appointment
       ? formatDateTimeVN(
           treatmentLog.appointment.appointmentDateTime,
@@ -286,6 +324,7 @@ export default function TreatmentLogTab({ customerId }: Props) {
         customerId={customerId}
         appointmentDate={modal.appointmentDate}
         initialData={modal.initialData}
+        consultedServices={consultedServices}
         onCancel={() => setModal({ open: false, mode: "add" })}
         onFinish={handleFinish}
         loading={saving}

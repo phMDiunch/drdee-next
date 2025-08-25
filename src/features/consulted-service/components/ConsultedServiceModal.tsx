@@ -38,7 +38,22 @@ export default function ConsultedServiceModal({
 
       // Nếu là chế độ sửa, điền dữ liệu vào form
       if (mode === "edit" && initialData) {
-        form.setFieldsValue(initialData);
+        // ✅ FIX: Only set editable fields to prevent sending readonly fields like clinicId
+        const editableFields = {
+          dentalServiceId: initialData.dentalServiceId,
+          consultedServiceName: initialData.consultedServiceName,
+          consultedServiceUnit: initialData.consultedServiceUnit,
+          quantity: initialData.quantity,
+          price: initialData.price,
+          preferentialPrice: initialData.preferentialPrice,
+          finalPrice: initialData.finalPrice,
+          toothPositions: initialData.toothPositions,
+          consultingDoctorId: initialData.consultingDoctorId,
+          treatingDoctorId: initialData.treatingDoctorId,
+          consultingSaleId: initialData.consultingSaleId,
+          specificStatus: initialData.specificStatus,
+        };
+        form.setFieldsValue(editableFields);
       } else if (mode === "add") {
         form.resetFields();
       }
