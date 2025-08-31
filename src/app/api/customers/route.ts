@@ -228,43 +228,51 @@ export async function POST(request: NextRequest) {
     // 1. fullName_lowercase
     data.fullName_lowercase = data.fullName?.toLowerCase().trim() || "";
 
-    // 2. Sinh customerCode (logic này vẫn giữ nguyên)
-    const now = new Date(); // Dùng cho logic sinh mã, không cần VN timezone
+    // 2. Sinh customerCode với Transaction để tránh race condition
+    const now = new Date();
     const year = now.getFullYear() % 100;
     const month = String(now.getMonth() + 1).padStart(2, "0");
     const prefixMap: Record<string, string> = {
       "450MK": "MK",
-      "143TDT": "TDT", // Giả sử mã chi nhánh là 143TDT
-      "153DN": "DN", // Giả sử mã chi nhánh là 153DN
+      "143TDT": "TDT",
+      "153DN": "DN",
     };
     const prefix = prefixMap[data.clinicId] || "XX";
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-    const count = await prisma.customer.count({
-      where: {
-        clinicId: data.clinicId,
-        createdAt: { gte: startOfMonth, lte: endOfMonth },
-      },
+    // ✅ TRANSACTION: Đảm bảo findFirst + create là atomic
+    const newCustomer = await prisma.$transaction(async (tx) => {
+      // Tìm mã cao nhất trong transaction
+      const lastCustomer = await tx.customer.findFirst({
+        where: {
+          clinicId: data.clinicId,
+          customerCode: { startsWith: `${prefix}-${year}${month}` },
+        },
+        orderBy: { customerCode: "desc" },
+      });
+
+      const nextNumber = lastCustomer?.customerCode
+        ? parseInt(lastCustomer.customerCode.split("-")[2]) + 1
+        : 1;
+
+      data.customerCode = `${prefix}-${year}${month}-${String(
+        nextNumber
+      ).padStart(3, "0")}`;
+
+      // 3. Cập nhật searchKeywords
+      data.searchKeywords = [
+        data.customerCode,
+        data.fullName_lowercase,
+        data.phone,
+      ].filter(Boolean);
+
+      // Tạo customer trong cùng transaction
+      return await tx.customer.create({ data });
     });
-    data.customerCode = `${prefix}-${year}${month}-${String(count + 1).padStart(
-      3,
-      "0"
-    )}`;
-
-    // 3. Cập nhật searchKeywords
-    // Nếu có SĐT thì thêm vào, nếu không thì thôi.
-    data.searchKeywords = [
-      data.customerCode,
-      data.fullName_lowercase,
-      data.phone, // Sẽ là undefined nếu không có và được filter loại bỏ
-    ].filter(Boolean);
 
     // === KẾT THÚC: Logic cập nhật ===
 
-    const newCustomer = await prisma.customer.create({ data });
     return NextResponse.json(newCustomer, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return handlePrismaError(error);
   }
 }
