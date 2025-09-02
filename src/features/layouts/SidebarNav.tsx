@@ -24,6 +24,27 @@ interface SidebarNavProps {
   collapsed?: boolean;
 }
 
+interface LevelKeysProps {
+  key?: string;
+  children?: LevelKeysProps[];
+}
+
+const getLevelKeys = (items: LevelKeysProps[]) => {
+  const key: Record<string, number> = {};
+  const func = (items2: LevelKeysProps[], level = 1) => {
+    items2.forEach((item) => {
+      if (item.key) {
+        key[item.key] = level;
+      }
+      if (item.children) {
+        func(item.children, level + 1);
+      }
+    });
+  };
+  func(items);
+  return key;
+};
+
 export default function SidebarNav({ collapsed }: SidebarNavProps) {
   const pathname = usePathname();
 
@@ -34,15 +55,6 @@ export default function SidebarNav({ collapsed }: SidebarNavProps) {
     if (pathname.startsWith("/dental-services")) return ["settings"];
     return [];
   });
-
-  // Auto close submenus when sidebar is collapsed
-  const handleOpenChange = (keys: string[]) => {
-    if (collapsed) {
-      setOpenKeys([]); // Close all submenus when collapsed
-    } else {
-      setOpenKeys(keys);
-    }
-  };
 
   const employeeProfile = useAppStore((state) => state.employeeProfile);
   const menuItems: Required<MenuProps>["items"] = [
@@ -131,6 +143,37 @@ export default function SidebarNav({ collapsed }: SidebarNavProps) {
       : []),
   ];
 
+  // Get level keys for the menu items
+  const levelKeys = getLevelKeys(menuItems as LevelKeysProps[]);
+
+  // Handle open/close submenus - only allow one submenu open at a time
+  const handleOpenChange: MenuProps["onOpenChange"] = (keys) => {
+    if (collapsed) {
+      setOpenKeys([]); // Close all submenus when collapsed
+      return;
+    }
+
+    const currentOpenKey = keys.find((key) => openKeys.indexOf(key) === -1);
+
+    // If opening a new submenu
+    if (currentOpenKey !== undefined) {
+      const repeatIndex = keys
+        .filter((key) => key !== currentOpenKey)
+        .findIndex((key) => levelKeys[key] === levelKeys[currentOpenKey]);
+
+      setOpenKeys(
+        keys
+          // Remove repeat key at same level
+          .filter((_, index) => index !== repeatIndex)
+          // Remove all child keys of current level
+          .filter((key) => levelKeys[key] <= levelKeys[currentOpenKey])
+      );
+    } else {
+      // If closing a submenu
+      setOpenKeys(keys);
+    }
+  };
+
   // ✅ SỬA: Xác định selectedKey
   let selectedKey = "dashboard";
 
@@ -185,7 +228,7 @@ export default function SidebarNav({ collapsed }: SidebarNavProps) {
       <Menu
         mode="inline"
         selectedKeys={[selectedKey]}
-        openKeys={collapsed ? [] : openKeys} // Close all submenus when collapsed
+        openKeys={openKeys}
         onOpenChange={handleOpenChange}
         style={{ borderRight: 0, flex: 1, fontSize: 16 }}
         items={menuItems}
