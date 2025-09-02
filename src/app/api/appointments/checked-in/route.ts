@@ -23,6 +23,51 @@ export async function GET(request: NextRequest) {
             id: true,
             fullName: true,
             customerCode: true,
+            // Include tất cả consulted services đã chốt của customer
+            consultedServices: {
+              where: {
+                serviceStatus: "Đã chốt",
+              },
+              include: {
+                treatingDoctor: {
+                  select: {
+                    id: true,
+                    fullName: true,
+                  },
+                },
+                treatmentLogs: {
+                  include: {
+                    dentist: {
+                      select: {
+                        id: true,
+                        fullName: true,
+                      },
+                    },
+                    assistant1: {
+                      select: {
+                        id: true,
+                        fullName: true,
+                      },
+                    },
+                    assistant2: {
+                      select: {
+                        id: true,
+                        fullName: true,
+                      },
+                    },
+                    createdBy: {
+                      select: {
+                        id: true,
+                        fullName: true,
+                      },
+                    },
+                  },
+                  orderBy: {
+                    createdAt: "asc",
+                  },
+                },
+              },
+            },
           },
         },
         primaryDentist: {

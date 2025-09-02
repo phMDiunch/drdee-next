@@ -89,6 +89,18 @@ export interface AppointmentForTreatment {
   customer: {
     id: string;
     fullName: string;
+    customerCode: string;
+    consultedServices: {
+      id: string;
+      consultedServiceName: string;
+      consultedServiceUnit: string;
+      serviceStatus: string;
+      treatingDoctor?: {
+        id: string;
+        fullName: string;
+      };
+      treatmentLogs: TreatmentLogWithDetails[];
+    }[];
   };
   primaryDentist: {
     id: string;

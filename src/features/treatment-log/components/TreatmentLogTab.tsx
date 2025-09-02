@@ -52,14 +52,14 @@ export default function TreatmentLogTab({ customerId }: Props) {
     deleteTreatmentLog,
   } = useTreatmentLog();
 
-  // ✅ Extract consulted services from existing appointments data
+  // ✅ Extract consulted services from customer data (for modal dropdown)
   const consultedServices = useMemo(() => {
     const serviceMap = new Map();
 
+    // Lấy từ customer.consultedServices (API mới)
     appointments.forEach((appointment) => {
-      appointment.treatmentLogs?.forEach((log) => {
-        const service = log.consultedService;
-        if (service && !serviceMap.has(service.id)) {
+      appointment.customer.consultedServices?.forEach((service) => {
+        if (!serviceMap.has(service.id)) {
           serviceMap.set(service.id, {
             id: service.id,
             consultedServiceName: service.consultedServiceName,
@@ -86,32 +86,36 @@ export default function TreatmentLogTab({ customerId }: Props) {
     }
   }, [customerId, fetchCheckedInAppointments]);
 
-  // ✅ Helper function: Group data theo dịch vụ
+  // ✅ Helper function: Group data theo dịch vụ - SỬA LOGIC
   const groupByService = (): ServiceGroup[] => {
     const serviceMap = new Map<string, ServiceGroup>();
 
+    // Lấy tất cả consulted services từ customer (không chỉ từ treatment logs)
+    const allConsultedServices =
+      appointments.length > 0
+        ? appointments[0].customer.consultedServices || []
+        : [];
+
+    // Khởi tạo tất cả services đã chốt (kể cả chưa có treatment log)
+    allConsultedServices.forEach((service) => {
+      serviceMap.set(service.id, {
+        consultedServiceId: service.id,
+        consultedServiceName: service.consultedServiceName,
+        consultedServiceUnit: service.consultedServiceUnit,
+        treatingDoctorName: service.treatingDoctor?.fullName || "N/A",
+        serviceStatus: "Chưa bắt đầu", // Default status
+        treatmentLogs: [],
+      });
+    });
+
+    // Thêm treatment logs vào từng service
     appointments.forEach((appointment) => {
-      // Lấy tất cả treatment logs từ appointment
       appointment.treatmentLogs?.forEach((log) => {
         const serviceId = log.consultedService.id;
-        const serviceName = log.consultedService.consultedServiceName;
-        const serviceUnit = log.consultedService.consultedServiceUnit;
-        const treatingDoctorName =
-          log.consultedService.treatingDoctor?.fullName || "N/A";
-
-        if (!serviceMap.has(serviceId)) {
-          serviceMap.set(serviceId, {
-            consultedServiceId: serviceId,
-            consultedServiceName: serviceName,
-            consultedServiceUnit: serviceUnit,
-            treatingDoctorName,
-            serviceStatus: "Chưa bắt đầu",
-            treatmentLogs: [],
-          });
+        const serviceGroup = serviceMap.get(serviceId);
+        if (serviceGroup) {
+          serviceGroup.treatmentLogs.push(log);
         }
-
-        const serviceGroup = serviceMap.get(serviceId)!;
-        serviceGroup.treatmentLogs.push(log);
       });
     });
 
