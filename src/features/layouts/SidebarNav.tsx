@@ -16,6 +16,7 @@ import {
   ExperimentOutlined, // ✅ THÊM icon cho Consulted Services
   BarChartOutlined, // ✅ THÊM icon cho Reports
   HeartOutlined,
+  ShopOutlined, // ✅ THÊM icon cho Suppliers
 } from "@ant-design/icons";
 
 import { useAppStore } from "@/stores/useAppStore";
@@ -53,6 +54,7 @@ export default function SidebarNav({ collapsed }: SidebarNavProps) {
     if (pathname.startsWith("/consulted-services"))
       return ["consulted-services"];
     if (pathname.startsWith("/dental-services")) return ["settings"];
+    if (pathname.startsWith("/suppliers")) return ["settings"];
     return [];
   });
 
@@ -137,6 +139,11 @@ export default function SidebarNav({ collapsed }: SidebarNavProps) {
                 icon: <MedicineBoxOutlined />,
                 label: <Link href="/dental-services">Dịch vụ nha khoa</Link>,
               },
+              {
+                key: "suppliers",
+                icon: <ShopOutlined />,
+                label: <Link href="/suppliers">Nhà cung cấp</Link>,
+              },
             ],
           },
         ] as Required<MenuProps>["items"])
@@ -195,6 +202,8 @@ export default function SidebarNav({ collapsed }: SidebarNavProps) {
     selectedKey = "treatment-care";
   } else if (pathname.startsWith("/dental-services")) {
     selectedKey = "dental-services";
+  } else if (pathname.startsWith("/suppliers")) {
+    selectedKey = "suppliers";
   }
 
   return (
