@@ -1,19 +1,26 @@
 // src/features/layouts/AppHeader.tsx
 "use client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Layout, Badge, Avatar, Dropdown, Tooltip } from "antd";
+import { Layout, Badge, Avatar, Dropdown, Tooltip, Button } from "antd";
 import {
   BellOutlined,
   UserOutlined,
   SettingOutlined,
   LogoutOutlined,
   DownOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
 } from "@ant-design/icons";
 import GlobalCustomerSearch from "@/components/GlobalCustomerSearch";
 
 const { Header } = Layout;
 
-export default function AppHeader() {
+interface AppHeaderProps {
+  collapsed?: boolean;
+  onToggle?: () => void;
+}
+
+export default function AppHeader({ collapsed, onToggle }: AppHeaderProps) {
   const { user, logout } = useAuth();
 
   // Menu cho dropdown avatar
@@ -44,53 +51,80 @@ export default function AppHeader() {
   return (
     <Header
       style={{
-        position: "sticky",
+        position: "fixed", // Change to fixed instead of sticky
         top: 0,
-        zIndex: 10,
+        zIndex: 1000, // Higher z-index
         width: "100%",
         background: "#fff",
-        boxShadow: "0 2px 8px #f0f1f2",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
         padding: 0,
         display: "flex",
         alignItems: "center",
         height: 64,
+        left: 0, // Ensure it covers full width
       }}
     >
-      {/* Phần 1: Thương hiệu */}
+      {/* Custom Trigger Button - show on mobile or when sidebar is collapsed */}
+      {onToggle && (
+        <div style={{ display: "flex", alignItems: "center" }}>
+          <Button
+            type="text"
+            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+            onClick={onToggle}
+            style={{
+              fontSize: "16px",
+              width: 64,
+              height: 64,
+            }}
+            className="mobile-trigger-btn"
+          />
+        </div>
+      )}
+
+      {/* Phần 1: Thương hiệu - responsive */}
       <div
         style={{
-          flex: "0 0 200px",
-          paddingLeft: 32,
+          flex: "0 0 auto",
+          paddingLeft: onToggle ? 8 : 32,
+          paddingRight: 16,
           fontWeight: "bold",
           fontSize: 22,
           color: "#1677ff",
           letterSpacing: 2,
         }}
+        className="header-brand"
       >
         DR DEE
       </div>
-      {/* Phần 2: Global Search */}
+
+      {/* Phần 2: Global Search - responsive */}
       <div
         style={{
           flex: 1,
-          padding: "0 24px",
+          padding: "0 16px",
           display: "flex",
           alignItems: "center",
+          minWidth: 0, // Allow shrinking
         }}
       >
         <GlobalCustomerSearch
           placeholder="Tìm kiếm khách hàng..."
-          style={{ maxWidth: 400, width: "100%" }}
+          style={{
+            maxWidth: 400,
+            width: "100%",
+            minWidth: "150px",
+          }}
         />
       </div>
+
       {/* Phần 3: Notification + Avatar */}
       <div
         style={{
           flex: "0 0 auto",
           display: "flex",
           alignItems: "center",
-          gap: 24,
-          paddingRight: 32,
+          gap: 16,
+          paddingRight: 24,
         }}
       >
         {/* Notification */}
@@ -114,10 +148,22 @@ export default function AppHeader() {
               display: "flex",
               alignItems: "center",
               gap: 8,
+              minWidth: 0, // Allow shrinking
             }}
           >
             <Avatar size={36} icon={<UserOutlined />} />
-            <span style={{ fontWeight: 500 }}>{user?.email}</span>
+            <span
+              style={{
+                fontWeight: 500,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                maxWidth: "120px",
+              }}
+              className="header-username"
+            >
+              {user?.email}
+            </span>
             <DownOutlined style={{ fontSize: 12, color: "#888" }} />
           </div>
         </Dropdown>

@@ -20,7 +20,11 @@ import {
 
 import { useAppStore } from "@/stores/useAppStore";
 
-export default function SidebarNav() {
+interface SidebarNavProps {
+  collapsed?: boolean;
+}
+
+export default function SidebarNav({ collapsed }: SidebarNavProps) {
   const pathname = usePathname();
 
   const [openKeys, setOpenKeys] = useState<string[]>(() => {
@@ -30,6 +34,15 @@ export default function SidebarNav() {
     if (pathname.startsWith("/dental-services")) return ["settings"];
     return [];
   });
+
+  // Auto close submenus when sidebar is collapsed
+  const handleOpenChange = (keys: string[]) => {
+    if (collapsed) {
+      setOpenKeys([]); // Close all submenus when collapsed
+    } else {
+      setOpenKeys(keys);
+    }
+  };
 
   const employeeProfile = useAppStore((state) => state.employeeProfile);
   const menuItems: Required<MenuProps>["items"] = [
@@ -141,20 +154,16 @@ export default function SidebarNav() {
     selectedKey = "dental-services";
   }
 
-  const handleOpenChange = (keys: string[]) => {
-    setOpenKeys(keys);
-  };
-
   return (
     <div
       style={{
-        height: "100vh",
+        height: "calc(100vh - 64px)", // Adjust for header height
         display: "flex",
         flexDirection: "column",
         background: "#fff",
       }}
     >
-      <div
+      {/* <div
         style={{
           height: 64,
           display: "flex",
@@ -172,14 +181,15 @@ export default function SidebarNav() {
           style={{ fontSize: 28, marginRight: 8, color: "#1677ff" }}
         />
         DrDee
-      </div>
+      </div> */}
       <Menu
         mode="inline"
         selectedKeys={[selectedKey]}
-        openKeys={openKeys}
+        openKeys={collapsed ? [] : openKeys} // Close all submenus when collapsed
         onOpenChange={handleOpenChange}
         style={{ borderRight: 0, flex: 1, fontSize: 16 }}
         items={menuItems}
+        inlineCollapsed={collapsed}
       />
       <div
         style={{

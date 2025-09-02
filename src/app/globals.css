@@ -40,3 +40,84 @@ a {
     color-scheme: dark;
   }
 }
+
+/* Responsive Layout Classes */
+
+/* Mobile Trigger Button - always show when provided */
+.mobile-trigger-btn {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Header Brand - hide on small screens to save space */
+.header-brand {
+  display: block;
+}
+
+@media (max-width: 768px) {
+  .header-brand {
+    display: none !important;
+  }
+}
+
+/* Header Username - hide on small screens to save space */
+.header-username {
+  display: inline;
+}
+
+@media (max-width: 576px) {
+  .header-username {
+    display: none !important;
+  }
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 992px) {
+  /* Adjust content when sidebar is hidden on mobile */
+  .ant-layout {
+    margin-left: 0 !important;
+  }
+
+  .ant-layout-header {
+    left: 0 !important;
+  }
+
+  .ant-layout-content {
+    margin: 88px 16px 16px 16px !important;
+    padding: 16px !important;
+  }
+
+  /* Show mobile overlay when sidebar is open */
+  .mobile-sidebar-overlay {
+    display: block !important;
+  }
+
+  /* Sidebar shadow on mobile */
+  .app-sidebar:not(.ant-layout-sider-collapsed) {
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
+  }
+}
+
+/* Ensure smooth transitions */
+.ant-layout-sider {
+  transition: all 0.2s ease !important;
+}
+
+.ant-layout-header {
+  transition: left 0.2s ease !important;
+}
+
+/* Responsive content margins for desktop */
+@media (min-width: 993px) {
+  .ant-layout-content {
+    margin: 88px 24px 24px 24px !important;
+  }
+}
+
+/* Ensure tables are responsive */
+@media (max-width: 768px) {
+  .ant-table-wrapper {
+    overflow-x: auto;
+  }
+}
