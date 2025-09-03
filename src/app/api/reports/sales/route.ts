@@ -82,6 +82,18 @@ async function getSalesData(whereClause: {
           customerCode: true,
         },
       },
+      consultingDoctor: {
+        select: {
+          id: true,
+          fullName: true,
+        },
+      },
+      consultingSale: {
+        select: {
+          id: true,
+          fullName: true,
+        },
+      },
     },
     orderBy: {
       serviceConfirmDate: "desc",
@@ -98,6 +110,7 @@ async function getSalesData(whereClause: {
   // Format details
   const details = consultedServices.map((service) => ({
     id: service.id,
+    customerId: service.customerId, // Add customer ID for navigation
     customerSource: service.customer.source,
     sourceNotes: service.customer.sourceNotes,
     customerCode: service.customer.customerCode,
@@ -106,6 +119,12 @@ async function getSalesData(whereClause: {
     finalPrice: service.finalPrice,
     serviceConfirmDate: dayjs(service.serviceConfirmDate).format("YYYY-MM-DD"),
     clinicId: service.clinicId, // Add clinic ID for client-side filtering
+
+    // Consulting staff information
+    consultingDoctorId: service.consultingDoctor?.id || null,
+    consultingDoctorName: service.consultingDoctor?.fullName || null,
+    consultingSaleId: service.consultingSale?.id || null,
+    consultingSaleName: service.consultingSale?.fullName || null,
   }));
 
   return {

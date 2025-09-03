@@ -1,4 +1,4 @@
-// src/features/reports/components/SalesDetailTable.tsx
+// src/features/reports/components/SalesByDoctorTable.tsx
 "use client";
 import { Card, Table, Typography, Button } from "antd";
 import type { ColumnsType } from "antd/es/table";
@@ -15,40 +15,52 @@ interface Props {
   loading?: boolean;
 }
 
-export default function SalesDetailTable({ data, loading = false }: Props) {
+export default function SalesByDoctorTable({ data, loading = false }: Props) {
   const router = useRouter();
 
-  // Create filter options from unique customer sources in data
-  const customerSourceFilters = useMemo(() => {
-    const uniqueSources = [
-      ...new Set(data.map((item) => item.customerSource || "Chưa cập nhật")),
+  // Create filter options from unique consulting doctors in data
+  const consultingDoctorFilters = useMemo(() => {
+    const uniqueDoctors = [
+      ...new Set(
+        data.map((item) => item.consultingDoctorName || "Chưa phân công")
+      ),
     ];
-    return uniqueSources.map((source) => ({
-      text: source,
-      value: source === "Chưa cập nhật" ? "__null__" : source, // Use string placeholder for null
+    return uniqueDoctors.map((doctor) => ({
+      text: doctor,
+      value: doctor === "Chưa phân công" ? "__null__" : doctor,
     }));
   }, [data]);
 
   const columns: ColumnsType<SalesDetailData> = [
     {
-      title: "🏷️ Nguồn khách",
-      dataIndex: "customerSource",
-      key: "customerSource",
-      render: (source: string | null) => source || "Chưa cập nhật",
+      title: "👨‍⚕️ BS tư vấn",
+      dataIndex: "consultingDoctorName",
+      key: "consultingDoctorName",
+      render: (name: string | null) => name || "Chưa phân công",
       sorter: (a: SalesDetailData, b: SalesDetailData) =>
-        (a.customerSource || "").localeCompare(b.customerSource || ""),
-      filters: customerSourceFilters,
+        (a.consultingDoctorName || "").localeCompare(
+          b.consultingDoctorName || ""
+        ),
+      filters: consultingDoctorFilters,
       onFilter: (value, record: SalesDetailData) => {
         if (value === "__null__") {
           return (
-            record.customerSource === null ||
-            record.customerSource === undefined
+            record.consultingDoctorName === null ||
+            record.consultingDoctorName === undefined
           );
         }
-        return record.customerSource === value;
+        return record.consultingDoctorName === value;
       },
       filterMultiple: true,
       width: 150,
+    },
+    {
+      title: "🦷 Dịch vụ",
+      dataIndex: "serviceName",
+      key: "serviceName",
+      sorter: (a: SalesDetailData, b: SalesDetailData) =>
+        a.serviceName.localeCompare(b.serviceName),
+      width: 250,
     },
     {
       title: "🆔 Mã KH",
@@ -75,14 +87,6 @@ export default function SalesDetailTable({ data, loading = false }: Props) {
       sorter: (a: SalesDetailData, b: SalesDetailData) =>
         a.customerName.localeCompare(b.customerName),
       width: 200,
-    },
-    {
-      title: "🦷 Dịch vụ",
-      dataIndex: "serviceName",
-      key: "serviceName",
-      sorter: (a: SalesDetailData, b: SalesDetailData) =>
-        a.serviceName.localeCompare(b.serviceName),
-      width: 250,
     },
     {
       title: "💰 Giá trị",
@@ -115,20 +119,14 @@ export default function SalesDetailTable({ data, loading = false }: Props) {
   return (
     <Card>
       <Title level={4} style={{ marginBottom: 16 }}>
-        📊 Chi tiết doanh số theo dịch vụ chốt
+        👨‍⚕️ Doanh số tư vấn bác sĩ
       </Title>
       <Table
         columns={columns}
         dataSource={sortedData}
         rowKey="id"
         loading={loading}
-        pagination={{
-          pageSize: 300,
-          showSizeChanger: false,
-          showQuickJumper: true,
-          showTotal: (total, range) =>
-            `${range[0]}-${range[1]} của ${total} dịch vụ`,
-        }}
+        pagination={false}
         scroll={{ x: 800 }}
         size="small"
         summary={(pageData) => {

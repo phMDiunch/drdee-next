@@ -49,6 +49,7 @@ export interface RevenueData {
 // Sales Data for detailed service listings
 export interface SalesDetailData {
   id: string;
+  customerId: string; // Add customer ID for navigation
   customerSource: string | null;
   sourceNotes: string | null;
   customerCode: string | null;
@@ -57,6 +58,12 @@ export interface SalesDetailData {
   finalPrice: number;
   serviceConfirmDate: string;
   clinicId: string; // Add clinic ID for filtering
+
+  // Consulting staff information
+  consultingDoctorId: string | null;
+  consultingDoctorName: string | null;
+  consultingSaleId: string | null;
+  consultingSaleName: string | null;
 }
 
 export interface SalesData {

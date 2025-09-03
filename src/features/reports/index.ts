@@ -5,6 +5,9 @@ export { default as RevenueFilters } from "./components/RevenueFilters";
 export { default as RevenueByPaymentMethod } from "./components/RevenueByPaymentMethod";
 export { default as RevenueByEmployee } from "./components/RevenueByEmployee";
 export { default as DailyRevenueTable } from "./components/DailyRevenueTable";
+export { default as SalesDetailTable } from "./components/SalesDetailTable";
+export { default as SalesByDoctorTable } from "./components/SalesByDoctorTable";
+export { default as SalesBySaleTable } from "./components/SalesBySaleTable";
 
 export type * from "./type";
 export * from "./constants";

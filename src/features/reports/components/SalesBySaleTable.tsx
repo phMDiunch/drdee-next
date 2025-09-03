@@ -1,4 +1,4 @@
-// src/features/reports/components/SalesDetailTable.tsx
+// src/features/reports/components/SalesBySaleTable.tsx
 "use client";
 import { Card, Table, Typography, Button } from "antd";
 import type { ColumnsType } from "antd/es/table";
@@ -15,40 +15,50 @@ interface Props {
   loading?: boolean;
 }
 
-export default function SalesDetailTable({ data, loading = false }: Props) {
+export default function SalesBySaleTable({ data, loading = false }: Props) {
   const router = useRouter();
 
-  // Create filter options from unique customer sources in data
-  const customerSourceFilters = useMemo(() => {
-    const uniqueSources = [
-      ...new Set(data.map((item) => item.customerSource || "Chưa cập nhật")),
+  // Create filter options from unique consulting sales in data
+  const consultingSaleFilters = useMemo(() => {
+    const uniqueSales = [
+      ...new Set(
+        data.map((item) => item.consultingSaleName || "Chưa phân công")
+      ),
     ];
-    return uniqueSources.map((source) => ({
-      text: source,
-      value: source === "Chưa cập nhật" ? "__null__" : source, // Use string placeholder for null
+    return uniqueSales.map((sale) => ({
+      text: sale,
+      value: sale === "Chưa phân công" ? "__null__" : sale,
     }));
   }, [data]);
 
   const columns: ColumnsType<SalesDetailData> = [
     {
-      title: "🏷️ Nguồn khách",
-      dataIndex: "customerSource",
-      key: "customerSource",
-      render: (source: string | null) => source || "Chưa cập nhật",
+      title: "👤 Tư vấn viên",
+      dataIndex: "consultingSaleName",
+      key: "consultingSaleName",
+      render: (name: string | null) => name || "Chưa phân công",
       sorter: (a: SalesDetailData, b: SalesDetailData) =>
-        (a.customerSource || "").localeCompare(b.customerSource || ""),
-      filters: customerSourceFilters,
+        (a.consultingSaleName || "").localeCompare(b.consultingSaleName || ""),
+      filters: consultingSaleFilters,
       onFilter: (value, record: SalesDetailData) => {
         if (value === "__null__") {
           return (
-            record.customerSource === null ||
-            record.customerSource === undefined
+            record.consultingSaleName === null ||
+            record.consultingSaleName === undefined
           );
         }
-        return record.customerSource === value;
+        return record.consultingSaleName === value;
       },
       filterMultiple: true,
       width: 150,
+    },
+    {
+      title: "🦷 Dịch vụ",
+      dataIndex: "serviceName",
+      key: "serviceName",
+      sorter: (a: SalesDetailData, b: SalesDetailData) =>
+        a.serviceName.localeCompare(b.serviceName),
+      width: 250,
     },
     {
       title: "🆔 Mã KH",
@@ -75,14 +85,6 @@ export default function SalesDetailTable({ data, loading = false }: Props) {
       sorter: (a: SalesDetailData, b: SalesDetailData) =>
         a.customerName.localeCompare(b.customerName),
       width: 200,
-    },
-    {
-      title: "🦷 Dịch vụ",
-      dataIndex: "serviceName",
-      key: "serviceName",
-      sorter: (a: SalesDetailData, b: SalesDetailData) =>
-        a.serviceName.localeCompare(b.serviceName),
-      width: 250,
     },
     {
       title: "💰 Giá trị",
@@ -115,21 +117,15 @@ export default function SalesDetailTable({ data, loading = false }: Props) {
   return (
     <Card>
       <Title level={4} style={{ marginBottom: 16 }}>
-        📊 Chi tiết doanh số theo dịch vụ chốt
+        👤 Doanh số tư vấn của Sales
       </Title>
       <Table
         columns={columns}
         dataSource={sortedData}
         rowKey="id"
         loading={loading}
-        pagination={{
-          pageSize: 300,
-          showSizeChanger: false,
-          showQuickJumper: true,
-          showTotal: (total, range) =>
-            `${range[0]}-${range[1]} của ${total} dịch vụ`,
-        }}
-        scroll={{ x: 800 }}
+        pagination={false}
+        scroll={{ x: 650 }}
         size="small"
         summary={(pageData) => {
           const totalValue = pageData.reduce(
@@ -143,13 +139,13 @@ export default function SalesDetailTable({ data, loading = false }: Props) {
               <Table.Summary.Row
                 style={{ fontWeight: "bold", backgroundColor: "#f5f5f5" }}
               >
-                <Table.Summary.Cell index={0} colSpan={4}>
+                <Table.Summary.Cell index={0} colSpan={3}>
                   <strong>📈 Tổng cộng ({totalServices} dịch vụ)</strong>
                 </Table.Summary.Cell>
-                <Table.Summary.Cell index={4} align="right">
+                <Table.Summary.Cell index={3} align="right">
                   <strong>{formatCurrency(totalValue)}</strong>
                 </Table.Summary.Cell>
-                <Table.Summary.Cell index={5}>
+                <Table.Summary.Cell index={4}>
                   {/* Empty cell for date column */}
                 </Table.Summary.Cell>
               </Table.Summary.Row>

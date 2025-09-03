@@ -14,6 +14,8 @@ import { useSimplifiedSalesData } from "../hooks/useSimplifiedSalesData";
 import RevenueFilters from "../components/RevenueFilters";
 import DailyRevenueTable from "../components/DailyRevenueTable";
 import SalesDetailTable from "../components/SalesDetailTable";
+import SalesByDoctorTable from "../components/SalesByDoctorTable";
+import SalesBySaleTable from "../components/SalesBySaleTable";
 import type { ReportsFilters } from "../type";
 import { CHART_COLORS } from "../constants";
 
@@ -72,7 +74,7 @@ export default function ReportsOverviewPage() {
   const tabItems = [
     {
       key: "revenue",
-      label: "💰 Doanh thu",
+      label: "💰 Doanh thu theo ngày",
       children: (
         <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
           <Col xs={24}>
@@ -86,11 +88,39 @@ export default function ReportsOverviewPage() {
     },
     {
       key: "sales",
-      label: "📊 Doanh số",
+      label: "📊 Doanh số theo nguồn",
       children: (
         <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
           <Col xs={24}>
             <SalesDetailTable
+              data={salesData?.details || []}
+              loading={salesLoading}
+            />
+          </Col>
+        </Row>
+      ),
+    },
+    {
+      key: "sales-doctor",
+      label: "👨‍⚕️ Doanh số tư vấn bác sĩ",
+      children: (
+        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+          <Col xs={24}>
+            <SalesByDoctorTable
+              data={salesData?.details || []}
+              loading={salesLoading}
+            />
+          </Col>
+        </Row>
+      ),
+    },
+    {
+      key: "sales-sale",
+      label: "👤 Doanh số tư vấn Sales",
+      children: (
+        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+          <Col xs={24}>
+            <SalesBySaleTable
               data={salesData?.details || []}
               loading={salesLoading}
             />
