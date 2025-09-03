@@ -8,9 +8,11 @@ export { default as DailyRevenueTable } from "./components/DailyRevenueTable";
 export { default as SalesDetailTable } from "./components/SalesDetailTable";
 export { default as SalesByDoctorTable } from "./components/SalesByDoctorTable";
 export { default as SalesBySaleTable } from "./components/SalesBySaleTable";
+export { default as TreatmentRevenueDoctorTable } from "./components/TreatmentRevenueDoctorTable";
 
 export type * from "./type";
 export * from "./constants";
 export { useReportsDataQuery } from "./hooks/useReportsDataQuery";
 export { useReportsPrefetch } from "./hooks/useReportsPrefetch";
 export { useSimplifiedReportsData } from "./hooks/useSimplifiedReportsData";
+export { useTreatmentRevenueDoctorData } from "./hooks/useTreatmentRevenueDoctorData";

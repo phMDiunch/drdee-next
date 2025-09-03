@@ -11,11 +11,13 @@ import {
 import { formatCurrency } from "@/utils/date";
 import { useSimplifiedReportsData } from "../hooks/useSimplifiedReportsData";
 import { useSimplifiedSalesData } from "../hooks/useSimplifiedSalesData";
+import { useTreatmentRevenueDoctorData } from "../hooks/useTreatmentRevenueDoctorData";
 import RevenueFilters from "../components/RevenueFilters";
 import DailyRevenueTable from "../components/DailyRevenueTable";
 import SalesDetailTable from "../components/SalesDetailTable";
 import SalesByDoctorTable from "../components/SalesByDoctorTable";
 import SalesBySaleTable from "../components/SalesBySaleTable";
+import TreatmentRevenueDoctorTable from "../components/TreatmentRevenueDoctorTable";
 import type { ReportsFilters } from "../type";
 import { CHART_COLORS } from "../constants";
 
@@ -39,10 +41,17 @@ export default function ReportsOverviewPage() {
     refetch: refetchSales,
   } = useSimplifiedSalesData(filters);
 
+  const {
+    data: treatmentRevenueResponse,
+    loading: treatmentRevenueLoading,
+    refetch: refetchTreatmentRevenue,
+  } = useTreatmentRevenueDoctorData(filters);
+
   const salesData = salesResponse?.current;
   const salesComparison = salesResponse;
+  const treatmentRevenueData = treatmentRevenueResponse?.details;
 
-  const loading = revenueLoading || salesLoading;
+  const loading = revenueLoading || salesLoading || treatmentRevenueLoading;
 
   const handleFiltersChange = (newFilters: ReportsFilters) => {
     setFilters(newFilters);
@@ -52,6 +61,7 @@ export default function ReportsOverviewPage() {
   const handleRefresh = () => {
     refetchRevenue();
     refetchSales();
+    refetchTreatmentRevenue();
   };
 
   const getGrowthIndicator = (value: number) => {
@@ -123,6 +133,20 @@ export default function ReportsOverviewPage() {
             <SalesBySaleTable
               data={salesData?.details || []}
               loading={salesLoading}
+            />
+          </Col>
+        </Row>
+      ),
+    },
+    {
+      key: "treatment-revenue-doctor",
+      label: "💰 Doanh thu điều trị bác sĩ",
+      children: (
+        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+          <Col xs={24}>
+            <TreatmentRevenueDoctorTable
+              data={treatmentRevenueData || []}
+              loading={treatmentRevenueLoading}
             />
           </Col>
         </Row>

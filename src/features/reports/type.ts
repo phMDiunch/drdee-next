@@ -131,3 +131,24 @@ export interface EmployeeReportData {
     transactions: number;
   };
 }
+
+// Treatment Revenue Doctor Data
+export interface TreatmentRevenueDetailData {
+  id: string; // PaymentVoucherDetail ID
+  customerId: string;
+  customerCode: string | null;
+  customerName: string;
+  serviceName: string; // consultedServiceName
+  treatingDoctorId: string | null;
+  treatingDoctorName: string | null;
+  amountReceived: number; // detail.amount
+  paymentDate: string; // voucher.paymentDate
+  paymentMethod: string;
+  clinicId: string;
+}
+
+export interface TreatmentRevenueResponse {
+  totalRevenue: number;
+  totalPayments: number;
+  details: TreatmentRevenueDetailData[];
+}
